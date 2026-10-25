@@ -1,0 +1,25 @@
+/* A stand-in for the parts of Obsidian's own app.css that touch the elements the snippets style.
+   The tests load it under the snippets, so the snippets are tested against Obsidian's defaults. */
+body { --p-spacing: 1rem; --callout-padding: 12px 12px 12px 24px; --callout-radius: 4px; --callout-border-width: 0px; --callout-border-opacity: .25; --callout-blend-mode: normal; --file-margins: 32px; font-size: 16px; line-height: 1.5; }
+body.theme-dark { --callout-blend-mode: lighten; background: #1e1e1e; color: #dadada; }
+.markdown-preview-view { padding: var(--file-margins); }
+.markdown-rendered p, .markdown-rendered ul, .markdown-rendered ol { margin-block-start: var(--p-spacing); margin-block-end: var(--p-spacing); }
+.markdown-rendered blockquote { border-inline-start: 2px solid #7f6df2; padding-inline-start: 24px; margin-inline: 0; }
+.callout { --callout-color: 8, 109, 221; overflow: hidden; border-style: solid; border-color: rgba(var(--callout-color), var(--callout-border-opacity)); border-width: var(--callout-border-width); border-radius: var(--callout-radius); margin: 1em 0; mix-blend-mode: var(--callout-blend-mode); background-color: rgba(var(--callout-color), .1); padding: var(--callout-padding); }
+.callout[data-callout="summary"] { --callout-color: 0, 191, 188; }
+.callout[data-callout="question"] { --callout-color: 236, 117, 0; }
+.callout-title { padding: 0; display: flex; gap: 4px; color: rgb(var(--callout-color)); line-height: 1.3; }
+.callout-content { overflow-x: auto; padding: 0; background-color: transparent; }
+.callout-content > :first-child { margin-top: 0 } .callout-content > :last-child { margin-bottom: 0 }
+.markdown-rendered h1 { font-size: 2em; line-height: 1.2; margin-block: .67em; }
+.markdown-rendered h2 { font-size: 1.6em; line-height: 1.2; margin-block: .83em; }
+.markdown-rendered h3 { font-size: 1.37em; line-height: 1.3; }
+/* Obsidian's embed frame (app.css) */
+.markdown-embed { --embed-border-start: 2px solid #8a5cf5; --embed-padding: 0 0 0 24px; border-inline-start: var(--embed-border-start); padding: var(--embed-padding); position: relative; display: block; }
+.markdown-embed-content { max-height: 4000px; overflow-y: auto; }
+.markdown-embed .markdown-preview-view { padding: 0; }
+.markdown-embed-link { position: absolute; top: 0; right: 0; width: 16px; height: 16px; background: #8a5cf5; }
+/* Obsidian's text font on rendered markdown (nested embed views get it too) */
+.markdown-rendered, .markdown-preview-view { font-family: Arial, "Liberation Sans", sans-serif; }
+.callout-title-inner { font-weight: 600; }
+.markdown-embed .markdown-preview-view, .markdown-embed .markdown-rendered { font-size: 16px; }

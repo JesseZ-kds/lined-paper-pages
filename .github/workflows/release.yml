@@ -1,0 +1,56 @@
+name: Release
+
+# Pushing a version tag (e.g. 1.8.1, as made by `npm version`) publishes a GitHub release with the
+# plugin files, the snippets and a ready-to-install zip.
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium and pdftotext
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y poppler-utils
+
+      - name: Check the tag matches the manifest
+        run: test "$(node -p "require('./manifest.json').version")" = "${GITHUB_REF_NAME}"
+
+      - run: npm run lint
+      - run: npm test
+      - run: npm run package
+
+      - name: Release notes from the changelog
+        run: |
+          awk -v v="${GITHUB_REF_NAME}" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > release-notes.md
+          cat release-notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            main.js manifest.json styles.css \
+            snippets/lined-paper.css snippets/cornell-notes.css \
+            "dist/lined-paper-pages-${GITHUB_REF_NAME}.zip"

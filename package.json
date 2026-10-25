@@ -1,0 +1,31 @@
+{
+  "name": "lined-paper-pages",
+  "version": "1.8.0",
+  "description": "Lined paper and Cornell notes for Obsidian: real A4 pages in reading view that match the PDF export.",
+  "private": true,
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "lint": "node scripts/lint.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:layout": "node --test tests/layout.test.js",
+    "test:summary": "node --test tests/summary.test.js",
+    "test:embeds": "node --test tests/embeds.test.js",
+    "test:scroll": "node --test tests/scroll.test.js",
+    "test:editor": "node --test tests/editor.test.js",
+    "test:settings": "node --test tests/settings.test.js",
+    "screenshots": "node scripts/screenshots.js",
+    "package": "node scripts/package.js",
+    "version": "node scripts/version-bump.js && git add manifest.json versions.json"
+  },
+  "devDependencies": {
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "esbuild": "^0.28.2",
+    "playwright": "1.56.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

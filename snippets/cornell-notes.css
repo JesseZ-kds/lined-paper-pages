@@ -1,0 +1,1274 @@
+/* =====================================================================
+   CORNELL NOTES  —  Obsidian CSS snippet (add-on for lined-paper.css)
+   =====================================================================
+   PART OF     Lined Paper Pages (plugin + two snippets). Docs: README.md, docs/.
+
+   INSTALL   Save as  <vault>/.obsidian/snippets/cornell-notes.css and switch it on
+             (Settings → Appearance → CSS snippets). Keep lined-paper.css on too.
+   USE       Only notes with BOTH classes are changed:
+               cssclasses: [lined-paper, cornell]
+
+   WRITE EACH CUE + ITS NOTES AS ONE GROUP (recommended) ...
+               >> [!cue]
+               >> What is X?
+               >
+               >> [!notes]
+               >> X is ...
+
+   ... OR AS SEPARATE CALLOUTS (also works; leave a blank line between them)
+               > [!cue]
+               > What is X?
+
+               > [!notes]
+               > X is ...
+
+   START WITH AN ESSENTIAL QUESTION (optional, right under the title)
+               > [!question] Essential question
+               > Why do ...?
+             Two ruled lines are kept for it at the top of the page. A red line
+             under it (like the summary's) separates it from the Cornell layout,
+             and the Cues | Notes labels sit in the row just below that line.
+             WITHOUT a question, just the Cues | Notes row sits directly under the
+             title bar (no red line, no blank line). That row is the bottom row of the
+             title element itself, so it also appears in PDF exports (Better Export PDF
+             etc.), where Obsidian's reading-view wrappers don't exist.
+
+   WRITE ACROSS THE WHOLE LINE (optional, anywhere, as often as you like)
+               > [!wide]
+               > Text that runs across both columns.
+             Like the essential question, without a title and on plain paper: full width (the
+             Cues | Notes divider stops behind it), with a red line above and below it, and one
+             blank line before and after it. At the top of a page it has no red line above it.
+
+   FINISH WITH ONE SUMMARY (optional, always last)
+               > [!summary] Summary
+               > The big picture in a few lines.
+             In the PDF the summary always takes the LAST 5 rows of the 32-row body (the
+             "Summary" label row is one of the 5). If the cues/notes need that space it
+             shrinks to fit, but never below 3 rows. Change both in Style Settings.
+
+   The titles (Question, Summary, Cues | Notes labels) are centred between their two ruled lines;
+   the writing itself sits on the line.
+   Question, cue, notes and summary all show Obsidian's default callout background
+   (a light tint of the callout's colour; the ruled lines show through). To make
+   cue / notes / summary plain paper instead, delete the "CALLOUT BACKGROUND" block
+   in the ALL MODES section.
+
+   While editing you see plain lined paper. In READING VIEW the page becomes a
+   Cornell layout: cue column | notes column with a divider, one blank ruled line
+   between groups, and the summary along the bottom of the page.
+
+   CHANGE SETTINGS  — no CSS editing needed:
+     1) EASIEST: Settings → Lined Paper Pages (the plugin's own settings page).
+     2) Or the "Style Settings" community plugin: Settings → Style Settings → Cornell Notes.
+     3) Or by hand: edit the fallback value in the "SETTINGS" block below,
+        e.g.  var(--cn-cue, 0.3)  →  var(--cn-cue, 0.25)
+     (1 wins over 2; both win over 3.)
+   ===================================================================== */
+
+/* ---------- STYLE SETTINGS (read by the Style Settings plugin) ---------- */
+/* @settings
+
+name: Cornell Notes
+id: cornell-notes
+settings:
+    -
+        id: cn-cue
+        title: Cue column width
+        description: Share of the page width, 0.3 = 30%.
+        type: variable-number-slider
+        default: 0.3
+        min: 0.15
+        max: 0.5
+        step: 0.01
+    -
+        id: cn-cue-narrow
+        title: Cue column width on narrow windows
+        description: Used when the window is 600px wide or less (phones, small panes).
+        type: variable-number-slider
+        default: 0.36
+        min: 0.2
+        max: 0.6
+        step: 0.01
+    -
+        id: cn-gap
+        title: Space either side of the divider
+        type: variable-number-slider
+        default: 16
+        min: 4
+        max: 40
+        step: 1
+        format: px
+    -
+        id: cn-row-min
+        title: Minimum rows per cue
+        description: Lines reserved for each cue/notes pair, so a cue that wraps doesn't run into the next group.
+        type: variable-number-slider
+        default: 2
+        min: 1
+        max: 6
+        step: 1
+    -
+        id: cn-summary-rows
+        title: Summary height (rows)
+        description: Total rows the summary takes at the bottom of the body, INCLUDING its "Summary" label row (5 = label + 4 writing lines). In the PDF it is always the last rows of the body.
+        type: variable-number-slider
+        default: 5
+        min: 3
+        max: 15
+        step: 1
+    -
+        id: cn-summary-min-rows
+        title: Summary minimum height (rows)
+        description: When the cues and notes run so long that the full summary no longer fits, the summary shrinks, but never below this many rows (label included). If even that does not fit (with one blank line above it), the summary moves to the bottom of a new page. Reading view and PDF.
+        type: variable-number-slider
+        default: 3
+        min: 2
+        max: 5
+        step: 1
+    -
+        id: cn-question-lines
+        title: Essential question height
+        description: Ruled lines for the question text (the "Question" label row above and the Cues | Notes row below are extra).
+        type: variable-number-slider
+        default: 2
+        min: 1
+        max: 6
+        step: 1
+    -
+        id: cn-label-size
+        title: Title size
+        description: Size of the Question, Summary, Cues and Notes titles, as a share of the text size (0.85 = 85%).
+        type: variable-number-slider
+        default: 0.85
+        min: 0.6
+        max: 1
+        step: 0.01
+    -
+        id: cn-text-size
+        title: Text size (cues, notes, summary, question)
+        description: Size of the writing itself (not the titles), as a share of the normal text size. 1 = same as the rest of the page.
+        type: variable-number-slider
+        default: 1
+        min: 0.8
+        max: 1.3
+        step: 0.01
+    -
+        id: cn-hide-page-labels
+        title: Hide Cues | Notes labels on page 2, 3 ...
+        description: Pages after the first repeat the header with an empty title bar and a Cues | Notes row. Switch this on to leave that row blank (divider only, no words). Applies to reading view and the PDF.
+        type: class-toggle
+    -
+        id: cn-wide-lines
+        title: Full-width block lines
+        description: Ruled lines a [!wide] block keeps at least (it grows with longer text).
+        type: variable-number-slider
+        default: 2
+        min: 1
+        max: 6
+        step: 1
+    -
+        id: cn-label-cue
+        title: Cue column label
+        type: variable-text
+        default: Cues
+        quotes: true
+    -
+        id: cn-label-notes
+        title: Notes column label
+        type: variable-text
+        default: Notes
+        quotes: true
+*/
+
+/* ---------- SETTINGS ----------
+   Each line reads:  --name: var(--cn-name, FALLBACK);
+   Style Settings sets --cn-name; if you don't use the plugin, edit FALLBACK. */
+.lined-paper.cornell {
+  --cue: var(--cn-cue, 0.3);                       /* cue column width (0.3 = 30% of the page) */
+  --gap: var(--cn-gap, 16px);                      /* space either side of the divider */
+  --row-min: var(--cn-row-min, 2);                 /* min rows reserved per cue (lets a cue wrap) */
+  --summary-rows: var(--cn-summary-rows, 5);       /* summary height in rows, label row included: always the LAST rows of the body */
+  --summary-min-rows: var(--cn-summary-min-rows, 3); /* smallest the summary may shrink to when the notes need the room (label row included) */
+  --summary-lines: calc(var(--summary-rows) - 1);  /* writing lines under the label row (used by the on-screen layout) */
+  --question-lines: var(--cn-question-lines, 2);   /* [!question] writing lines (label row + Cues | Notes row are extra) */
+  --cue-ink: var(--ink);                           /* cue text colour; set a colour here for a 2nd pen, e.g. #1d4ed8 */
+  --divider: var(--margin);                        /* divider + summary rule colour */
+  --divider-x: calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue));   /* where the divider is (derived) */
+  --divider-clear: transparent;                    /* same colour, fully see-through (set below) */
+  --divider-pos: calc(var(--cue) * 100% + var(--pad-x) * (1 - 2 * var(--cue)) + 2px * var(--cue));   /* same x as --divider-x, as a background-position (for solid 2px layers: no fades, no dark PDF fringes) */
+  --label-size: var(--cn-label-size, 0.85);        /* Question / Summary / Cues / Notes titles: share of the text size */
+  --text-size: var(--cn-text-size, 1);             /* writing in cues / notes / summary / question: share of the text size (titles use --label-size) */
+  --label-cue: var(--cn-label-cue, "Cues");        /* column labels (row under the title bar / question) */
+  --label-notes: var(--cn-label-notes, "Notes");
+  --wide-lines: var(--cn-wide-lines, 2);           /* [!wide]: ruled lines it keeps at least */
+  --foot-h: calc(var(--line) * var(--foot-rows));  /* blank footer under the body (from lined-paper.css section 11) */
+}
+
+@supports (color: rgb(from red r g b / 0)) {
+  .lined-paper.cornell { --divider-clear: rgb(from var(--divider) r g b / 0); }
+}
+
+/* =====================  ALL MODES  ===================== */
+
+/* The three Cornell callouts drop Obsidian's rounded, bordered box so they look like writing
+   on paper (every other callout type keeps Obsidian's design). They keep Obsidian's DEFAULT
+   callout background (the light tint), added back in the CALLOUT BACKGROUND block below. */
+.lined-paper.cornell .callout[data-callout="cue"],
+.lined-paper.cornell .callout[data-callout="notes"],
+.lined-paper.cornell .callout[data-callout="summary"] {
+  background: none !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.lined-paper.cornell .callout[data-callout="summary"]::before { content: none; }
+
+/* ----- CALLOUT BACKGROUND: Obsidian's default (callout colour at 10%, translucent) -----
+   Cue / notes use it directly on the callout, exactly as Obsidian does. Summary and question
+   get the same tint as an inset shadow, so it can never break the lines painted underneath.
+   Delete this block for plain paper. */
+.lined-paper.cornell .callout[data-callout="cue"],
+.lined-paper.cornell .callout[data-callout="notes"] {
+  background: rgba(var(--callout-color, 8, 109, 221), 0.1) !important;
+  mix-blend-mode: var(--callout-blend-mode, normal) !important;
+}
+.lined-paper.cornell .callout[data-callout="cue"]::before,
+.lined-paper.cornell .callout[data-callout="notes"]::before { content: none; }
+.lined-paper.cornell .callout[data-callout="summary"] {
+  box-shadow: inset 0 0 0 9999px rgba(var(--callout-color, 8, 109, 221), 0.1) !important;
+  /* the summary is a sheet of paper laid over the bottom of the page: it must hide the cue / notes
+     divider under it. Obsidian blends callouts with what is below them (dark theme: lighten),
+     which let the divider and rows show through it. */
+  mix-blend-mode: normal !important;
+}
+
+/* The writing (not the titles) is a bit bigger than Obsidian's default callout text */
+.lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"], [data-callout="summary"], [data-callout="question"]) .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
+  font-size: calc(var(--text) * var(--text-size)) !important;
+}
+
+/* The Cornell callouts are plain writing: no half-line offset, the text sits ON the line.
+   Only their titles (Question, Summary, Cues | Notes) are centred between two ruled lines. */
+.lined-paper.cornell .callout[data-callout="cue"],
+.lined-paper.cornell .callout[data-callout="notes"] { top: 0; }
+/* (and a callout written inside a cue or notes is not lifted either: --callout-offset tells its
+   box and title where the lines are) */
+.lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"]) { --callout-offset: 0px; }
+
+/* Only the TITLE rows ("Summary", "Question") are centred between their two ruled lines;
+   the text inside stays on the line like the rest of the page */
+.lined-paper.cornell .callout[data-callout="summary"] > .callout-title {
+  position: relative;
+  top: var(--title-nudge);
+}
+/* The question's first row sits directly under the title bar's double line, so its top
+   edge is the BOTTOM of that line (not a normal ruled line one row up): the row is
+   shorter, and its title needs a smaller nudge to look centred. */
+.lined-paper.cornell .callout[data-callout="question"] > .callout-title {
+  position: relative;
+  top: calc(-1 * (var(--shift) + 1px) / 2);
+}
+
+/* Cue + notes callouts have no title row of their own */
+.lined-paper.cornell .callout[data-callout="cue"] > .callout-title,
+.lined-paper.cornell .callout[data-callout="notes"] > .callout-title { display: none; }
+.lined-paper.cornell .callout-icon,
+.lined-paper.cornell .callout-fold { display: none; }
+
+/* Cues in blue pen */
+.lined-paper.cornell .callout[data-callout="cue"] .callout-content,
+.lined-paper.cornell .callout[data-callout="cue"] p,
+.lined-paper.cornell .callout[data-callout="cue"] li { color: var(--cue-ink); }
+
+/* Summary / question title: a label row ABOVE the writing, like the Cues | Notes
+   labels in the title bar. Same size as the text, muted, no underline. */
+.lined-paper.cornell .callout[data-callout="summary"] > .callout-title,
+.lined-paper.cornell .callout[data-callout="question"] > .callout-title { display: block; padding: 0; }
+.lined-paper.cornell .callout[data-callout="summary"] .callout-title-inner,
+.lined-paper.cornell .callout[data-callout="question"] .callout-title-inner {
+  font-family: var(--hand);
+  font-size: calc(var(--text) * var(--label-size));
+  line-height: var(--line);
+  font-weight: 400;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+/* =====================  READING VIEW: the Cornell page  ===================== */
+
+/* Page: cue/notes divider runs the full height behind the text */
+.markdown-preview-view.lined-paper.cornell {
+  background-image:
+    linear-gradient(to right,
+      transparent calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue)),
+      var(--divider) calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue)),
+      var(--divider) calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue) + 2px),
+      transparent calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue) + 2px)),
+    linear-gradient(to right,
+      transparent var(--margin-x),
+      var(--margin) var(--margin-x),
+      var(--margin) calc(var(--margin-x) + 1px),
+      transparent calc(var(--margin-x) + 1px)),
+    repeating-linear-gradient(to bottom,
+      transparent 0, transparent calc(var(--line) - var(--shift) - 1px),
+      var(--rule) calc(var(--line) - var(--shift) - 1px), var(--rule) calc(var(--line) - var(--shift)),
+      transparent calc(var(--line) - var(--shift)), transparent var(--line));
+}
+
+/* The page fills the window so the summary can sit at the bottom */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-sizer {
+  min-height: 100% !important;
+  padding-bottom: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section {
+  flex: 1 0 auto;
+  display: flow-root;            /* contains the floated cue/notes columns */
+}
+/* With a summary, the page background drops the divider; the sizer draws it down to the summary instead */
+.markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="summary"]) {
+  background-image:
+    linear-gradient(to right,
+      transparent var(--margin-x),
+      var(--margin) var(--margin-x),
+      var(--margin) calc(var(--margin-x) + 1px),
+      transparent calc(var(--margin-x) + 1px)),
+    repeating-linear-gradient(to bottom,
+      transparent 0, transparent calc(var(--line) - var(--shift) - 1px),
+      var(--rule) calc(var(--line) - var(--shift) - 1px), var(--rule) calc(var(--line) - var(--shift)),
+      transparent calc(var(--line) - var(--shift)), transparent var(--line));
+}
+.markdown-preview-view.lined-paper.cornell .markdown-preview-sizer { position: relative; isolation: isolate; }
+/* The cue/notes divider is drawn here (not on the page background) so it can stop
+   exactly where the summary begins. */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-sizer:has(.callout[data-callout="summary"])::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: calc(var(--line) * (var(--summary-lines) + 1) + var(--shift) - 1px);   /* ends flush with the summary's red rule */
+  left: calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue));
+  width: 2px;
+  background: var(--divider);
+  pointer-events: none;
+}
+
+/* every block except cue/notes starts below any cue/notes above it */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > *:not(.callout):not(:has(.callout[data-callout="cue"])):not(:has(.callout[data-callout="notes"])),
+.markdown-preview-view.lined-paper.cornell .markdown-preview-sizer > *:not(.markdown-preview-section):not(.callout):not(:has(.callout[data-callout="cue"])):not(:has(.callout[data-callout="notes"])) { clear: both; }
+
+/* ---------- Title bar, and the Cues | Notes row under it ----------
+   Everything lives on the title element (h1) itself, never on a wrapper around it, so it
+   looks the same in reading view and in a PDF export (exports flatten the wrappers).
+   WITH a [!question]: the title bar is just the title; the question draws its own labels.
+   WITHOUT one: the h1 is one row taller. Its top rows are the title bar (double rule at the
+   bottom of them), its last row holds the Cues | Notes labels with the divider running through. */
+.markdown-preview-view.lined-paper.cornell h1 {
+  position: relative;
+  line-height: calc(var(--line) * (var(--bar-lines) - 0.4)) !important;
+  background-image:
+    linear-gradient(var(--margin), var(--margin)),
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--rule), var(--rule));
+  background-size: 1px 100%, 100% 2px, 100% 2px;
+  background-position: var(--margin-x) 0, 0 calc(100% - 7px), 0 100%;
+  background-repeat: no-repeat;
+}
+.markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) h1 {
+  height: calc(var(--line) * (var(--bar-lines) + 1)) !important;
+  background-image:
+    linear-gradient(var(--margin), var(--margin)),
+    linear-gradient(var(--divider), var(--divider)),
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--paper), var(--paper)) !important;
+  background-size: 1px 100%, 2px var(--line), 100% 1px, 100% 2px, 100% 2px, 100% var(--line) !important;
+  background-position:
+    var(--margin-x) 0,
+    var(--divider-pos) 100%,
+    0 calc(100% - 6px),
+    0 calc(100% - var(--line) - 7px),
+    0 calc(100% - var(--line)),
+    0 100% !important;
+  background-repeat: no-repeat !important;
+}
+.markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) h1::before,
+.markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) h1::after {
+  content: var(--label-cue);
+  position: absolute;
+  bottom: 0;
+  left: var(--pad-x);
+  height: var(--line);
+  line-height: calc(var(--line) - var(--shift) - 1px);   /* centred above the ruled line */
+  font-family: var(--hand);
+  font-size: calc(var(--text) * var(--label-size));
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) h1::after {
+  content: var(--label-notes);
+  left: calc(var(--divider-x) + var(--gap) + 2px);
+}
+
+/* ---------- Cues + notes: two floated columns ----------
+   Cue = left column, notes = right column, side by side on the same row.
+   The callouts themselves float, so this works however Obsidian wraps them.
+   A new cue clears everything above it, so the next group always starts
+   below the BOTTOM of the previous cue or notes, whichever is taller. */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="cue"]:not(blockquote > .callout) {
+  float: left;
+  clear: both;
+  display: block;
+  box-sizing: border-box;
+  width: calc(var(--cue) * 100%);
+  padding-right: var(--gap) !important;
+}
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="notes"]:not(blockquote > .callout) {
+  float: right;
+  display: block;
+  box-sizing: border-box;
+  width: calc((1 - var(--cue)) * 100% - 0.5px);
+  padding-left: var(--gap) !important;
+}
+/* the notes right after a cue reserve room for the cue to wrap */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > *:has(.callout[data-callout="cue"]) + * .callout[data-callout="notes"]:not(blockquote > .callout),
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > .callout[data-callout="cue"] + .callout[data-callout="notes"] {
+  min-height: calc(var(--line) * var(--row-min));
+}
+
+/* ---------- Grouped syntax: one cue + its notes inside ONE outer quote ----------
+   Write each group as a nested quote, groups separated by a blank line:
+
+     >> [!cue]
+     >> What is X?
+     >
+     >> [!notes]
+     >> X is ...
+
+   The group is a two-column grid (cue | notes), so it is always as tall as its
+   taller column and the notes always sit beside their cue. */
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]) {
+  display: grid;
+  grid-template-columns: calc(var(--cue) * 100%) minmax(0, 1fr);
+  align-items: stretch;           /* cue + notes are as tall as the group, so their tint lines up */
+  clear: both;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+}
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]) > :not(.callout, .cn-sum-sizer) { display: none; }   /* stray empty paragraphs */
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]) > .callout[data-callout="cue"] {
+  grid-column: 1;
+  box-sizing: border-box;
+  padding-right: var(--gap) !important;
+}
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]) > .callout[data-callout="notes"] {
+  grid-column: 2;
+  box-sizing: border-box;
+  padding-left: var(--gap) !important;
+}
+/* one blank ruled line between one group and the next */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > *:has(> blockquote > .callout[data-callout="cue"]) + *:has(> blockquote > .callout[data-callout="cue"]) > blockquote,
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > blockquote:has(> .callout[data-callout="cue"]) + blockquote:has(> .callout[data-callout="cue"]) {
+  margin-top: var(--line) !important;
+}
+
+/* ---------- Notes stay in the notes column ----------
+   A [!notes] quote without a [!cue] beside it (  >> [!notes]  on its own, or a lone [!notes]
+   the lined-paper-pages plugin wraps) is indented to the notes column instead of running across
+   the cue column. It is a margin, not a float, so a page break (PDF / CSS pages) keeps it there. */
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="notes"]):not(:has(> .callout[data-callout="cue"])) {
+  display: flow-root;
+  margin-left: calc(var(--cue) * 100%) !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+}
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="notes"]):not(:has(> .callout[data-callout="cue"])) > :not(.callout) { display: none; }
+.markdown-preview-view.lined-paper.cornell blockquote:has(> .callout[data-callout="notes"]):not(:has(> .callout[data-callout="cue"])) > .callout[data-callout="notes"] {
+  box-sizing: border-box;
+  float: none !important;
+  width: auto !important;
+  padding-left: var(--gap) !important;
+}
+
+/* Nothing written in a cue or notes callout pokes out of its column: long words / links wrap,
+   wide tables scroll inside the column, and anything else is cut at the column edge (left and
+   right only, so letters that reach above or below their row are never cut). */
+.lined-paper.cornell .callout.callout:is([data-callout="cue"], [data-callout="notes"]) {
+  min-width: 0;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+  overflow-wrap: anywhere;
+}
+.lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"]) table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"]) :is(img, video, iframe, svg, .image-embed) {
+  max-width: 100%;
+}
+
+/* ---------- Reading view: Enter = new line, only inside cues and notes ----------
+   (everything else on the page keeps normal markdown line handling) */
+/* (set on the text blocks, NOT on .callout-content: the whitespace between the
+   callout's HTML tags would otherwise print as an empty first line) */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="cue"] .callout-content,
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="notes"] .callout-content,
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] .callout-content { white-space: normal; }
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="cue"] .callout-content :is(p, li),
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="notes"] .callout-content :is(p, li),
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] .callout-content :is(p, li) { white-space: pre-line; }
+
+/* ---------- One blank ruled line between each cue + notes group ----------
+   The new cue and its first notes both get the same top space, so they stay level. */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > .callout[data-callout="notes"] + .callout[data-callout="cue"],
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > .callout[data-callout="notes"] + .callout[data-callout="cue"] + .callout[data-callout="notes"],
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > *:has(.callout[data-callout="notes"]) + *:has(.callout[data-callout="cue"]) .callout[data-callout="cue"]:not(blockquote > .callout),
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > *:has(.callout[data-callout="notes"]) + *:has(.callout[data-callout="cue"]) + *:has(.callout[data-callout="notes"]) .callout[data-callout="notes"]:not(blockquote > .callout) {
+  margin-top: var(--line) !important;
+}
+
+/* ---------- Summary: along the bottom of the page, edge to edge ---------- */
+/* room is kept at the bottom of the page for it (raise --summary-rows if yours is longer) */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-sizer:has(.callout[data-callout="summary"]) {
+  padding-bottom: calc(var(--line) * (var(--summary-lines) + 2)) !important;   /* +1 row for the summary label, +1 blank ruled line before it */
+}
+/* positioned against the sizer, whose padding box is the whole page width */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="summary"] {
+  position: absolute;
+  top: auto !important;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  box-sizing: border-box;
+  min-height: calc(var(--line) * (var(--summary-lines) + 1));
+  padding: 0 var(--pad-x) !important;
+  /* the page's red margin line keeps running through the summary;
+     the cue/notes divider stops at the summary's rule */
+  background:
+    linear-gradient(var(--margin), var(--margin)) var(--margin-x) 0 / 1px 100% no-repeat,
+    repeating-linear-gradient(to bottom,
+      var(--paper) 0, var(--paper) calc(var(--line) - var(--shift) - 1px),
+      var(--rule) calc(var(--line) - var(--shift) - 1px), var(--rule) calc(var(--line) - var(--shift)),
+      var(--paper) calc(var(--line) - var(--shift)), var(--paper) var(--line)),
+    var(--paper) !important;
+}
+
+/* The summary's red rule sits ON the ruled line just above the box (the last line
+   of the notes), not between lines. Drawn outside the box with a pseudo-element. */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="summary"]::before {
+  content: "";
+  position: absolute;
+  z-index: auto;
+  left: var(--margin-x);
+  right: 0;
+  top: calc(-1 * (var(--shift) + 1px));
+  bottom: auto;
+  height: 2px;
+  border: none;
+  border-radius: 0;
+  background: var(--divider);
+}
+
+/* ---------- The summary's size: an invisible copy in the normal flow ----------
+   The summary itself is positioned at the bottom of the page, so it takes no room in the flow.
+   The lined-paper-pages plugin puts an invisible copy of it (.cn-sum-sizer) right after it: the
+   copy is as tall as the summary's label row + its text (never less than --summary-min-rows), so
+   its block reserves exactly what the summary needs. When that (plus one blank line) is not left on
+   the page, the summary goes to a new page; and the summary is never made shorter than its text.
+   Only on the A4 page (reading view) and in the PDF; anywhere else the copy takes no room. */
+.cn-sum-sizer { display: none; }
+@media print {
+  .lined-paper.cornell .cn-sum-sizer { display: block; }
+}
+@media screen {
+  body:not(.lp-no-pages) .markdown-reading-view .lined-paper.cornell .cn-sum-sizer { display: block; }
+}
+.lined-paper.cornell .cn-sum-sizer {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+  box-sizing: border-box;
+  min-height: calc(var(--line) * var(--summary-min-rows));
+  margin: 0;
+  padding: 0;
+  anchor-name: --cn-sum-need;
+}
+.lined-paper.cornell .cn-sum-sizer > .callout-title { display: block; top: 0; }
+/* A summary written straight under the last group, with no blank line in between, ends up inside
+   that group's quote. Its copy then takes a row of its own under the cue and notes (with the blank
+   line above it), so the room is still reserved and the page still breaks before the summary. */
+.lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]) > .cn-sum-sizer {
+  grid-column: 1 / -1;
+  margin-top: calc(var(--line) - 2px);
+  break-inside: avoid;
+}
+.lined-paper.cornell .cn-sum-sizer .callout-title-inner {
+  font-family: var(--hand);
+  font-size: calc(var(--text) * var(--label-size));
+}
+.lined-paper.cornell .cn-sum-sizer .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
+  font-size: calc(var(--text) * var(--text-size)) !important;
+}
+
+/* The summary is a full-width bar (like the title bar), so it is exempt from the
+   keep-out clip in lined-paper.css; its text still starts at the content edge. */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(.callout[data-callout="summary"]),
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(.callout[data-callout="question"]) {
+  clip-path: none;
+}
+
+/* ---------- Essential question: top of the page, above the Cornell layout ----------
+   A full-width block right under the title bar: a "Question" label row, --question-lines ruled lines for
+   the question, a label row above it, a red rule (like the summary's), then one row holding the
+   Cues | Notes labels. The cue/notes divider starts under the red rule.
+   (Without a question, a plain Cues | Notes row is drawn right under the title bar instead.) */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
+  position: relative;
+  top: 0 !important;
+  clear: both;
+  display: block;
+  box-sizing: border-box;
+  min-height: calc(var(--line) * (var(--question-lines) + 2));
+  margin: 0 calc(var(--pad-x) * -1) !important;
+  padding: 0 var(--pad-x) var(--line) !important;
+  border: 0 !important;
+  border-radius: 0;
+  mix-blend-mode: normal;
+  /* Obsidian's default callout tint (this callout's own colour, 10%). Drawn as an inset
+     shadow, NOT as a background layer, so it can never break the lines painted below. */
+  box-shadow: inset 0 0 0 9999px rgba(var(--callout-color, 8, 109, 221), 0.1) !important;
+  background:
+    /* the red rule under the question: spans from the margin line to the right edge,
+       sits on the ruled line just above the Cues | Notes row */
+    linear-gradient(var(--divider), var(--divider)) var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px) / calc(100% - var(--margin-x)) 2px no-repeat,
+    linear-gradient(var(--margin), var(--margin)) var(--margin-x) 0 / 1px 100% no-repeat,
+    linear-gradient(to right, var(--divider-clear) var(--divider-x), var(--divider) var(--divider-x), var(--divider) calc(var(--divider-x) + 2px), var(--divider-clear) calc(var(--divider-x) + 2px)) 0 100% / 100% calc(var(--line) + var(--shift) + 1px) no-repeat,
+    repeating-linear-gradient(to bottom,
+      var(--paper) 0, var(--paper) calc(var(--line) - var(--shift) - 1px),
+      var(--rule) calc(var(--line) - var(--shift) - 1px), var(--rule) calc(var(--line) - var(--shift)),
+      var(--paper) calc(var(--line) - var(--shift)), var(--paper) var(--line)),
+    var(--paper) !important;
+}
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"]::before,
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"]::after {
+  content: var(--label-cue);
+  position: absolute;
+  z-index: auto;
+  top: auto;
+  right: auto;
+  bottom: calc(var(--shift) + 1px);   /* row between two rules, text centred (same as the title bar labels) */
+  left: var(--pad-x);
+  height: var(--line);
+  border: none;
+  border-radius: 0;
+  background: none;
+  line-height: var(--line);
+  font-family: var(--hand);
+  font-size: calc(var(--text) * var(--label-size));
+  font-weight: 400;
+  color: var(--muted);
+}
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"]::after {
+  content: var(--label-notes);
+  left: calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue) + var(--gap) + 2px);
+}
+
+/* ---------- Full-width block:  > [!wide] ----------
+   The essential question's layout without its title, anywhere in the note: writing across the whole
+   line (both columns), the Cues | Notes divider stopped behind it, plain paper (no callout
+   background), a red line on the ruled line above its first row and on the one under its last row,
+   and one blank line before and after it. Its text sits on the lines. The red margin line runs
+   through it wherever it is (it draws its own).
+   AT THE TOP OF A PAGE (directly under the title bar, or right after > [!nextpage]) it takes the
+   essential question's place: right under the title bar, only its bottom red line, and the Cues |
+   Notes labels in the row under that line (it covers the header's own Cues | Notes row).
+   When it just happens to land at the top of page 2, 3 ... it has no red line above it (the
+   lined-paper-pages plugin marks it .cn-page-top in reading view; the PDF's repeated header covers
+   that line). */
+.lined-paper.cornell .callout[data-callout="wide"] {
+  position: relative;
+  top: 0 !important;
+  clear: both;
+  display: block;
+  box-sizing: border-box;
+  min-height: calc(var(--line) * var(--wide-lines));
+  margin: var(--line) calc(var(--pad-x) * -1) !important;
+  padding: 0 var(--pad-x) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  mix-blend-mode: normal !important;
+  overflow: visible !important;
+  /* No callout background: it is plain paper. It paints its own paper, ruled lines and margin line
+     right across the sheet (its edges are the sheet's edges, so there is no seam), which hides the
+     Cues | Notes divider behind it. (A thin strip over just the divider let the divider's edges
+     show.) Under its bottom red line it draws the divider again, where the page's divider resumes. */
+  box-shadow: none !important;
+  background:
+    linear-gradient(var(--divider), var(--divider)) var(--divider-pos) 100% / 2px calc(var(--shift) + 1px) no-repeat,
+    linear-gradient(var(--margin), var(--margin)) var(--margin-x) 0 / 1px 100% no-repeat,
+    repeating-linear-gradient(to bottom,
+      var(--paper) 0, var(--paper) calc(var(--line) - var(--shift) - 1px),
+      var(--rule) calc(var(--line) - var(--shift) - 1px), var(--rule) calc(var(--line) - var(--shift)),
+      var(--paper) calc(var(--line) - var(--shift)), var(--paper) var(--line)),
+    var(--paper) !important;
+}
+.lined-paper.cornell .callout[data-callout="wide"] > .callout-title { display: none; }
+.lined-paper.cornell .callout[data-callout="wide"] .callout-content :is(p, li) { white-space: pre-line; }
+.lined-paper.cornell .callout[data-callout="wide"] .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
+  font-size: calc(var(--text) * var(--text-size)) !important;
+}
+/* (a callout inside it keeps a callout's text size, like anywhere else) */
+.lined-paper.cornell .callout[data-callout="wide"] .callout .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
+  font-size: calc(var(--text) * var(--callout-text-size)) !important;
+  white-space: normal;
+}
+/* the red lines: on the ruled line above its first row, and on the one under its last row. The
+   Cues | Notes divider stops exactly on the top one and starts again exactly under the bottom one
+   (the top line's box also hides the bit of divider between that line and the block). */
+.lined-paper.cornell .callout[data-callout="wide"]::before,
+.lined-paper.cornell .callout[data-callout="wide"]::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: var(--margin-x);
+  right: 0;
+  height: 2px;
+  background: var(--divider);
+  pointer-events: none;
+}
+.lined-paper.cornell .callout[data-callout="wide"]::before {
+  /* the red line, and under it (down to the block) a full-width band of paper with the margin line:
+     the divider stops exactly on the red line, with no seam */
+  top: calc(-1 * (var(--shift) + 1px));
+  left: 0;
+  height: calc(var(--shift) + 1px);
+  background:
+    linear-gradient(var(--divider), var(--divider)) var(--margin-x) 0 / calc(100% - var(--margin-x)) 2px no-repeat,
+    linear-gradient(var(--margin), var(--margin)) var(--margin-x) 0 / 1px 100% no-repeat,
+    var(--paper);
+}
+.lined-paper.cornell .callout[data-callout="wide"]::after { top: calc(100% - var(--shift) - 1px); }
+/* landed at the top of page 2, 3 ... by itself: no red line above it */
+.lined-paper.cornell .callout[data-callout="wide"].cn-page-top::before { content: none; }
+
+/* AT THE TOP OF A PAGE (directly under the title bar, or after [!nextpage]): the question's layout.
+   Moved up one row onto the header's Cues | Notes row, which it covers (opaque paper, above the
+   header); its rows, then its red line, then its own Cues | Notes row with the divider, and the
+   first group straight under that (no blank line). It is moved with top (not a negative margin,
+   which a page / column break cuts off), and gives the row back with margin-bottom. */
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] {
+  z-index: 25;
+  top: calc(var(--line) * -1) !important;
+  margin-top: 0 !important;
+  margin-bottom: calc(var(--line) * -1) !important;
+  padding-bottom: var(--line) !important;
+  min-height: calc(var(--line) * (var(--wide-lines) + 1));     /* its lines + the Cues | Notes row */
+  background:
+    linear-gradient(var(--divider), var(--divider)) var(--divider-pos) 100% / 2px calc(var(--line) + var(--shift) + 1px) no-repeat,
+    linear-gradient(var(--margin), var(--margin)) var(--margin-x) 0 / 1px 100% no-repeat,
+    repeating-linear-gradient(to bottom,
+      var(--paper) 0, var(--paper) calc(var(--line) - var(--shift) - 1px),
+      var(--rule) calc(var(--line) - var(--shift) - 1px), var(--rule) calc(var(--line) - var(--shift)),
+      var(--paper) calc(var(--line) - var(--shift)), var(--paper) var(--line)),
+    var(--paper) !important;
+  box-shadow: none !important;
+}
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"]::before { content: none; }
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"]::after {
+  top: calc(100% - var(--line) - var(--shift) - 1px);
+}
+/* its Cues | Notes labels (drawn by its hidden title row, like the question's) */
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] > .callout-title {
+  display: block;
+  position: static;
+  height: 0;
+  min-height: 0;
+  overflow: visible;
+}
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] > .callout-title > * { display: none; }
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] > .callout-title::before,
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] > .callout-title::after {
+  content: var(--label-cue);
+  position: absolute;
+  bottom: calc(var(--shift) + 1px);
+  left: var(--pad-x);
+  height: var(--line);
+  line-height: var(--line);
+  font-family: var(--hand);
+  font-size: calc(var(--text) * var(--label-size));
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] > .callout-title::after {
+  content: var(--label-notes);
+  left: calc(var(--divider-x) + var(--gap) + 2px);
+}
+/* (the full-width bar is exempt from the keep-out clip, like the question) */
+.markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(> .callout[data-callout="wide"], > .callout[data-callout="divider"]) { clip-path: none; }
+
+/* ---------- PDF: the [!wide] block's paper as solid lines ----------
+   In the PDF every ruled line is a solid 1px bar (a repeating pattern prints blurred in many PDF
+   viewers, and its edges showed: the cover over the divider was visible). The block's own paper,
+   ruled lines, margin line and divider pieces are drawn the same way here. */
+@media print {
+  html body .markdown-preview-view.lined-paper.cornell .callout[data-callout="wide"] {
+    background-color: var(--paper) !important;
+    background-image:
+      linear-gradient(var(--divider), var(--divider)),
+      linear-gradient(var(--margin), var(--margin)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)) !important;
+    background-size: 2px calc(var(--shift) + 1px), 1px 100%, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px !important;
+    background-position:
+      var(--divider-pos) 100%,
+      var(--margin-x) 0,
+      0 calc(var(--line) * 1 - var(--shift) - 1px),
+      0 calc(var(--line) * 2 - var(--shift) - 1px),
+      0 calc(var(--line) * 3 - var(--shift) - 1px),
+      0 calc(var(--line) * 4 - var(--shift) - 1px),
+      0 calc(var(--line) * 5 - var(--shift) - 1px),
+      0 calc(var(--line) * 6 - var(--shift) - 1px),
+      0 calc(var(--line) * 7 - var(--shift) - 1px),
+      0 calc(var(--line) * 8 - var(--shift) - 1px),
+      0 calc(var(--line) * 9 - var(--shift) - 1px),
+      0 calc(var(--line) * 10 - var(--shift) - 1px),
+      0 calc(var(--line) * 11 - var(--shift) - 1px),
+      0 calc(var(--line) * 12 - var(--shift) - 1px),
+      0 calc(var(--line) * 13 - var(--shift) - 1px),
+      0 calc(var(--line) * 14 - var(--shift) - 1px),
+      0 calc(var(--line) * 15 - var(--shift) - 1px),
+      0 calc(var(--line) * 16 - var(--shift) - 1px),
+      0 calc(var(--line) * 17 - var(--shift) - 1px),
+      0 calc(var(--line) * 18 - var(--shift) - 1px),
+      0 calc(var(--line) * 19 - var(--shift) - 1px),
+      0 calc(var(--line) * 20 - var(--shift) - 1px),
+      0 calc(var(--line) * 21 - var(--shift) - 1px),
+      0 calc(var(--line) * 22 - var(--shift) - 1px),
+      0 calc(var(--line) * 23 - var(--shift) - 1px),
+      0 calc(var(--line) * 24 - var(--shift) - 1px),
+      0 calc(var(--line) * 25 - var(--shift) - 1px),
+      0 calc(var(--line) * 26 - var(--shift) - 1px),
+      0 calc(var(--line) * 27 - var(--shift) - 1px),
+      0 calc(var(--line) * 28 - var(--shift) - 1px),
+      0 calc(var(--line) * 29 - var(--shift) - 1px),
+      0 calc(var(--line) * 30 - var(--shift) - 1px),
+      0 calc(var(--line) * 31 - var(--shift) - 1px),
+      0 calc(var(--line) * 32 - var(--shift) - 1px),
+      0 calc(var(--line) * 33 - var(--shift) - 1px),
+      0 calc(var(--line) * 34 - var(--shift) - 1px),
+      0 calc(var(--line) * 35 - var(--shift) - 1px),
+      0 calc(var(--line) * 36 - var(--shift) - 1px),
+      0 calc(var(--line) * 37 - var(--shift) - 1px),
+      0 calc(var(--line) * 38 - var(--shift) - 1px),
+      0 calc(var(--line) * 39 - var(--shift) - 1px),
+      0 calc(var(--line) * 40 - var(--shift) - 1px) !important;
+    background-repeat: no-repeat !important;
+  }
+  html body .markdown-preview-view.lined-paper.cornell :is(div:has(> h1), div:has(> .callout[data-callout="nextpage"])) + div > .callout[data-callout="wide"] {
+    background-color: var(--paper) !important;
+    background-image:
+      linear-gradient(var(--divider), var(--divider)),
+      linear-gradient(var(--margin), var(--margin)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)) !important;
+    background-size: 2px calc(var(--line) + var(--shift) + 1px), 1px 100%, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px !important;
+    background-position:
+      var(--divider-pos) 100%,
+      var(--margin-x) 0,
+      0 calc(var(--line) * 1 - var(--shift) - 1px),
+      0 calc(var(--line) * 2 - var(--shift) - 1px),
+      0 calc(var(--line) * 3 - var(--shift) - 1px),
+      0 calc(var(--line) * 4 - var(--shift) - 1px),
+      0 calc(var(--line) * 5 - var(--shift) - 1px),
+      0 calc(var(--line) * 6 - var(--shift) - 1px),
+      0 calc(var(--line) * 7 - var(--shift) - 1px),
+      0 calc(var(--line) * 8 - var(--shift) - 1px),
+      0 calc(var(--line) * 9 - var(--shift) - 1px),
+      0 calc(var(--line) * 10 - var(--shift) - 1px),
+      0 calc(var(--line) * 11 - var(--shift) - 1px),
+      0 calc(var(--line) * 12 - var(--shift) - 1px),
+      0 calc(var(--line) * 13 - var(--shift) - 1px),
+      0 calc(var(--line) * 14 - var(--shift) - 1px),
+      0 calc(var(--line) * 15 - var(--shift) - 1px),
+      0 calc(var(--line) * 16 - var(--shift) - 1px),
+      0 calc(var(--line) * 17 - var(--shift) - 1px),
+      0 calc(var(--line) * 18 - var(--shift) - 1px),
+      0 calc(var(--line) * 19 - var(--shift) - 1px),
+      0 calc(var(--line) * 20 - var(--shift) - 1px),
+      0 calc(var(--line) * 21 - var(--shift) - 1px),
+      0 calc(var(--line) * 22 - var(--shift) - 1px),
+      0 calc(var(--line) * 23 - var(--shift) - 1px),
+      0 calc(var(--line) * 24 - var(--shift) - 1px),
+      0 calc(var(--line) * 25 - var(--shift) - 1px),
+      0 calc(var(--line) * 26 - var(--shift) - 1px),
+      0 calc(var(--line) * 27 - var(--shift) - 1px),
+      0 calc(var(--line) * 28 - var(--shift) - 1px),
+      0 calc(var(--line) * 29 - var(--shift) - 1px),
+      0 calc(var(--line) * 30 - var(--shift) - 1px),
+      0 calc(var(--line) * 31 - var(--shift) - 1px),
+      0 calc(var(--line) * 32 - var(--shift) - 1px),
+      0 calc(var(--line) * 33 - var(--shift) - 1px),
+      0 calc(var(--line) * 34 - var(--shift) - 1px),
+      0 calc(var(--line) * 35 - var(--shift) - 1px),
+      0 calc(var(--line) * 36 - var(--shift) - 1px),
+      0 calc(var(--line) * 37 - var(--shift) - 1px),
+      0 calc(var(--line) * 38 - var(--shift) - 1px),
+      0 calc(var(--line) * 39 - var(--shift) - 1px),
+      0 calc(var(--line) * 40 - var(--shift) - 1px) !important;
+    background-repeat: no-repeat !important;
+  }
+}
+
+/* ---------- Narrow windows ---------- */
+@media (max-width: 600px) {
+  .lined-paper.cornell { --cue: var(--cn-cue-narrow, 0.36); --gap: 10px; }
+  /* the A4 page view is always a 210mm sheet (it scrolls sideways in a narrow window), so it keeps
+     the PDF's columns: otherwise every notes line would wrap differently from the export */
+  body:not(.lp-no-pages) .markdown-reading-view .lined-paper.cornell { --cue: var(--cn-cue, 0.3); --gap: var(--cn-gap, 16px); }
+}
+
+/* ---------- A4 PAGE: PDF export + reading view ----------
+   Cornell additions to the print rules in lined-paper.css (section 9 + 11).
+   Export with Page size: A4, Margin: None.  (Better Export PDF: Margin = None too.)
+
+   ONE A4 PAGE, three parts (all measured in ruled rows, see lined-paper.css section 11):
+     HEADER  the title bar                                  (--bar-lines rows; + the Cues | Notes row when there is no question)
+     BODY    --body-rows rows (32): [question] + Cues | Notes labels + cue/notes groups
+             + [summary] in its last rows
+     FOOTER  blank space for the page number, --foot-ratio of the header
+   Ruled rows, the divider and the red lines are drawn only inside the header + body. The
+   footer (and the strip below it) is blank paper on every page.
+
+   The reading view uses the same measurements and the same summary placement (second block
+   below), so it looks like the exported page.
+
+   SUMMARY  Always the LAST --summary-rows rows of the body (5, label row included), with the
+            footer right under it. If the cues/notes grow into that space the summary shrinks
+            to fit, down to --summary-min-rows (3) at the very least. It is placed from the
+            bottom of the last cue/notes block (CSS anchor positioning, Chromium 125+ = every
+            current Obsidian). On an older engine it simply stays at the full height.
+            A note longer than one page puts the summary after the last content instead.
+
+   EVERY PAGE (PDF) has the same header and a blank footer. Page 2, 3 ... repeat the title bar AND
+   the Cues | Notes row (also when there is an essential question, which only appears on page 1), so a
+   note that runs on starts again from the notes body. No cue / notes text ever goes into the footer.
+   (Reading view cannot do this: CSS cannot push text past a page break on screen, so there a long
+   note still runs through the sheet footer. The PDF export is where the page layout is exact.)
+
+   Each cue + notes group stays together on one page. For best results write groups in the
+   nested form  >> [!cue] … > >> [!notes] …  (see the top of this file): those are one grid
+   block and can never be split apart. Separate cue / notes callouts are floats, and a page
+   break can separate them. */
+/* The summary's red rule sits shift+1px above the summary box; this makes that gap blank paper
+   too, so the divider (a fixed layer in the PDF) never pokes out below the rule. */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="summary"]::before {
+  height: calc(var(--shift) + 3px);
+  left: calc(var(--margin-x) + 1px);
+  background:
+    linear-gradient(var(--divider), var(--divider)) 0 0 / 100% 2px no-repeat,
+    linear-gradient(var(--paper), var(--paper)) !important;
+}
+
+@media print {
+  /* ---------- EVERY PAGE = header + body + blank footer ----------
+     The header is the title bar PLUS the Cues | Notes row, on every page. Without a [!question]
+     the title bar (h1) already carries that row (see above). WITH a [!question] the h1 is made
+     one row taller in the PDF so the row repeats on pages 2, 3 ... too, so a note that runs on
+     starts again from the notes body under a full header. Page 1 is unchanged: the question
+     block is pulled up one row and sits on top of the h1's Cues | Notes row, hiding it, because
+     the question draws its own row under its red rule. Footer: the page padding (--tail-print)
+     keeps all cue / notes text out of it on every page. */
+  .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) {
+    --head-h: calc(var(--line) * (var(--bar-lines) + 1));
+  }
+  .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1 {
+    height: calc(var(--line) * (var(--bar-lines) + 1)) !important;
+    background-image:
+      linear-gradient(var(--margin), var(--margin)),
+      linear-gradient(var(--divider), var(--divider)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--paper), var(--paper)) !important;
+    background-size: 1px 100%, 2px var(--line), 100% 1px, 100% 2px, 100% 2px, 100% var(--line) !important;
+    background-position:
+      var(--margin-x) 0,
+      var(--divider-pos) 100%,
+      0 calc(100% - 6px),
+      0 calc(100% - var(--line) - 7px),
+      0 calc(100% - var(--line)),         /* page 1: the double rule looks exactly like the plain title bar's (and reading view's) */
+      0 100% !important;
+    background-repeat: no-repeat !important;
+  }
+  .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1::before,
+  .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1::after {
+    content: var(--label-cue);
+    position: absolute;
+    bottom: 0;
+    left: var(--pad-x);
+    height: var(--line);
+    line-height: calc(var(--line) - var(--shift) - 1px);
+    font-family: var(--hand);
+    font-size: calc(var(--text) * var(--label-size));
+    font-weight: 400;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1::after {
+    content: var(--label-notes);
+    left: calc(var(--divider-x) + var(--gap) + 2px);
+  }
+  /* page 1 only: the question covers the h1's Cues | Notes row (its own row sits under its red rule) */
+  .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
+    z-index: 25;
+    margin-top: calc(var(--line) * -1) !important;
+  }
+
+  /* no [!question]: the repeated title bar also carries the Cues | Notes row, so every page
+     reserves one more row at its top */
+  .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) {
+    --head-h: calc(var(--line) * (var(--bar-lines) + 1));
+  }
+  /* The paper layer (repeats on every page). Rows + divider only inside header + body, none in the footer. */
+  .markdown-preview-view.lined-paper.cornell::before {
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--divider), var(--divider)),
+      linear-gradient(var(--margin), var(--margin)),
+      repeating-linear-gradient(to bottom,
+        var(--paper) 0,
+        var(--paper) calc(var(--line) - var(--shift) - 1px),
+        var(--rule) calc(var(--line) - var(--shift) - 1px),
+        var(--rule) calc(var(--line) - var(--shift)),
+        var(--paper) calc(var(--line) - var(--shift)),
+        var(--paper) var(--line));
+    background-size: 2px calc(var(--print-h) - var(--foot-h)), 1px 100%, 100% calc(var(--print-h) - var(--foot-h));
+    background-position: var(--divider-pos) 0, var(--margin-x) 0, 0 0;
+    background-repeat: no-repeat, no-repeat, no-repeat;
+  }
+
+  /* no flex / pinned layout; drop the on-screen divider that stops at the summary */
+  .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer,
+  .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer:has(.callout[data-callout="summary"]) {
+    display: block !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    position: static !important;
+  }
+  .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer::before,
+  .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer::after {
+    content: none !important;
+  }
+
+  /* what the summary measures itself against: the bottom of the last piece of content */
+  .markdown-preview-view.lined-paper.cornell :is(
+      div:has(> h1),
+      h1,
+      .callout[data-callout="question"],
+      .callout[data-callout="wide"],
+      blockquote:has(> .callout[data-callout="cue"]) > .callout:is([data-callout="cue"], [data-callout="notes"]),
+      .callout[data-callout="cue"]:not(blockquote > .callout),
+      .callout[data-callout="notes"]:not(blockquote > .callout)) {
+    anchor-name: --cn-end;
+  }
+
+  /* SUMMARY: the last rows of the body, footer right under it.
+     top    = the last-5-rows line, or lower if the content reaches past it (so the summary shrinks)
+     bottom = top of the footer
+     min-height keeps at least --summary-min-rows rows */
+  .markdown-preview-view.lined-paper.cornell .callout[data-callout="summary"] {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    bottom: var(--tail-print) !important;
+    top: calc(var(--body-end) - var(--line) * var(--summary-rows)) !important;                       /* fallback: full height */
+    top: max(calc(var(--body-end) - var(--line) * var(--summary-rows)), calc(anchor(--cn-end bottom, 0px) + var(--line))) !important;
+    min-height: calc(var(--line) * var(--summary-min-rows)) !important;
+    break-inside: avoid;
+  }
+  /* page padding: just the footer, plus room for the smallest summary so a long note can't push it onto a 2nd page */
+  .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="summary"]) {
+    padding-bottom: calc(var(--tail-print) - 0.5px + var(--line) * var(--summary-min-rows)) !important;
+  }
+
+  /* one blank ruled line between groups (same rule as on screen, without relying on the page structure) */
+  .lined-paper.cornell *:has(> blockquote > .callout[data-callout="cue"]) + *:has(> blockquote > .callout[data-callout="cue"]) > blockquote,
+  .lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]) + blockquote:has(> .callout[data-callout="cue"]) {
+    margin-top: var(--line) !important;
+  }
+
+  .lined-paper.cornell blockquote:has(> .callout[data-callout="cue"]),
+  .lined-paper.cornell .callout[data-callout="cue"],
+  .lined-paper.cornell .callout[data-callout="notes"],
+  .lined-paper.cornell .callout[data-callout="question"] {
+    break-inside: avoid;
+  }
+}
+
+/* READING VIEW = the exported page (skipped when "Turn off A4 page view" is on).
+   Same summary placement as the PDF; the blank footer under the body is drawn by
+   lined-paper.css section 10. */
+@media screen {
+  body:not(.lp-no-pages) .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer {
+    display: block;
+    padding-bottom: 0 !important;
+  }
+  body:not(.lp-no-pages) .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer:has(.callout[data-callout="summary"]) {
+    padding-bottom: calc(var(--tail-h) + var(--line) * (var(--summary-min-rows) + 1)) !important;
+  }
+  /* the divider runs down to the footer; the (opaque) summary covers it, like in the PDF */
+  body:not(.lp-no-pages) .markdown-preview-view.lined-paper.cornell .markdown-preview-sizer:has(.callout[data-callout="summary"])::before {
+    bottom: var(--tail-h);
+    bottom: calc(anchor(--cn-sum top, var(--tail-h)) + var(--shift));   /* ends flush with the summary's red rule */
+  }
+  body:not(.lp-no-pages) .markdown-preview-view.lined-paper.cornell .callout[data-callout="summary"] { anchor-name: --cn-sum; }
+  body:not(.lp-no-pages) .markdown-preview-view.lined-paper.cornell :is(
+      div:has(> h1),
+      h1,
+      .callout[data-callout="question"],
+      .callout[data-callout="wide"],
+      blockquote:has(> .callout[data-callout="cue"]) > .callout:is([data-callout="cue"], [data-callout="notes"]),
+      .callout[data-callout="cue"]:not(blockquote > .callout),
+      .callout[data-callout="notes"]:not(blockquote > .callout)) {
+    anchor-name: --cn-end;
+  }
+  body:not(.lp-no-pages) .markdown-preview-view.lined-paper.cornell .callout[data-callout="summary"] {
+    bottom: var(--tail-h) !important;
+    top: calc(var(--body-end) - var(--line) * var(--summary-rows)) !important;
+    top: max(calc(var(--body-end) - var(--line) * var(--summary-rows)), calc(anchor(--cn-end bottom, 0px) + var(--line))) !important;
+    min-height: calc(var(--line) * var(--summary-min-rows)) !important;
+  }
+}
+/* =====================================================================
+   DIVIDER:   > [!divider]
+   =====================================================================
+   A [!wide] with nothing in it: just a red line right across the page (both columns), on a ruled
+   line, to split the page into parts. It has no lines of its own: in reading view and the PDF it
+   sits in the blank line between two blocks (one blank line above it, one below), and in editing
+   view on the line between the lines around it. Works on plain lined paper too. */
+html body .lined-paper .callout.callout.callout[data-callout="divider"] {
+  position: relative;
+  top: 0 !important;
+  clear: both;
+  display: block !important;
+  box-sizing: border-box;
+  height: 0 !important;
+  min-height: 0 !important;
+  /* (1px of padding keeps the blank line above and the one below apart: a box with nothing in it
+     would merge them into one) */
+  margin: var(--line) calc(var(--pad-x) * -1) calc(var(--line) - 1px) !important;
+  padding: 1px 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  clip-path: none !important;
+  mix-blend-mode: normal !important;
+  overflow: visible !important;
+}
+html body .lined-paper .callout.callout.callout[data-callout="divider"] > * { display: none !important; }
+html body .lined-paper .callout.callout.callout[data-callout="divider"]::before {
+  content: "" !important;
+  position: absolute;
+  z-index: 1;
+  left: var(--margin-x);
+  right: 0;
+  top: calc(-1 * (var(--shift) + 1px));
+  height: 2px;
+  background: var(--divider, var(--margin)) !important;
+  pointer-events: none;
+}
+html body .lined-paper .callout.callout.callout[data-callout="divider"]::after { content: none !important; }
+/* editing view: on the line between the lines around it (the blank lines there are the note's own) */
+html body .markdown-source-view.lined-paper .callout.callout.callout[data-callout="divider"] { margin-block: 0 !important; padding: 0 !important; }
