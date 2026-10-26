@@ -6,10 +6,10 @@ button to put it back to its default, and **Reset all** resets everything.
 | Section | Settings |
 |---|---|
 | **Pages and text** | A4 pages in reading view (on/off) · Lines per page · Text size · Title size · Title position · Handwriting font · Title font · Underline links |
-| **Cornell notes** | Cue column width · Essential question lines (1) · Centre the question across the page (off) · Centre the question in its lines (on) · Centre full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
+| **Cornell notes** | Cue column width · Essential question lines (1) · Centre the question across the page (off) · Centre full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
 | **Callouts** | Callout box height (80 %) · Callout text size |
 | **Colours** | Paper · Ruled lines · Red margin line & divider · Text · Title · Labels · Heading underline · Desk |
-| **Advanced** *(hidden until you switch it on)* | Page height used · Text scale on the A4 page · Title bar height · Footer · Gap between pages · Page margins · Ruled line position · Callout lift · Divider spacing · … |
+| **Advanced** *(hidden until you switch it on)* | Page height used · Text scale on the A4 page · Title bar height · Footer · Gap between pages · Page margins (left, and right: by default the same as the red line's margin, for hole punching) · Ruled line position · Callout lift · Divider spacing · … |
 
 **Fonts:** pick the handwriting and title fonts from a list: Patrick Hand, Caveat, Kalam,
 Indie Flower, Shadows Into Light, Architects Daughter, Gloria Hallelujah, Handlee, Gochi Hand,

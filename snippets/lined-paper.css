@@ -77,11 +77,21 @@ settings:
         step: 0.05
     -
         id: lp-pad-x
-        title: Page margin (left and right)
-        description: Space from the page edge to the text. The red margin line sits "Margin line gap" to the left of the text.
+        title: Page margin (left)
+        description: Space from the left page edge to the text. The red margin line sits "Margin line gap" to the left of the text.
         type: variable-number-slider
         default: 76
         min: 40
+        max: 200
+        step: 2
+        format: px
+    -
+        id: lp-pad-r
+        title: Page margin (right)
+        description: Space from the text to the right page edge. By default the same as the red margin line's distance from the left edge, so a double-sided page can be hole-punched on either side.
+        type: variable-number-slider
+        default: 60
+        min: 20
         max: 200
         step: 2
         format: px
@@ -448,6 +458,8 @@ settings:
   --pad-x: var(--lp-pad-x, 76px);            /* page edge → text */
   --margin-gap: var(--lp-margin-gap, 16px);  /* red line → text */
   --margin-x: calc(var(--pad-x) - var(--margin-gap));   /* where the red line is (derived) */
+  --pad-r: var(--lp-pad-r, var(--margin-x));  /* text → right page edge: the red line's margin mirrored, so a
+                                                 double-sided page can be hole-punched on either side */
 
   --hand: var(--lp-hand, "Patrick Hand"), "Segoe Print", "Bradley Hand", "Chalkboard SE", cursive;
   --hand-title: var(--lp-hand-title, "Caveat"), "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
@@ -517,7 +529,7 @@ settings:
   max-width: none !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0 var(--pad-x) var(--line) !important;
+  padding: 0 var(--pad-r) var(--line) var(--pad-x) !important;
   box-sizing: border-box;
 }
 
@@ -979,7 +991,7 @@ settings:
   display: block;
   box-sizing: border-box;
   height: calc(var(--line) * var(--bar-lines));
-  margin: 0 calc(var(--pad-x) * -1) !important;
+  margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-x) * -1) !important;
   padding: var(--title-drop) 200px 0 var(--pad-x) !important;   /* (top: the title sits low, on its line) */
   line-height: calc(var(--line) * (var(--bar-lines) - 0.4)) !important;
   background-color: var(--bar);
@@ -1076,7 +1088,8 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
     min-height: calc(297mm - 1px) !important;            /* one full page, so a summary sits at its bottom */
     overflow: visible !important;
     margin: 0 !important;
-    padding: var(--head-h) var(--pad-x) calc(var(--tail-print) - 0.5px) !important;
+    padding: var(--head-h) var(--pad-r) calc(var(--tail-print) - 0.5px) var(--pad-x) !important;
+    padding-right: calc(var(--pad-r) + var(--print-trim, 0.25px)) !important;   /* (the PDF's text is a hair narrower than on screen: a line that only just fits on screen wraps in the PDF too) */
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     background: var(--paper) !important;   /* plain colour; the lines are the fixed layer below */

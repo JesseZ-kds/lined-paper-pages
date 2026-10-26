@@ -132,11 +132,6 @@ settings:
         description: The text of [!question] starts on the left. Switch this on to centre it on the line.
         type: class-toggle
     -
-        id: cn-question-top
-        title: Question on its first line
-        description: The text of [!question] is centred in the height of its rows. Switch this on to start it on the first row instead (useful with more than one question line).
-        type: class-toggle
-    -
         id: cn-wide-left
         title: Full-width lines on the left
         description: The text of [!wide] is centred. Switch this on to start it on the left instead.
@@ -568,7 +563,7 @@ settings:
   z-index: 15;
   box-sizing: border-box;
   min-height: calc(var(--line) * (var(--summary-lines) + 1));
-  padding: 0 var(--pad-x) !important;
+  padding: 0 var(--pad-r) 0 var(--pad-x) !important;
   /* the page's red margin line keeps running through the summary;
      the cue/notes divider stops at the summary's rule */
   background:
@@ -656,8 +651,8 @@ settings:
   display: block;
   box-sizing: border-box;
   min-height: calc(var(--line) * (var(--question-lines) + 2));
-  margin: 0 calc(var(--pad-x) * -1) !important;
-  padding: 0 var(--pad-x) var(--line) !important;
+  margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-x) * -1) !important;
+  padding: 0 var(--pad-r) var(--line) var(--pad-x) !important;
   border: 0 !important;
   border-radius: 0;
   mix-blend-mode: normal;
@@ -719,8 +714,8 @@ settings:
   display: block;
   box-sizing: border-box;
   min-height: calc(var(--line) * var(--wide-lines));
-  margin: var(--line) calc(var(--pad-x) * -1) !important;
-  padding: 0 var(--pad-x) !important;
+  margin: var(--line) calc(var(--pad-r) * -1) var(--line) calc(var(--pad-x) * -1) !important;
+  padding: 0 var(--pad-r) 0 var(--pad-x) !important;
   border: 0 !important;
   border-radius: 0 !important;
   mix-blend-mode: normal !important;
@@ -1262,7 +1257,7 @@ html body .lined-paper .callout.callout.callout[data-callout="divider"] {
   min-height: 0 !important;
   /* (1px of padding keeps the blank line above and the one below apart: a box with nothing in it
      would merge them into one) */
-  margin: var(--line) calc(var(--pad-x) * -1) calc(var(--line) - 1px) !important;
+  margin: var(--line) calc(var(--pad-r) * -1) calc(var(--line) - 1px) calc(var(--pad-x) * -1) !important;
   padding: 1px 0 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -1303,8 +1298,8 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
    THE QUESTION AND FULL-WIDTH LINES: ALIGNMENT
    =====================================================================
    [!wide]: centred on the page ("Full-width lines on the left" puts it back on the left).
-   [!question]: on the left, in the middle of its rows ("Centre the question across the page" centres
-   it on the line; "Question on its first line" starts it on the first row instead of the middle rows).
+   [!question]: on the left, each line in the middle of its row ("Centre the question across the
+   page" centres it on the line).
    A list in them keeps its bullets next to its text. Callouts inside them keep their own alignment. */
 :is(body:not(.cn-wide-left) .lined-paper.cornell .callout[data-callout="wide"], body.cn-question-centre .lined-paper.cornell .callout[data-callout="question"]) > .callout-content > :is(p, h2, h3, h4, h5, h6, ul, ol) {
   text-align: center !important;
@@ -1317,22 +1312,12 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
   text-align: center !important;
 }
 
-/* The question's text is centred in the height: its lines fill the rows between the "Question"
-   label and the red rule, the text in the middle of them, each line centred between its two ruled
-   lines (not sitting on the lower one) */
+/* The question's text is centred in the height of the row it is on: each line in the middle
+   between its two ruled lines (not sitting on the lower one), starting on the first row */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: calc(var(--line) * var(--question-lines));
   position: relative;
   top: var(--title-nudge);
 }
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content > * {
   margin-block: 0 !important;
-}
-/* "Question on its first line": the text starts on the first row (each line still in the middle of its row) */
-body.cn-question-top .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
-  justify-content: flex-start;
 }

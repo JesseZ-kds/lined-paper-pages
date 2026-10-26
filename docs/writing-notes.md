@@ -48,9 +48,8 @@ Every Cornell block is a callout. Put a blank line between blocks.
 ```
 
 It keeps **1 line** for the question (more in the settings, or more if the question is longer). Its
-text starts on the left and sits in the middle of its lines, between the "Question" label and the
-red line (*Centre the question across the page* and *Centre the question in its lines* in the
-settings change this).
+text starts on the left, each line centred in the height of its own row (*Centre the question
+across the page* in the settings centres it on the line).
 
 ### Cue + notes *(as many as you like)*
 

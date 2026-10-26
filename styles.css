@@ -146,11 +146,21 @@ settings:
         step: 0.05
     -
         id: lp-pad-x
-        title: Page margin (left and right)
-        description: Space from the page edge to the text. The red margin line sits "Margin line gap" to the left of the text.
+        title: Page margin (left)
+        description: Space from the left page edge to the text. The red margin line sits "Margin line gap" to the left of the text.
         type: variable-number-slider
         default: 76
         min: 40
+        max: 200
+        step: 2
+        format: px
+    -
+        id: lp-pad-r
+        title: Page margin (right)
+        description: Space from the text to the right page edge. By default the same as the red margin line's distance from the left edge, so a double-sided page can be hole-punched on either side.
+        type: variable-number-slider
+        default: 60
+        min: 20
         max: 200
         step: 2
         format: px
@@ -516,6 +526,8 @@ settings:
   --pad-x: var(--lp-pad-x, 76px);            /* page edge → text */
   --margin-gap: var(--lp-margin-gap, 16px);  /* red line → text */
   --margin-x: calc(var(--pad-x) - var(--margin-gap));   /* where the red line is (derived) */
+  --pad-r: var(--lp-pad-r, var(--margin-x));  /* text → right page edge: the red line's margin mirrored, so a
+                                                 double-sided page can be hole-punched on either side */
 
   --hand: var(--lp-hand, "Patrick Hand"), "Segoe Print", "Bradley Hand", "Chalkboard SE", cursive;
   --hand-title: var(--lp-hand-title, "Caveat"), "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
@@ -585,7 +597,7 @@ settings:
   max-width: none !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0 var(--pad-x) var(--line) !important;
+  padding: 0 var(--pad-r) var(--line) var(--pad-x) !important;
   box-sizing: border-box;
 }
 
@@ -1047,7 +1059,7 @@ settings:
   display: block;
   box-sizing: border-box;
   height: calc(var(--line) * var(--bar-lines));
-  margin: 0 calc(var(--pad-x) * -1) !important;
+  margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-x) * -1) !important;
   padding: var(--title-drop) 200px 0 var(--pad-x) !important;   /* (top: the title sits low, on its line) */
   line-height: calc(var(--line) * (var(--bar-lines) - 0.4)) !important;
   background-color: var(--bar);
@@ -1144,7 +1156,8 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
     min-height: calc(297mm - 1px) !important;            /* one full page, so a summary sits at its bottom */
     overflow: visible !important;
     margin: 0 !important;
-    padding: var(--head-h) var(--pad-x) calc(var(--tail-print) - 0.5px) !important;
+    padding: var(--head-h) var(--pad-r) calc(var(--tail-print) - 0.5px) var(--pad-x) !important;
+    padding-right: calc(var(--pad-r) + var(--print-trim, 0.25px)) !important;   /* (the PDF's text is a hair narrower than on screen: a line that only just fits on screen wraps in the PDF too) */
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     background: var(--paper) !important;   /* plain colour; the lines are the fixed layer below */
@@ -2975,11 +2988,6 @@ settings:
         description: The text of [!question] starts on the left. Switch this on to centre it on the line.
         type: class-toggle
     -
-        id: cn-question-top
-        title: Question on its first line
-        description: The text of [!question] is centred in the height of its rows. Switch this on to start it on the first row instead (useful with more than one question line).
-        type: class-toggle
-    -
         id: cn-wide-left
         title: Full-width lines on the left
         description: The text of [!wide] is centred. Switch this on to start it on the left instead.
@@ -3411,7 +3419,7 @@ settings:
   z-index: 15;
   box-sizing: border-box;
   min-height: calc(var(--line) * (var(--summary-lines) + 1));
-  padding: 0 var(--pad-x) !important;
+  padding: 0 var(--pad-r) 0 var(--pad-x) !important;
   /* the page's red margin line keeps running through the summary;
      the cue/notes divider stops at the summary's rule */
   background:
@@ -3499,8 +3507,8 @@ settings:
   display: block;
   box-sizing: border-box;
   min-height: calc(var(--line) * (var(--question-lines) + 2));
-  margin: 0 calc(var(--pad-x) * -1) !important;
-  padding: 0 var(--pad-x) var(--line) !important;
+  margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-x) * -1) !important;
+  padding: 0 var(--pad-r) var(--line) var(--pad-x) !important;
   border: 0 !important;
   border-radius: 0;
   mix-blend-mode: normal;
@@ -3562,8 +3570,8 @@ settings:
   display: block;
   box-sizing: border-box;
   min-height: calc(var(--line) * var(--wide-lines));
-  margin: var(--line) calc(var(--pad-x) * -1) !important;
-  padding: 0 var(--pad-x) !important;
+  margin: var(--line) calc(var(--pad-r) * -1) var(--line) calc(var(--pad-x) * -1) !important;
+  padding: 0 var(--pad-r) 0 var(--pad-x) !important;
   border: 0 !important;
   border-radius: 0 !important;
   mix-blend-mode: normal !important;
@@ -4105,7 +4113,7 @@ html body .lined-paper .callout.callout.callout[data-callout="divider"] {
   min-height: 0 !important;
   /* (1px of padding keeps the blank line above and the one below apart: a box with nothing in it
      would merge them into one) */
-  margin: var(--line) calc(var(--pad-x) * -1) calc(var(--line) - 1px) !important;
+  margin: var(--line) calc(var(--pad-r) * -1) calc(var(--line) - 1px) calc(var(--pad-x) * -1) !important;
   padding: 1px 0 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -4146,8 +4154,8 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
    THE QUESTION AND FULL-WIDTH LINES: ALIGNMENT
    =====================================================================
    [!wide]: centred on the page ("Full-width lines on the left" puts it back on the left).
-   [!question]: on the left, in the middle of its rows ("Centre the question across the page" centres
-   it on the line; "Question on its first line" starts it on the first row instead of the middle rows).
+   [!question]: on the left, each line in the middle of its row ("Centre the question across the
+   page" centres it on the line).
    A list in them keeps its bullets next to its text. Callouts inside them keep their own alignment. */
 :is(body:not(.cn-wide-left) .lined-paper.cornell .callout[data-callout="wide"], body.cn-question-centre .lined-paper.cornell .callout[data-callout="question"]) > .callout-content > :is(p, h2, h3, h4, h5, h6, ul, ol) {
   text-align: center !important;
@@ -4160,22 +4168,12 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
   text-align: center !important;
 }
 
-/* The question's text is centred in the height: its lines fill the rows between the "Question"
-   label and the red rule, the text in the middle of them, each line centred between its two ruled
-   lines (not sitting on the lower one) */
+/* The question's text is centred in the height of the row it is on: each line in the middle
+   between its two ruled lines (not sitting on the lower one), starting on the first row */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: calc(var(--line) * var(--question-lines));
   position: relative;
   top: var(--title-nudge);
 }
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content > * {
   margin-block: 0 !important;
-}
-/* "Question on its first line": the text starts on the first row (each line still in the middle of its row) */
-body.cn-question-top .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
-  justify-content: flex-start;
 }

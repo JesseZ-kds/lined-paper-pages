@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.5] - 2026-10-26
+
+### Changed
+- The writing reaches further right: the right margin is the red margin line's distance from the
+  left edge, mirrored, so double-sided pages can be hole-punched on either side (new setting:
+  *Page margin (right)*; *Page margin* is now *Page margin (left)*).
+- `[!question]` text: each line is centred in the height of its own row, starting on the first
+  row. The *Centre the question in its lines* setting from 1.9.4 is gone.
+
 ## [1.9.4] - 2026-10-26
 
 ### Added
@@ -163,7 +172,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.4...HEAD
+[Unreleased]: ../../compare/1.9.5...HEAD
+[1.9.5]: ../../compare/1.9.4...1.9.5
 [1.9.4]: ../../compare/1.9.3...1.9.4
 [1.9.3]: ../../compare/1.9.2...1.9.3
 [1.9.2]: ../../compare/1.9.1...1.9.2
