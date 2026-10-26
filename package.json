@@ -23,7 +23,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
     "esbuild": "^0.28.2",
-    "playwright": "1.56.1"
+    "playwright": "1.64.1"
   },
   "engines": {
     "node": ">=20"
