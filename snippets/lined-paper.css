@@ -2113,7 +2113,6 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   html body .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
     background-color: var(--paper) !important;
     background-image:
-      linear-gradient(var(--divider), var(--divider)),
       linear-gradient(var(--margin), var(--margin)),
       linear-gradient(var(--divider), var(--divider)),
       linear-gradient(var(--rule), var(--rule)),
@@ -2129,12 +2128,10 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
       linear-gradient(var(--rule), var(--rule)),
       linear-gradient(var(--rule), var(--rule)) !important;
     background-size:
-      calc(100% - var(--margin-x)) 2px,
       1px 100%,
       2px calc(var(--line) + var(--shift) + 1px),
       100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px !important;
     background-position:
-      var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
       var(--margin-x) 0,
       var(--divider-pos) 100%,
       0 calc(var(--line) * 1 - var(--shift) - 1px),
@@ -2405,14 +2402,14 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   }
 }
 
-/* The question's own paper stops at the bottom of its red line: its Cues | Notes row below that is
+/* The question's own paper stops just under its last ruled line: its Cues | Notes row below that is
    see-through, so the row's ruled line, margin line and divider are the page's own (one straight
-   divider, no step). Its red line still runs from the margin line to the right edge. */
+   divider, no step). Its last line is an ordinary ruled line, like every writing line. */
 @media print {
   html body .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] { 
     background-color: transparent !important;
     background-image:
-    linear-gradient(var(--divider), var(--divider)),
+    linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--margin), var(--margin)),
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--rule), var(--rule)),
@@ -2428,12 +2425,12 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--paper), var(--paper)) !important;
     background-size:
-    calc(100% - var(--margin-x)) 2px,
+    100% 1px,
     1px calc(100% - var(--line) - var(--shift) + 1px),
     100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px,
     100% calc(100% - var(--line) - var(--shift) + 1px) !important;
     background-position:
-    var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
+    0 calc(100% - var(--line) - var(--shift)),
     var(--margin-x) 0,
     0 calc(100% - var(--line) * 2 - var(--shift)),
     0 calc(100% - var(--line) * 3 - var(--shift)),
@@ -2456,7 +2453,7 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] { 
     background-color: transparent !important;
     background-image:
-    linear-gradient(var(--divider), var(--divider)),
+    linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--margin), var(--margin)),
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--rule), var(--rule)),
@@ -2472,12 +2469,12 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--paper), var(--paper)) !important;
     background-size:
-    calc(100% - var(--margin-x)) 2px,
+    100% 1px,
     1px calc(100% - var(--line) - var(--shift) + 1px),
     100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px,
     100% calc(100% - var(--line) - var(--shift) + 1px) !important;
     background-position:
-    var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
+    0 calc(100% - var(--line) - var(--shift)),
     var(--margin-x) 0,
     0 calc(100% - var(--line) * 2 - var(--shift)),
     0 calc(100% - var(--line) * 3 - var(--shift)),

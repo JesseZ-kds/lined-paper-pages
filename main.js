@@ -557,11 +557,12 @@ function paperClasses(fm, kind) {
   return [...paper, ...rest];
 }
 
-// today, as Obsidian's date format would write it (moment comes with Obsidian)
+// today, written like "26 Oct 2026" (moment comes with Obsidian)
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const today = () => {
-  if (globalThis.moment) return globalThis.moment().format('YYYY-MM-DD');
-  const d = new Date(), two = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+  if (globalThis.moment) return globalThis.moment().locale('en').format('D MMM YYYY');
+  const d = new Date();
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 };
 // (every block written in a quote of its own, `>> [!…]`, like the cue / notes groups)
 const TEMPLATES = {

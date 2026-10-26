@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-10-26
+
+### Changed
+- The line under the `[!question]` is an ordinary ruled line, like every other writing line (it was
+  a red rule): the question is written on it like any other line.
+- *Insert title with today's date* and *Insert Cornell page* write the date like `26 Oct 2026`.
+
 ## [1.10.0] - 2026-10-26
 
 ### Added
@@ -31,7 +38,7 @@ All notable changes to this project are documented here. The format follows
   plugin; the snippet files are kept).
 
 ### Added
-- Command *Insert title with today's date*: `# Note name <span class="paper-date">YYYY-MM-DD</span>`
+- Command *Insert title with today's date*: `# Note name <span class="paper-date">26 Oct 2026</span>`
   (the date sits in the title bar's corner). *Insert Cornell page* writes its title the same way.
 
 ### Changed
@@ -238,7 +245,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.10.0...HEAD
+[Unreleased]: ../../compare/1.10.1...HEAD
+[1.10.1]: ../../compare/1.10.0...1.10.1
 [1.10.0]: ../../compare/1.9.9...1.10.0
 [1.9.9]: ../../compare/1.9.8...1.9.9
 [1.9.8]: ../../compare/1.9.7...1.9.8
