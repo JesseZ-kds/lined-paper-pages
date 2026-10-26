@@ -2970,9 +2970,19 @@ settings:
         max: 5
         step: 1
     -
-        id: cn-question-left
-        title: Question and full-width lines on the left
-        description: The text of [!question] and [!wide] is centred. Switch this on to start it on the left instead.
+        id: cn-question-centre
+        title: Centre the question across the page
+        description: The text of [!question] starts on the left. Switch this on to centre it on the line.
+        type: class-toggle
+    -
+        id: cn-question-top
+        title: Question on its first line
+        description: The text of [!question] is centred in the height of its rows. Switch this on to start it on the first row instead (useful with more than one question line).
+        type: class-toggle
+    -
+        id: cn-wide-left
+        title: Full-width lines on the left
+        description: The text of [!wide] is centred. Switch this on to start it on the left instead.
         type: class-toggle
     -
         id: cn-question-lines
@@ -4133,23 +4143,24 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 }
 
 /* =====================================================================
-   THE QUESTION AND FULL-WIDTH LINES: CENTRED
+   THE QUESTION AND FULL-WIDTH LINES: ALIGNMENT
    =====================================================================
-   The text of [!question] and [!wide] is centred on the page, like a heading across both columns
-   ("Question and full-width lines on the left" in the settings puts it back on the left). A list
-   in them keeps its bullets next to its text. Callouts inside them keep their own alignment. */
-body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(p, h2, h3, h4, h5, h6, ul, ol) {
+   [!wide]: centred on the page ("Full-width lines on the left" puts it back on the left).
+   [!question]: on the left, in the middle of its rows ("Centre the question across the page" centres
+   it on the line; "Question on its first line" starts it on the first row instead of the middle rows).
+   A list in them keeps its bullets next to its text. Callouts inside them keep their own alignment. */
+:is(body:not(.cn-wide-left) .lined-paper.cornell .callout[data-callout="wide"], body.cn-question-centre .lined-paper.cornell .callout[data-callout="question"]) > .callout-content > :is(p, h2, h3, h4, h5, h6, ul, ol) {
   text-align: center !important;
 }
-body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(ul, ol) {
+:is(body:not(.cn-wide-left) .lined-paper.cornell .callout[data-callout="wide"], body.cn-question-centre .lined-paper.cornell .callout[data-callout="question"]) > .callout-content > :is(ul, ol) {
   list-style-position: inside;
   padding-inline-start: 0 !important;
 }
-body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(ul, ol) > li {
+:is(body:not(.cn-wide-left) .lined-paper.cornell .callout[data-callout="wide"], body.cn-question-centre .lined-paper.cornell .callout[data-callout="question"]) > .callout-content > :is(ul, ol) > li {
   text-align: center !important;
 }
 
-/* The question's text is centred in the height too: its lines fill the rows between the "Question"
+/* The question's text is centred in the height: its lines fill the rows between the "Question"
    label and the red rule, the text in the middle of them, each line centred between its two ruled
    lines (not sitting on the lower one) */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
@@ -4163,4 +4174,8 @@ body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="ques
 }
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content > * {
   margin-block: 0 !important;
+}
+/* "Question on its first line": the text starts on the first row (each line still in the middle of its row) */
+body.cn-question-top .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
+  justify-content: flex-start;
 }

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.4] - 2026-10-26
+
+### Added
+- Settings for the `[!question]` text: *Centre the question across the page* (off by default) and
+  *Centre the question in its lines* (on by default).
+
+### Changed
+- `[!question]` text starts on the left by default, centred in the height only.
+- *Centre the question and full-width lines* is now *Centre full-width lines*, for `[!wide]` only.
+
 ## [1.9.3] - 2026-10-26
 
 ### Changed
@@ -153,7 +163,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.3...HEAD
+[Unreleased]: ../../compare/1.9.4...HEAD
+[1.9.4]: ../../compare/1.9.3...1.9.4
 [1.9.3]: ../../compare/1.9.2...1.9.3
 [1.9.2]: ../../compare/1.9.1...1.9.2
 [1.9.1]: ../../compare/1.9.0...1.9.1

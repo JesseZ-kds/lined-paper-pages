@@ -6,7 +6,7 @@ button to put it back to its default, and **Reset all** resets everything.
 | Section | Settings |
 |---|---|
 | **Pages and text** | A4 pages in reading view (on/off) · Lines per page · Text size · Title size · Title position · Handwriting font · Title font · Underline links |
-| **Cornell notes** | Cue column width · Essential question lines (1) · Centre the question and full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
+| **Cornell notes** | Cue column width · Essential question lines (1) · Centre the question across the page (off) · Centre the question in its lines (on) · Centre full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
 | **Callouts** | Callout box height (80 %) · Callout text size |
 | **Colours** | Paper · Ruled lines · Red margin line & divider · Text · Title · Labels · Heading underline · Desk |
 | **Advanced** *(hidden until you switch it on)* | Page height used · Text scale on the A4 page · Title bar height · Footer · Gap between pages · Page margins · Ruled line position · Callout lift · Divider spacing · … |
