@@ -54,6 +54,14 @@ test('a block goes on lines of its own, the cursor where the writing goes', () =
   // a whole Cornell page in an empty note, titled after the note
   const h = editor('', 0, 0);
   insertBlock(h, TEMPLATES.cornell('Photosynthesis'));
-  assert.ok(h.text().startsWith('# Photosynthesis\n\n> [!question] Question\n> \n'));
+  assert.match(h.text(), /^# Photosynthesis <span class="paper-date">\d{4}-\d{2}-\d{2}<\/span>\n\n> \[!question\] Question\n> \n/);
   assert.deepEqual(h.getCursor(), { line: 3, ch: 2 });
+});
+
+test('a title with today\'s date, the cursor on the line under it', () => {
+  const e = editor('', 0, 0);
+  insertBlock(e, TEMPLATES.title('Immunity'));
+  const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  assert.equal(e.text(), `# Immunity <span class="paper-date">${day}</span>\n`);
+  assert.deepEqual(e.getCursor(), { line: 1, ch: 0 });
 });

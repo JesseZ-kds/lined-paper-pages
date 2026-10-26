@@ -1318,7 +1318,10 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
    after it, both centred between the title bar's double line and the ruled line under them
    ("Essential question lines" above 1 adds blank lines under it). */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
-  min-height: calc(var(--line) * (var(--question-lines) + 1)) !important;
+  /* (its own variable: a cornell-notes.css snippet left on from an earlier install sets
+     --question-lines to its old default, 2, which put an empty row under the question) */
+  --q-rows: var(--cn-question-lines, 1);
+  min-height: calc(var(--line) * (var(--q-rows) + 1)) !important;
 }
 /* (the label floats at the start of the row and the text takes the rest: a flex row here made the
    PDF's page breaks differ from reading view's) */

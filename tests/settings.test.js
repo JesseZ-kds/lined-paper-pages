@@ -148,9 +148,9 @@ for (const width of [1000, 700]) {
   });
 }
 
-// The snippets are part of the plugin now: when the old ones are still on, the plugin says once
-// that they can be switched off
-test('old snippets still switched on: a one-time hint', async () => {
+// The snippets are part of the plugin now: old ones still switched on would override its newer
+// styles, so the plugin switches them off and says so (or, where it can't, says once to do it)
+test('old snippets still switched on: switched off, or a one-time hint', async () => {
   const b = await browser(false);
   const context = await b.newContext();
   try {
@@ -159,9 +159,11 @@ test('old snippets still switched on: a one-time hint', async () => {
     const r = await page.evaluate(async (src) => {
       const notices = [];
       let saved = {};
-      const run = async (enabled) => {
+      const snippets = new Set();
+      const run = async (enabled, canSwitch) => {
+        if (enabled) { snippets.clear(); for (const n of enabled) snippets.add(n); }
         class Plugin {
-          constructor() { this.app = { workspace: { on: () => ({}), onLayoutReady: (f) => f(), getLeavesOfType: () => [] }, customCss: { enabledSnippets: new Set(enabled) } }; }
+          constructor() { this.app = { workspace: { on: () => ({}), onLayoutReady: (f) => f(), getLeavesOfType: () => [] }, customCss: { enabledSnippets: snippets, ...(canSwitch ? { setCssEnabledStatus: (n, on) => { if (!on) snippets.delete(n); } } : {}) } }; }
           loadData() { return Promise.resolve(JSON.parse(JSON.stringify(saved))); } saveData(d) { saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }
           addSettingTab() {} addCommand() {} registerEvent() {} register() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
         }
@@ -172,15 +174,22 @@ test('old snippets still switched on: a one-time hint', async () => {
         await new Promise((res) => setTimeout(res, 50));
         plugin.onunload();
       };
-      await run(['other']);                          // no old snippets: no hint
+      await run(['other'], true);                          // no old snippets: nothing
       const none = notices.length;
-      await run(['lined-paper', 'cornell-notes']);   // old snippets on: one hint
-      await run(['lined-paper', 'cornell-notes']);   // ... and not again
-      return { none, notices };
+      await run(['other', 'lined-paper', 'cornell-notes'], true);   // old snippets on: switched off
+      const left = [...snippets];
+      await run(null, true);                                // ... so nothing the next time
+      const switched = notices.splice(0);
+      await run(['lined-paper', 'cornell-notes'], false);   // can't switch them: one hint
+      await run(['lined-paper', 'cornell-notes'], false);   // ... and not again
+      return { none, left, switched, notices };
     }, MAIN);
     assert.equal(r.none, 0);
+    assert.deepEqual(r.left, ['other']);
+    assert.equal(r.switched.length, 1);
+    assert.match(r.switched[0], /switched off the old snippets "lined-paper" and "cornell-notes"/);
     assert.equal(r.notices.length, 1);
-    assert.match(r.notices[0], /switch off the snippets "lined-paper" and "cornell-notes"/);
+    assert.match(r.notices[0], /Switch off the snippets "lined-paper" and "cornell-notes"/);
   } finally {
     await context.close();
   }

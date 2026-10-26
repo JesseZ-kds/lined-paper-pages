@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.9] - 2026-10-26
+
+### Fixed
+- An empty row under the `[!question]`: a `cornell-notes` snippet left on from an earlier install
+  set the question to its old 2 lines. The question ignores that now, and the plugin switches the
+  old `lined-paper` / `cornell-notes` snippets off when it loads (their newer styles are in the
+  plugin; the snippet files are kept).
+
+### Added
+- Command *Insert title with today's date*: `# Note name <span class="paper-date">YYYY-MM-DD</span>`
+  (the date sits in the title bar's corner). *Insert Cornell page* writes its title the same way.
+
+### Changed
+- The plugin writes its version in the developer console when it loads.
+- A date written in the title (`<span class="paper-date">`) no longer counts towards the title's
+  length when the plugin fits the title on its line.
+
 ## [1.9.8] - 2026-10-26
 
 ### Added
@@ -205,7 +222,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.8...HEAD
+[Unreleased]: ../../compare/1.9.9...HEAD
+[1.9.9]: ../../compare/1.9.8...1.9.9
 [1.9.8]: ../../compare/1.9.7...1.9.8
 [1.9.7]: ../../compare/1.9.6...1.9.7
 [1.9.6]: ../../compare/1.9.5...1.9.6

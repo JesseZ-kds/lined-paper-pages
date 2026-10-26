@@ -204,3 +204,21 @@ test('external links in the PDF have the text colour', async () => {
     await ctx.close();
   }
 });
+
+// The question is one row (label + question) plus the Cues | Notes row, even with an old
+// cornell-notes.css snippet still switched on (it sets --question-lines to 2)
+test('the question is one row, also with an old snippet on', async () => {
+  const { page, context } = await openReading(note('hello'));
+  try {
+    const rows = () => page.evaluate(() => {
+      const q = document.querySelector('.callout[data-callout="question"]');
+      const line = parseFloat(getComputedStyle(q).getPropertyValue('--line')) || q.getBoundingClientRect().height / 2;
+      return Math.round(q.getBoundingClientRect().height / line);
+    });
+    assert.equal(await rows(), 2);
+    await page.addStyleTag({ content: '.lined-paper.cornell { --question-lines: 2; }' });
+    assert.equal(await rows(), 2);
+  } finally {
+    await context.close();
+  }
+});

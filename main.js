@@ -174,6 +174,21 @@ function addSummarySizer(root) {
 // depends on the font, so the baseline is measured and the title moved down (or up) onto the line
 // (--lp-title-adjust). "Title position" in the settings moves it from there.
 const TITLE_MIN = 0.6;
+// the width of a title's text on one line (a date written in it, <span class="paper-date">, sits in
+// the bar's corner and doesn't count)
+function titleWidth(h) {
+  const tw = document.createTreeWalker(h, NodeFilter.SHOW_TEXT);
+  const r = document.createRange();
+  let left = Infinity, right = -Infinity;
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    if (!n.data.trim() || (n.parentElement && n.parentElement.closest('.paper-date'))) continue;
+    r.selectNodeContents(n);
+    const b = r.getBoundingClientRect();
+    if (!b.width) continue;
+    left = Math.min(left, b.left); right = Math.max(right, b.right);
+  }
+  return right > left ? right - left : 0;
+}
 function fitTitles(root, undo) {
   for (const h of root.querySelectorAll('h1')) {
     const view = h.closest('.markdown-preview-view.lined-paper');
@@ -183,18 +198,17 @@ function fitTitles(root, undo) {
     h.classList.remove('lp-title-wrap', 'lp-title-fit');         // (measured on one line, full size)
     h.style.removeProperty('--lp-title-fit');
     h.style.removeProperty('--lp-title-adjust');
-    const range = document.createRange();
-    range.selectNodeContents(h);
     const cs = getComputedStyle(h);
     const size = parseFloat(cs.fontSize);
-    if (!size || !h.textContent.trim()) continue;
+    const textW = titleWidth(h);
+    if (!size || !textW) continue;
     let ratio;
     if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
       // (no A4 pages: the bar is the pane's width)
-      ratio = (h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / range.getBoundingClientRect().width;
+      ratio = (h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / textW;
     } else {
       const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)');
-      ratio = room / ((range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))'));
+      ratio = room / ((textW / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))'));
     }
     if (ratio >= 1) { /* fits */ }
     else if (ratio >= TITLE_MIN) {
@@ -530,8 +544,15 @@ function paperClasses(fm, kind) {
   return [...paper, ...rest];
 }
 
+// today, as Obsidian's date format would write it (moment comes with Obsidian)
+const today = () => {
+  if (globalThis.moment) return globalThis.moment().format('YYYY-MM-DD');
+  const d = new Date(), two = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+};
 const TEMPLATES = {
-  cornell: (title) => `# ${title}\n\n> [!question] Question\n> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n> [!summary] Summary\n> \n`,
+  title: (title) => `# ${title} <span class="paper-date">${today()}</span>\n|`,
+  cornell: (title) => `# ${title} <span class="paper-date">${today()}</span>\n\n> [!question] Question\n> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n> [!summary] Summary\n> \n`,
   group: () => '>> [!cue]\n>> |\n>\n>> [!notes]\n>> \n',
   question: () => '> [!question] Question\n> |\n',
   summary: () => '> [!summary] Summary\n> |\n',
@@ -584,7 +605,8 @@ function addPaperCommands(plugin) {
     id, name,
     editorCallback: (editor, view) => insertBlock(editor, TEMPLATES[key]((view && view.file && view.file.basename) || 'Title')),
   });
-  insert('insert-cornell-page', 'Insert Cornell page (title, question, cue + notes, summary)', 'cornell');
+  insert('insert-title', 'Insert title with today\'s date', 'title');
+  insert('insert-cornell-page', 'Insert Cornell page (title with date, question, cue + notes, summary)', 'cornell');
   insert('insert-cue-notes', 'Insert cue + notes', 'group');
   insert('insert-question', 'Insert essential question', 'question');
   insert('insert-summary', 'Insert summary', 'summary');
@@ -700,7 +722,7 @@ module.exports = class LinedPaperPages extends Plugin {
       callback: () => { this.scheduleScan(true); new Notice('Lined Paper Pages: re-paginating'); },
     });
     addPaperCommands(this);
-    console.debug('[lined-paper-pages] loaded');
+    console.log('[lined-paper-pages] loaded, version ' + ((this.manifest && this.manifest.version) || '?'));
 
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(again);
     this.errorShown = false;
@@ -711,16 +733,26 @@ module.exports = class LinedPaperPages extends Plugin {
   // The two CSS snippets are now part of the plugin (styles.css). Snippets left switched on from an
   // earlier install do no harm (every rule is just there twice), but they can go: say so, once.
   hintOldSnippets() {
+    // The lined-paper / cornell-notes snippets from before 1.9 load after the plugin's styles, so
+    // their older rules win (an empty row under the question, the title's old place, ...): switch
+    // them off, and say so. (Their files stay: switch them on again in Appearance → CSS snippets.)
     const css = this.app.customCss;
     const on = css && css.enabledSnippets;
-    if (!on || this.settings.oldSnippetsHinted) return;
+    if (!on) return;
     const names = ['lined-paper', 'cornell-notes'].filter((n) => (on.has ? on.has(n) : Array.isArray(on) && on.includes(n)));
     if (!names.length) return;
-    new Notice(`Lined Paper Pages now includes its own styles. You can switch off the snippet${names.length > 1 ? 's' : ''} ` +
-      `${names.map((n) => `"${n}"`).join(' and ')} in Settings → Appearance → CSS snippets.`, 20000);
-    this.settings.oldSnippetsHinted = true;
-    this.saveData(this.settings);
+    if (typeof css.setCssEnabledStatus === 'function') {
+      for (const n of names) css.setCssEnabledStatus(n, false);
+      new Notice(`Lined Paper Pages: switched off the old snippet${names.length > 1 ? 's' : ''} ${names.map((n) => `"${n}"`).join(' and ')}. ` +
+        'The plugin has its own, newer styles; the old ones were overriding them.', 15000);
+    } else if (!this.settings.oldSnippetsHinted) {
+      new Notice(`Lined Paper Pages now includes its own styles. Switch off the snippet${names.length > 1 ? 's' : ''} ` +
+        `${names.map((n) => `"${n}"`).join(' and ')} in Settings → Appearance → CSS snippets.`, 20000);
+      this.settings.oldSnippetsHinted = true;
+      this.saveData(this.settings);
+    }
   }
+
 
   applySettings() {
     const b = document.body;

@@ -48,7 +48,8 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Make this note lined paper | Sets `cssclasses: [lined-paper]` (other classes are kept) |
 | Make this note Cornell notes | Sets `cssclasses: [lined-paper, cornell]` |
 | Make this note a plain note again | Takes the two classes off |
-| Insert Cornell page | Title (the note's name), question, one cue + notes group, summary |
+| Insert title with today's date | `# Note name <span class="paper-date">2026-10-26</span>`: the date in the title bar's corner |
+| Insert Cornell page | Title with today's date, question, one cue + notes group, summary |
 | Insert cue + notes | A `[!cue]` / `[!notes]` group, the cursor in the cue |
 | Insert essential question | `[!question]` |
 | Insert summary | `[!summary]` |
