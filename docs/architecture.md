@@ -7,13 +7,15 @@ A guide for contributors. For using the plugin, see the [README](../README.md) a
 
 | File | Role |
 |---|---|
+| `styles.css` | The plugin's stylesheet, **generated** by `npm run build` from the three files below. |
+| `src/plugin.css` | The plugin's own styles: sheet shadows, page labels, the settings page. |
 | `snippets/lined-paper.css` | The paper: ruled rows, red margin line, title bar, body text on the rows, callouts and pictures on the rows, the A4 pages of reading view, and the PDF export. |
 | `snippets/cornell-notes.css` | The Cornell layout on top of it: the cue \| notes columns, the essential question, `[!wide]`, `[!divider]`, the summary. |
 | `main.js` | The plugin (plain JavaScript, no build step). Everything CSS can't do; see below. |
-| `styles.css` | The plugin's own styles: sheet shadows, page labels, the settings page. |
 
 Everything is driven by **CSS custom properties** with defaults (`var(--lp-line, 36px)`), read
-by both snippets. The plugin's settings page and the Style Settings plugin set those variables
+by both snippets. The snippets also work on their own, as CSS snippets in a vault, for the look
+without the plugin's pages. The plugin's settings page and the Style Settings plugin set those variables
 on `<body>`, so a setting is one variable and never needs the layout code to know about it.
 
 ## Rows

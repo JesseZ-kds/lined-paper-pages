@@ -29,7 +29,7 @@ for (const key of ['id', 'name', 'version', 'minAppVersion', 'description', 'aut
 check(read('CHANGELOG.md').includes(`## [${manifest.version}]`), `CHANGELOG.md has no section for ${manifest.version}`);
 
 // stylesheets: balanced braces and comments (a stray one silently drops the rules after it)
-for (const f of ['styles.css', 'snippets/lined-paper.css', 'snippets/cornell-notes.css']) {
+for (const f of ['src/plugin.css', 'snippets/lined-paper.css', 'snippets/cornell-notes.css', 'styles.css']) {
   const css = read(f);
   const opened = (css.match(/\/\*/g) || []).length, closed = (css.match(/\*\//g) || []).length;
   check(opened === closed, `${f}: ${opened} comments opened, ${closed} closed`);

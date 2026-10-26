@@ -20,8 +20,11 @@ const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..', '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 // (the tests run offline: the Google Fonts import is left out, the fallback fonts are used)
-const CSS_WITH_FONTS = ['snippets/lined-paper.css', 'snippets/cornell-notes.css', 'styles.css'].map(read).join('\n');
-const CSS = CSS_WITH_FONTS.replace(/@import url\([^)]*\);/g, '');
+// With the plugin, Obsidian loads its styles.css (which holds the snippets too); without it, the
+// snippets are what a vault can use on their own.
+const STYLES_WITH_FONTS = { plugin: read('styles.css'), snippets: ['snippets/lined-paper.css', 'snippets/cornell-notes.css'].map(read).join('\n') };
+const STYLES = Object.fromEntries(Object.entries(STYLES_WITH_FONTS).map(([k, v]) => [k, v.replace(/@import url\([^)]*\);/g, '')]));
+const CSS = STYLES.plugin;
 const SIM = fs.readFileSync(path.join(__dirname, 'obsidian-sim.css'), 'utf8');
 const MAIN = read('main.js');
 const NO_PLUGIN = 'module.exports = class { onload() {} };';
@@ -67,9 +70,10 @@ function installPlugin({ src, exportMode, extra }) {
 // <template class="emb"> and unpacked here, before anything else runs.
 const UNPACK = "<script>document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('template.emb').forEach((t) => t.replaceWith(t.content)))</script>";
 
-function pages({ blocks, cornell }, theme, fonts = false) {
+function pages({ blocks, cornell }, theme, fonts = false, plugin = true) {
   const cls = cornell ? 'lined-paper cornell' : 'lined-paper';
-  const head = `${UNPACK}<style>html,body{margin:0;padding:0}</style><style>${SIM}</style><style>${fonts ? CSS_WITH_FONTS : CSS}</style>`;
+  const css = (fonts ? STYLES_WITH_FONTS : STYLES)[plugin ? 'plugin' : 'snippets'];
+  const head = `${UNPACK}<style>html,body{margin:0;padding:0}</style><style>${SIM}</style><style>${css}</style>`;
   const reading = `<!doctype html><html><head>${head}</head><body class="${theme}">
 <div class="markdown-reading-view" style="height:100vh;overflow:auto;display:flex;flex-direction:column"><div class="markdown-preview-view markdown-rendered ${cls}" style="overflow:visible">
 <div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="width: 1px; height: 0.1px; margin-bottom: 0px;"></div><div class="mod-header"></div>${blocks.join('')}<div class="mod-footer"></div></div></div></div></body></html>`;
@@ -125,7 +129,7 @@ async function openReading(note, { cssPaging = false, plugin = true, dpr = 1, th
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') page.errors.push(m.text()); });
-  await page.setContent(pages(note, theme, fonts).reading);
+  await page.setContent(pages(note, theme, fonts, plugin || !!src).reading);
   if (fonts) await page.evaluate(() => document.fonts.ready);
   const cssPaged = await page.evaluate(() => CSS.supports('column-wrap', 'wrap') && CSS.supports('column-height', '1px'));
   if (cssPaged !== cssPaging) { await context.close(); return { page: null, context: null, cssPaged: null }; }
@@ -160,7 +164,7 @@ async function render(note, options = {}) {
 
     const exportPage = await context.newPage();
     exportPage.on('pageerror', (e) => errors.push(e.message));
-    await exportPage.setContent(pages(note, theme, fonts).print);
+    await exportPage.setContent(pages(note, theme, fonts, plugin).print);
     if (fonts) await exportPage.evaluate(() => document.fonts.ready);
     await exportPage.evaluate(installPlugin, { src: plugin && postProcess ? MAIN : NO_PLUGIN, exportMode: true });
     await exportPage.waitForTimeout(50);

@@ -27,7 +27,7 @@ places, the Lined Paper Pages settings page wins.
 
 ## Changing a setting without the plugin
 
-The snippets read every option from a CSS variable with a default (section 1 of each
+If you use the CSS snippets on their own (without the plugin), they read every option from a CSS variable with a default (section 1 of each
 snippet), so you can also change a default there, e.g. `var(--lp-line, 36px)` → `var(--lp-line, 32px)`.
 The settings page and Style Settings both win over these defaults.
 

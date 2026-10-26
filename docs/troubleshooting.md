@@ -1,16 +1,17 @@
 # Troubleshooting
 
-Most problems come from files that don't belong together. The plugin and the two snippets are
-made as a set: **always update all of them together**, then restart Obsidian. The version shown
-at the top of *Settings → Lined Paper Pages* tells you which plugin version is running.
+Most problems come from an old copy of the plugin. The version shown at the top of *Settings →
+Lined Paper Pages* tells you which version is running; update it (*Community plugins → Check for
+updates*, BRAT, or by replacing the plugin folder) and restart Obsidian.
 
 | What you see | What to do |
 |---|---|
-| Nothing changes in a note | Check the note's properties: `cssclasses: [lined-paper]` (and `cornell` for Cornell notes). Check both snippets are switched on in *Settings → Appearance → CSS snippets*. |
-| A note above the first page says *"Lined Paper Pages plugin is not running"* | Switch the plugin on in *Settings → Community plugins*. The snippets alone draw the paper, but only the plugin moves text out of footers and onto the next page. |
-| Text runs into the footer, or the summary sits in the wrong place | Make sure the plugin and the snippets are the same version. A downloaded file may have been saved as `lined-paper (1).css` or `main (1).js`: then Obsidian keeps using the old one. Delete the old copies, keep one of each name, restart Obsidian. |
+| Nothing changes in a note | Check the note's properties: `cssclasses: [lined-paper]` (and `cornell` for Cornell notes). Check **Lined Paper Pages** is enabled in *Settings → Community plugins*. |
+| A note above the first page says *"Lined Paper Pages plugin is not running"* | You are using the CSS snippets without the plugin: they draw the paper, but only the plugin moves text out of footers and onto the next page. Enable the plugin in *Settings → Community plugins*, and switch the snippets off. |
+| Text runs into the footer, or the summary sits in the wrong place | Update the plugin. If you installed it by hand, a downloaded file may have been saved as `main (1).js`: then Obsidian keeps using the old one. Replace the whole `lined-paper-pages` folder and restart Obsidian. |
+| Settings show up twice in Style Settings, or a change seems to apply twice | The old CSS snippets are still switched on next to the plugin. Switch **lined-paper** and **cornell-notes** off in *Settings → Appearance → CSS snippets*. |
 | The last lines of a PDF page spill onto an extra page | Lower *Advanced → Page height used* by 1–2 mm. |
-| The handwriting looks like a plain font, or the title is cut off (`Title…`) | The handwriting fonts download from Google Fonts. Export or open the note while online, or pick a font installed on your computer (*Settings → Handwriting font → Other*). |
+| The handwriting looks like a plain font | The handwriting fonts download from Google Fonts. Export or open the note while online, or pick a font installed on your computer (*Settings → Handwriting font → Other*). |
 | A setting doesn't change anything | It may be set in Style Settings too: the plugin's settings page wins, so reset it there or here. |
 | An embedded callout still shows Obsidian's embed frame (purple bar) | The embed must be alone on its line and point at a block that is one callout (or one cue/notes group). Embeds of anything else stay ordinary embeds. |
 | A link inside `<font color>` doesn't show | Update to the latest version: the plugin rebuilds such links in reading view, the PDF and editing view. |

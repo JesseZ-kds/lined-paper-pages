@@ -27,25 +27,31 @@ summary). Reading view shows them as real A4 sheets that look exactly like the P
 
 ## Installation
 
-Lined Paper Pages has two parts that work as a set: the **plugin** and two **CSS snippets**.
+### From Obsidian (once it is listed as a community plugin)
 
-1. Download `lined-paper-pages-<version>.zip` from the [latest release](../../releases/latest)
-   and unzip it.
-2. Copy the `lined-paper-pages` folder into `<your vault>/.obsidian/plugins/`.
-3. Copy the two files in `snippets/` into `<your vault>/.obsidian/snippets/`.
-4. In Obsidian: *Settings → Community plugins* → switch on **Lined Paper Pages**, and
-   *Settings → Appearance → CSS snippets* → switch on **lined-paper** and **cornell-notes**.
+*Settings → Community plugins → Browse*, search for **Lined Paper Pages**, then **Install** and
+**Enable**. Updates come through *Check for updates*.
 
-To update, replace the plugin folder and both snippets, then restart Obsidian. The version that is
-running is shown at the top of *Settings → Lined Paper Pages*.
+### With BRAT (now, with automatic updates)
 
-<details>
-<summary>Installing from a copy of this repository</summary>
+1. Install and enable **BRAT** from *Settings → Community plugins → Browse*.
+2. Run the command **BRAT: Add a beta plugin for testing** (*Ctrl/Cmd + P*) and enter
+   `JesseZ-kds/lined-paper-pages`.
+3. Enable **Lined Paper Pages** in *Settings → Community plugins*.
 
-The plugin needs no build step. Copy `main.js`, `manifest.json` and `styles.css` into
-`<your vault>/.obsidian/plugins/lined-paper-pages/`, and `snippets/*.css` into
-`<your vault>/.obsidian/snippets/`.
-</details>
+### By hand
+
+Download `lined-paper-pages-<version>.zip` from the [latest release](../../releases/latest), unzip
+it, and copy the `lined-paper-pages` folder into `<your vault>/.obsidian/plugins/`. Then enable
+**Lined Paper Pages** in *Settings → Community plugins*. To update, replace the folder and restart
+Obsidian.
+
+The version that is running is shown at the top of *Settings → Lined Paper Pages*.
+
+> **Upgrading from 1.8 or earlier?** The plugin now includes everything that the two CSS snippets
+> did. Switch the snippets **lined-paper** and **cornell-notes** off in *Settings → Appearance →
+> CSS snippets* (the plugin reminds you once). They still work on their own, without the plugin,
+> if you only want the look without the pages.
 
 ## Quick start
 
@@ -109,12 +115,14 @@ reading view; every page repeats the title bar and the Cues | Notes row.
 ```sh
 npm install          # Playwright, CodeMirror and esbuild, for the tests
 npx playwright install chromium
-npm run lint         # syntax, JSON, version numbers, stylesheet braces
+npm run build        # styles.css from src/plugin.css and the snippets (run after editing CSS)
+npm run lint         # syntax, JSON, version numbers, stylesheet braces, styles.css up to date
 npm test             # the whole test suite in a real Chromium (needs pdftotext: poppler-utils)
 npm run package      # dist/lined-paper-pages-<version>.zip
 ```
 
-The plugin is plain JavaScript with no build step; edit `main.js` and the stylesheets directly.
+`main.js` is plain JavaScript with no build step. The stylesheet is assembled by `npm run build`:
+edit `src/plugin.css` and `snippets/*.css`, never `styles.css` itself.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout, the tests and how to release.
 
 ## License

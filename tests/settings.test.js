@@ -147,3 +147,41 @@ for (const width of [1000, 700]) {
     }
   });
 }
+
+// The snippets are part of the plugin now: when the old ones are still on, the plugin says once
+// that they can be switched off
+test('old snippets still switched on: a one-time hint', async () => {
+  const b = await browser(false);
+  const context = await b.newContext();
+  try {
+    const page = await context.newPage();
+    await page.setContent('<body></body>');
+    const r = await page.evaluate(async (src) => {
+      const notices = [];
+      let saved = {};
+      const run = async (enabled) => {
+        class Plugin {
+          constructor() { this.app = { workspace: { on: () => ({}), onLayoutReady: (f) => f(), getLeavesOfType: () => [] }, customCss: { enabledSnippets: new Set(enabled) } }; }
+          loadData() { return Promise.resolve(JSON.parse(JSON.stringify(saved))); } saveData(d) { saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }
+          addSettingTab() {} addCommand() {} registerEvent() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
+        }
+        const module = { exports: {} };
+        new Function('require', 'module', src)(() => ({ Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class { constructor(m) { notices.push(m); } } }), module);
+        const plugin = new module.exports();
+        plugin.onload();
+        await new Promise((res) => setTimeout(res, 50));
+        plugin.onunload();
+      };
+      await run(['other']);                          // no old snippets: no hint
+      const none = notices.length;
+      await run(['lined-paper', 'cornell-notes']);   // old snippets on: one hint
+      await run(['lined-paper', 'cornell-notes']);   // ... and not again
+      return { none, notices };
+    }, MAIN);
+    assert.equal(r.none, 0);
+    assert.equal(r.notices.length, 1);
+    assert.match(r.notices[0], /switch off the snippets "lined-paper" and "cornell-notes"/);
+  } finally {
+    await context.close();
+  }
+});

@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-26
+
+### Changed
+- **One install.** The plugin's stylesheet now includes everything the two CSS snippets did, so
+  installing the plugin is all it takes (from Obsidian's community plugins, with BRAT, or by hand).
+  The snippets are still published for using the look without the plugin.
+- `styles.css` is built from `src/plugin.css` and the snippets with `npm run build`.
+- Author: JesseZ-kds.
+
+### Added
+- A one-time reminder to switch off the old snippets when they are still on next to the plugin.
+
 ## [1.8.1] - 2026-10-26
 
 ### Fixed
@@ -110,6 +122,7 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.8.1...HEAD
+[Unreleased]: ../../compare/1.9.0...HEAD
+[1.9.0]: ../../compare/1.8.1...1.9.0
 [1.8.1]: ../../compare/1.8.0...1.8.1
 [1.8.0]: ../../releases/tag/1.8.0

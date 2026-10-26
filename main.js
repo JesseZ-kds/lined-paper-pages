@@ -2,7 +2,8 @@
 /*
  * Lined Paper Pages: lined paper and Cornell notes for Obsidian.
  *
- * The look comes from the two CSS snippets (snippets/lined-paper.css, snippets/cornell-notes.css):
+ * The look comes from the plugin's styles.css, built from snippets/lined-paper.css and
+ * snippets/cornell-notes.css (which also work on their own, as CSS snippets) and src/plugin.css:
  * paper, ruled lines, title bar, Cornell columns, and the A4 pages of reading view and the PDF.
  * This plugin does what CSS can't (see docs/architecture.md):
  *
@@ -448,7 +449,12 @@ module.exports = class LinedPaperPages extends Plugin {
     this.scan = this.scan.bind(this);
     this.settings = {};
     this.ownClasses = new Set();
-    this.loadData().then((d) => { this.settings = d || {}; this.applySettings(); });
+    this.loadData().then((d) => {
+      this.settings = d || {};
+      this.applySettings();
+      const ws = this.app.workspace;
+      if (ws.onLayoutReady) ws.onLayoutReady(() => this.hintOldSnippets());
+    });
     this.addSettingTab(new LinedPaperSettingTab(this.app, this));
 
     const again = () => this.scheduleScan(true);
@@ -527,6 +533,20 @@ module.exports = class LinedPaperPages extends Plugin {
   }
 
   // put every stored setting on <body> (and take off the ones that were reset)
+  // The two CSS snippets are now part of the plugin (styles.css). Snippets left switched on from an
+  // earlier install do no harm (every rule is just there twice), but they can go: say so, once.
+  hintOldSnippets() {
+    const css = this.app.customCss;
+    const on = css && css.enabledSnippets;
+    if (!on || this.settings.oldSnippetsHinted) return;
+    const names = ['lined-paper', 'cornell-notes'].filter((n) => (on.has ? on.has(n) : Array.isArray(on) && on.includes(n)));
+    if (!names.length) return;
+    new Notice(`Lined Paper Pages now includes its own styles. You can switch off the snippet${names.length > 1 ? 's' : ''} ` +
+      `${names.map((n) => `"${n}"`).join(' and ')} in Settings → Appearance → CSS snippets.`, 20000);
+    this.settings.oldSnippetsHinted = true;
+    this.saveData(this.settings);
+  }
+
   applySettings() {
     const b = document.body;
     for (const def of SETTINGS) {
