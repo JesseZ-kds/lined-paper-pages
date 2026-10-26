@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-26
+
+### Added
+- A *Keyboard shortcuts* list in the README.
+- Every page block works in a quote of its own (`>> [!divider]`, `>> [!nextpage]`, `>> [!wide]`,
+  `>> [!question]`, `>> [!summary]`), like the cue / notes groups.
+
+### Changed
+- `[!question]`: the "Question" label is back on a row of its own, the question one line under it.
+- The insert commands write every block as `>> [!…]`.
+
+### Fixed
+- In editing view a `[!divider]` took no ruled row, so everything after it moved up a line: it keeps
+  its row now.
+- `>> [!nextpage]` didn't start a new page, and `>> [!divider]` could lose its red line.
+
 ## [1.9.9] - 2026-10-26
 
 ### Fixed
@@ -222,7 +238,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.9...HEAD
+[Unreleased]: ../../compare/1.10.0...HEAD
+[1.10.0]: ../../compare/1.9.9...1.10.0
 [1.9.9]: ../../compare/1.9.8...1.9.9
 [1.9.8]: ../../compare/1.9.7...1.9.8
 [1.9.7]: ../../compare/1.9.6...1.9.7

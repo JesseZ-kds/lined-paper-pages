@@ -82,6 +82,31 @@ Use `cssclasses: [lined-paper]` for lined paper without the Cornell layout. Only
 classes are changed. Commands (with hotkeys if you like) set the classes and type the blocks for you:
 see [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys). The [examples](examples/) folder has two complete notes to copy.
 
+## Keyboard shortcuts
+
+Every command is in the command palette (Ctrl/Cmd + P, type "Lined Paper"). To give one a
+shortcut: **Settings → Hotkeys**, search "Lined Paper", click the ⊕ next to the command and press
+the keys. Suggested shortcuts (none are set for you; check a combination is free first):
+
+| Command | Suggested shortcut |
+| --- | --- |
+| Make this note Cornell notes | Ctrl/Cmd + Alt + C |
+| Make this note lined paper | Ctrl/Cmd + Alt + L |
+| Make this note a plain note again | — |
+| Insert Cornell page | Ctrl/Cmd + Alt + P |
+| Insert title with today's date | Ctrl/Cmd + Alt + T |
+| Insert cue + notes | Ctrl/Cmd + Alt + N |
+| Insert essential question | Ctrl/Cmd + Alt + Q |
+| Insert summary | Ctrl/Cmd + Alt + S |
+| Insert full-width lines (`[!wide]`) | Ctrl/Cmd + Alt + W |
+| Insert divider line | Ctrl/Cmd + Alt + D |
+| Insert page break | Ctrl/Cmd + Alt + Enter |
+| Colour text blue / red / green / orange / purple | Ctrl/Cmd + Alt + 1 … 5 |
+| Re-paginate reading view | — |
+
+The *Insert* and *Colour* commands work in editing view (where there is a cursor); switch with
+Ctrl/Cmd + E (*Toggle reading view*). Details: [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys).
+
 ## Documentation
 
 | | |

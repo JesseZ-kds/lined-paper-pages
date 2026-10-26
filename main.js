@@ -53,7 +53,7 @@ const SETTINGS = [
   { key: 'cn-cue', type: 'slider', min: 0.15, max: 0.5, step: 0.01, def: 0.3, pct: true, name: 'Cue column width',
     desc: 'Share of the page for the cue column (left of the divider).' },
   { key: 'cn-question-lines', type: 'slider', min: 1, max: 6, step: 1, def: 1, name: 'Essential question lines',
-    desc: 'Ruled lines kept for the [!question] at the top of the page. Its "Question" label and the question share the first.' },
+    desc: 'Ruled lines kept for the [!question] text at the top of the page (its "Question" label has a row of its own above).' },
   { key: 'cn-summary-rows', type: 'slider', min: 3, max: 15, step: 1, def: 5, name: 'Summary height',
     desc: 'Lines the [!summary] takes at the bottom of the last page, its "Summary" label included.' },
   { key: 'cn-summary-min-rows', type: 'slider', min: 2, max: 5, step: 1, def: 3, name: 'Summary minimum height',
@@ -237,7 +237,7 @@ function fitTitles(root, undo) {
   fitQuestions(root, undo);
 }
 
-// The [!question] is ONE line: its label, then its text, which never wraps (cornell-notes.css); a
+// The [!question]'s text is ONE line, under its label: it never wraps (cornell-notes.css); a
 // question too long for the line is made smaller until it fits (--lp-q-fit). Measured like the title:
 // in units of the font size, at the A4 sizes, against an A4 line (an export is prepared in a window
 // that is not A4 wide); without A4 pages, against the line on screen.
@@ -247,7 +247,6 @@ function fitQuestions(root, undo) {
     if (!view || c.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
     const had = c.style.getPropertyValue('--lp-q-fit') !== '';
     c.style.removeProperty('--lp-q-fit');
-    const label = c.parentElement.querySelector(':scope > .callout-title');
     const width = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
     let ratio = 1;
     for (const b of c.children) {
@@ -257,9 +256,7 @@ function fitQuestions(root, undo) {
         ratio = Math.min(ratio, b.clientWidth / w);
       } else {
         const text = px(view, 'calc(var(--lp-text, 22px) * var(--print-scale) * var(--text-size, 1))');
-        const labelSize = px(view, 'calc(var(--lp-text, 22px) * var(--print-scale) * var(--label-size, 0.85))');
-        const labelW = label && label.offsetWidth ? (width(label) / parseFloat(getComputedStyle(label.querySelector('.callout-title-inner') || label).fontSize)) * labelSize + text * 0.5 : 0;
-        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)') - labelW;
+        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)');
         ratio = Math.min(ratio, room / ((w / parseFloat(getComputedStyle(b).fontSize)) * text));
       }
     }
@@ -294,6 +291,22 @@ function embeddedCallout(emb) {
   }
   return el;
 }
+// A page block written in a quote of its own, `>> [!divider]` (as the cue / notes groups are
+// written), is laid out like the plain `> [!divider]`: the plugin takes the callout out of its outer
+// quote (reading view and the PDF). For [!divider], [!nextpage], [!wide], [!question], [!summary].
+const PAGE_BLOCKS = ['divider', 'nextpage', 'wide', 'question', 'summary'];
+function unwrapQuotedBlocks(root, undo) {
+  for (const bq of root.querySelectorAll('blockquote')) {
+    const kids = bq.children;
+    if (kids.length !== 1 || !kids[0].matches('.callout') || !PAGE_BLOCKS.includes(kids[0].dataset.callout)) continue;
+    if (!bq.parentElement || bq.parentElement.tagName !== 'DIV' || bq.parentElement.closest('.callout, .markdown-embed:not(.lp-embed-copy)')) continue;
+    if (Array.from(bq.childNodes).some((n) => n.nodeType === 3 && n.data.trim())) continue;
+    const c = kids[0];
+    bq.replaceWith(c);
+    if (undo) undo.push({ t: 'unq', bq, c });
+  }
+}
+
 function unwrapCalloutEmbeds(root, undo) {
   for (const emb of root.querySelectorAll(SEL_EMBED)) {
     if (emb.closest('.lp-embed-unwrapped') || emb.parentElement.closest(SEL_EMBED)) continue;
@@ -550,15 +563,16 @@ const today = () => {
   const d = new Date(), two = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
 };
+// (every block written in a quote of its own, `>> [!…]`, like the cue / notes groups)
 const TEMPLATES = {
   title: (title) => `# ${title} <span class="paper-date">${today()}</span>\n|`,
-  cornell: (title) => `# ${title} <span class="paper-date">${today()}</span>\n\n> [!question] Question\n> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n> [!summary] Summary\n> \n`,
+  cornell: (title) => `# ${title} <span class="paper-date">${today()}</span>\n\n>> [!question] Question\n>> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n>> [!summary] Summary\n>> \n`,
   group: () => '>> [!cue]\n>> |\n>\n>> [!notes]\n>> \n',
-  question: () => '> [!question] Question\n> |\n',
-  summary: () => '> [!summary] Summary\n> |\n',
-  wide: () => '> [!wide]\n> |\n',
-  divider: () => '> [!divider]\n\n|',
-  nextpage: () => '> [!nextpage]\n\n|',
+  question: () => '>> [!question] Question\n>> |\n',
+  summary: () => '>> [!summary] Summary\n>> |\n',
+  wide: () => '>> [!wide]\n>> |\n',
+  divider: () => '>> [!divider]\n\n|',
+  nextpage: () => '>> [!nextpage]\n\n|',
 };
 const COLOURS = [['blue', '#4f81bd'], ['red', '#c0504d'], ['green', '#9bbb59'], ['orange', '#f79646'], ['purple', '#8064a2']];
 
@@ -661,7 +675,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -691,12 +705,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); });
+    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -910,6 +924,7 @@ module.exports = class LinedPaperPages extends Plugin {
       this.undoAll(st);
       if (document.body.classList.contains('lp-no-pages')) return;
       if (!view.offsetParent) return; // hidden
+      unwrapQuotedBlocks(view, st.undo);
       unwrapCalloutEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
@@ -971,6 +986,7 @@ module.exports = class LinedPaperPages extends Plugin {
             break;
           case 'prop': u.el.style.removeProperty(u.name); break;
           case 'cls': u.el.classList.remove(u.name); break;
+          case 'unq': u.c.replaceWith(u.bq); u.bq.append(u.c); break;
         }
       } catch (e) { /* node was re-rendered by Obsidian: nothing to undo */ }
     }

@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],
@@ -205,20 +205,37 @@ test('external links in the PDF have the text colour', async () => {
   }
 });
 
-// The question is one row (label + question) plus the Cues | Notes row, even with an old
-// cornell-notes.css snippet still switched on (it sets --question-lines to 2)
-test('the question is one row, also with an old snippet on', async () => {
+// The question is its label row and one row for the question, plus the Cues | Notes row, even with
+// an old cornell-notes.css snippet still switched on (it sets --question-lines to 2)
+test('the question is a label row and one line, also with an old snippet on', async () => {
   const { page, context } = await openReading(note('hello'));
   try {
     const rows = () => page.evaluate(() => {
       const q = document.querySelector('.callout[data-callout="question"]');
-      const line = parseFloat(getComputedStyle(q).getPropertyValue('--line')) || q.getBoundingClientRect().height / 2;
+      const d = document.createElement('div');
+      d.style.cssText = 'position:absolute;height:var(--line)';
+      q.appendChild(d);
+      const line = d.getBoundingClientRect().height;
+      d.remove();
       return Math.round(q.getBoundingClientRect().height / line);
     });
-    assert.equal(await rows(), 2);
+    assert.equal(await rows(), 3);
     await page.addStyleTag({ content: '.lined-paper.cornell { --question-lines: 2; }' });
-    assert.equal(await rows(), 2);
+    assert.equal(await rows(), 3);
   } finally {
     await context.close();
   }
 });
+
+// `>> [!nextpage]` (in a quote of its own) starts a new page like `> [!nextpage]`, and the summary
+// after it goes to the bottom of that page
+for (const [mode, cssPaging] of MODES) {
+  test(`blocks in a quote of their own work like plain ones (${mode})`, async (t) => {
+    const r = await render(note('nested'), { cssPaging });
+    if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+    const at = (w) => r.pdf.words.find((x) => x.w === w);
+    assert.equal(at('c4').page, 2, 'c4 starts page 2');
+    assert.equal(at('SUMMARY').page, 2);
+    assert.equal(at('c3').page, 1);
+  });
+}

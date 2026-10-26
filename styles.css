@@ -3034,7 +3034,7 @@ settings:
     -
         id: cn-question-lines
         title: Essential question height
-        description: Ruled lines for the question (its "Question" label starts the first one; the Cues | Notes row below is extra).
+        description: Ruled lines for the question text (the "Question" label row above and the Cues | Notes row below are extra).
         type: variable-number-slider
         default: 1
         min: 1
@@ -4141,7 +4141,7 @@ settings:
    A [!wide] with nothing in it: just a red line right across the page (both columns), on a ruled
    line, to split the page into parts. It has no lines of its own: in reading view and the PDF it
    sits in the blank line between two blocks (one blank line above it, one below), and in editing
-   view on the line between the lines around it. Works on plain lined paper too. */
+   view on a ruled row of its own (its `> [!divider]` line). Works on plain lined paper too. */
 html body .lined-paper .callout.callout.callout[data-callout="divider"] {
   position: relative;
   top: 0 !important;
@@ -4175,8 +4175,13 @@ html body .lined-paper .callout.callout.callout[data-callout="divider"]::before 
   pointer-events: none;
 }
 html body .lined-paper .callout.callout.callout[data-callout="divider"]::after { content: none !important; }
-/* editing view: on the line between the lines around it (the blank lines there are the note's own) */
-html body .markdown-source-view.lined-paper .callout.callout.callout[data-callout="divider"] { margin-block: 0 !important; padding: 0 !important; }
+/* editing view: the `> [!divider]` line keeps its ruled row (so nothing under it moves up a line),
+   the red line on the rule at its top; the blank lines around it are the note's own */
+html body .markdown-source-view.lined-paper .callout.callout.callout[data-callout="divider"] {
+  margin-block: 0 !important;
+  padding: 0 !important;
+  height: var(--line) !important;
+}
 
 /* =====================================================================
    A CALLOUT INSIDE THE CUES OR NOTES
@@ -4209,25 +4214,18 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 
 /* The question's text is centred in the height of the row it is on: each line in the middle
    between its two ruled lines (not sitting on the lower one), starting on the first row */
-/* The question is ONE row: the "Question" label at the start of the line and the question right
-   after it, both centred between the title bar's double line and the ruled line under them
-   ("Essential question lines" above 1 adds blank lines under it). */
+/* The question: the "Question" label on the first row, the question on the row under it (one line,
+   centred between its two ruled lines), then the Cues | Notes row. "Essential question lines" above
+   1 adds rows for the question. */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
   /* (its own variable: a cornell-notes.css snippet left on from an earlier install sets
      --question-lines to its old default, 2, which put an empty row under the question) */
   --q-rows: var(--cn-question-lines, 1);
-  min-height: calc(var(--line) * (var(--q-rows) + 1)) !important;
-}
-/* (the label floats at the start of the row and the text takes the rest: a flex row here made the
-   PDF's page breaks differ from reading view's) */
-.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-title {
-  float: left;
-  margin-right: calc(var(--text) * 0.5) !important;   /* (the plugin counts on this gap when it measures the question) */
+  min-height: calc(var(--line) * (var(--q-rows) + 2)) !important;
 }
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
-  display: flow-root;
   position: relative;
-  top: calc(-1 * (var(--shift) + 1px) / 2);   /* (the same nudge as the label: the row under the double line) */
+  top: var(--title-nudge);   /* (between its two ruled lines, not sitting on the lower one) */
 }
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content > * {
   margin-block: 0 !important;

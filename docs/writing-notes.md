@@ -59,7 +59,8 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Colour text blue / red / green / orange / purple | Wraps the selected text (or the cursor) in `<font color="…">` |
 
 Blocks go on lines of their own, with the blank lines around them that Markdown needs, and the
-cursor ends up where you write next. Suggested hotkeys: Ctrl/Cmd + Shift + C for *Insert cue +
+cursor ends up where you write next. Every block is written in a quote of its own (`>> [!question]`,
+`>> [!divider]` …), the same way as the cue / notes groups; `>` and `>>` work the same. Suggested hotkeys: Ctrl/Cmd + Shift + C for *Insert cue +
 notes*, Ctrl/Cmd + Shift + N for *Make this note Cornell notes* (check they are free first).
 
 ## Cornell notes
@@ -77,10 +78,9 @@ Every Cornell block is a callout. Put a blank line between blocks.
 > What do I want to find out?
 ```
 
-The question is **one line**: the "Question" label, then the question, on the same ruled line. A
-long question is made smaller to fit, it never wraps (more room below it in the settings). It is
-centred in the height of its row (*Centre the question
-across the page* in the settings centres it on the line).
+The "Question" label has a row of its own, and the question is **one line** under it: a long
+question is made smaller to fit, it never wraps (more rows in the settings). It is centred between
+its two ruled lines (*Centre the question across the page* in the settings centres it on the line).
 
 ### Cue + notes *(as many as you like)*
 
@@ -134,8 +134,8 @@ itself, it simply has no red line above it.
 
 A `[!wide]` with nothing in it: just a red line right across the page (both columns), to split
 the page into parts. It has no lines of its own: in reading view and the PDF it sits between a
-blank line above and a blank line below, and in editing view on the line between the lines around
-it. It works on plain lined paper too.
+blank line above and a blank line below, and in editing view on its own ruled row (the
+`> [!divider]` line), so nothing after it moves up a line. It works on plain lined paper too.
 
 ### Start a new page
 

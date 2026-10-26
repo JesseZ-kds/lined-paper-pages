@@ -213,6 +213,16 @@ const notes = {
     block(callout('divider', 'Divider', '')),
     block(callout('summary', 'Summary', '<p>s</p>')),
   ],
+  // every page block written in a quote of its own (`>> [!divider]`), as the insert commands write them
+  nested: () => {
+    const q = (x) => `<div><blockquote>${x}</blockquote></div>`;
+    return [title('Nested blocks'), q(callout('question', 'Question', '<p>What is the meaning of life?</p>')),
+      group('<p>c1</p>', '<p>n1</p>'), q(callout('divider', 'Divider', '')), group('<p>c2</p>', '<p>n2</p>'),
+      q(callout('wide', 'Wide', '<p>WIDE nested</p>')), group('<p>c3</p>', `<p>n3 ${words(30)}</p>`),
+      q(callout('nextpage', 'Next page', '')), group('<p>c4</p>', '<p>n4</p>'),
+      q(callout('summary', 'Summary', '<p>SUMMARY nested text</p>'))];
+  },
+
   dividerPlain: () => [
     title('Plain divider'),
     para('before the divider'),

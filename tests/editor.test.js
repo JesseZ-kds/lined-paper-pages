@@ -47,8 +47,9 @@ ${widget(callout('divider', 'Divider', ''))}${line('l6', 'after divider')}
         embedFrames: [...document.querySelectorAll('.markdown-embed')].map((e) => getComputedStyle(e).borderLeftWidth + ' ' + getComputedStyle(e).paddingLeft),
       };
     });
-    // a callout of a title and one line of text takes 2 lines; [!wide] holding one too; a divider none
-    assert.deepEqual(r.lines, [2, 2, 2, 2, 2, 0]);
+    // a callout of a title and one line of text takes 2 lines; [!wide] holding one too; a divider its
+    // own line (it doesn't take a ruled row away)
+    assert.deepEqual(r.lines, [2, 2, 2, 2, 2, 1]);
     assert.ok(r.onGrid, 'the lines after the callouts are still on the ruled lines');
     assert.equal(r.boxes.length, 1, 'typed and embedded callouts, in [!wide] or not, have the same box: ' + r.boxes);
     assert.equal(r.titleFonts.length, 1, 'all titles in one font: ' + r.titleFonts);

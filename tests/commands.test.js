@@ -44,18 +44,18 @@ test('a block goes on lines of its own, the cursor where the writing goes', () =
   // at the end of a line of text: on new lines under it
   const f = editor('text', 0, 4);
   insertBlock(f, TEMPLATES.question());
-  assert.equal(f.text(), 'text\n\n> [!question] Question\n> \n');
-  assert.deepEqual(f.getCursor(), { line: 3, ch: 2 });
+  assert.equal(f.text(), 'text\n\n>> [!question] Question\n>> \n');
+  assert.deepEqual(f.getCursor(), { line: 3, ch: 3 });
   // a divider leaves a blank line after it, so the next text is not part of it
   const g = editor('', 0, 0);
   insertBlock(g, TEMPLATES.divider());
-  assert.equal(g.text(), '> [!divider]\n\n');
+  assert.equal(g.text(), '>> [!divider]\n\n');
   assert.deepEqual(g.getCursor(), { line: 2, ch: 0 });
   // a whole Cornell page in an empty note, titled after the note
   const h = editor('', 0, 0);
   insertBlock(h, TEMPLATES.cornell('Photosynthesis'));
-  assert.match(h.text(), /^# Photosynthesis <span class="paper-date">\d{4}-\d{2}-\d{2}<\/span>\n\n> \[!question\] Question\n> \n/);
-  assert.deepEqual(h.getCursor(), { line: 3, ch: 2 });
+  assert.match(h.text(), /^# Photosynthesis <span class="paper-date">\d{4}-\d{2}-\d{2}<\/span>\n\n>> \[!question\] Question\n>> \n/);
+  assert.deepEqual(h.getCursor(), { line: 3, ch: 3 });
 });
 
 test('a title with today\'s date, the cursor on the line under it', () => {
