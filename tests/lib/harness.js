@@ -216,4 +216,4 @@ const describeMismatch = ({ missing, extra }) =>
   [...missing.slice(0, 4).map((r) => `reading "${r.w}" p${r.page} x${r.x.toFixed(0)} y${r.y.toFixed(0)}`),
    ...extra.slice(0, 4).map((p) => `pdf "${p.w}" p${p.page} x${p.x.toFixed(0)} y${p.y.toFixed(0)}`)].join('; ');
 
-module.exports = { render, openReading, readingWords, pdfWords, compare, describeMismatch, closeBrowsers, browser, installPlugin, CSS, SIM, MAIN, ROOT };
+module.exports = { pages, render, openReading, readingWords, pdfWords, compare, describeMismatch, closeBrowsers, browser, installPlugin, CSS, SIM, MAIN, ROOT };

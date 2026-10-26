@@ -992,7 +992,7 @@ settings:
   box-sizing: border-box;
   height: calc(var(--line) * var(--bar-lines));
   margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-x) * -1) !important;
-  padding: var(--title-drop) var(--pad-r) 0 var(--pad-x) !important;   /* (top: the title sits low, on its line, under the date) */
+  padding: calc(var(--title-drop) + var(--lp-title-adjust, 0px)) var(--pad-r) 0 var(--pad-x) !important;   /* (top: the title sits low, ON the double line, under the date; the plugin measures the font to put it there) */
   line-height: calc(var(--line) * (var(--bar-lines) - 0.4)) !important;
   background-color: var(--bar);
   background-image:
@@ -1018,7 +1018,9 @@ settings:
   text-align: left;
   color: var(--title-ink);
   white-space: nowrap;
-  overflow: hidden;
+  /* (cut off at the sides only: the tails of g, y, p hang below the line, like handwriting) */
+  overflow-x: clip;
+  overflow-y: visible;
   text-overflow: ellipsis;
 }
 /* A title a little too long for one line (the plugin finds those): a little smaller, still on one
@@ -1034,7 +1036,7 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
   text-wrap: balance;
   font-size: calc(var(--title) * var(--lp-title-wrap-size, 0.66)) !important;
   line-height: calc(var(--line) * (var(--bar-lines) - 0.4) / 2) !important;
-  padding-top: calc(var(--line) * 0.15) !important;   /* (the second line rests where a one-line title does) */
+  padding-top: calc(var(--line) * 0.15 + var(--lp-title-adjust, 0px)) !important;   /* (the second line rests where a one-line title does) */
 }
 
 /* Date: top right corner */
@@ -2163,6 +2165,24 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     right: 0 !important;
     z-index: 21 !important;
   }
+  /* With a [!question] the title (page 1 only) is just the bar, above the question, so the tails
+     of its letters (g, y, p) hang over the line as in reading view. The Cues | Notes row of pages
+     2, 3 ... is the empty header below; on page 1 the question draws its own. */
+  html body .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1 {
+    height: calc(var(--line) * var(--bar-lines)) !important;
+    z-index: 26 !important;
+    background-image:
+      linear-gradient(var(--margin), var(--margin)),
+      linear-gradient(var(--rule), var(--rule)),
+      linear-gradient(var(--rule), var(--rule)) !important;
+    background-size: 1px 100%, 100% 2px, 100% 2px !important;
+    background-position: var(--margin-x) 0, 0 calc(100% - 7px), 0 100% !important;
+    background-repeat: no-repeat !important;
+  }
+  html body .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1::before,
+  html body .markdown-preview-view.lined-paper.cornell:has(.callout[data-callout="question"]) h1::after {
+    content: none !important;
+  }
 
   /* ---- empty title bar on EVERY page (fixed = repeated per page; covered by the title on page 1) ---- */
   html body .markdown-preview-view.lined-paper::after {
@@ -2777,6 +2797,21 @@ html body:not(.lp-embed-x) :is(.markdown-preview-view, .markdown-source-view).li
 }
 body.lp-link-underline .lined-paper :is(a, .internal-link, .external-link, .cm-hmd-internal-link, .cm-link, .cm-url, .cm-underline) {
   text-decoration: underline !important;
+}
+/* External links (https://…) in the PDF: written in the colour of the text around them, without
+   the coloured ↗ icon (its space stays, so every line breaks as in reading view). A colour you set
+   (<font color>) still shows. */
+@media print {
+  .lined-paper a.external-link.external-link {
+    color: inherit !important;
+    text-decoration-color: currentColor !important;
+    background-image: none !important;
+  }
+}
+.print .lined-paper a.external-link.external-link {
+  color: inherit !important;
+  text-decoration-color: currentColor !important;
+  background-image: none !important;
 }
 
 /* ---------- EDITING VIEW: NO EXTRA BLANK LINES ----------

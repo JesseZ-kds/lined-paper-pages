@@ -42,7 +42,7 @@ const SETTINGS = [
   { key: 'lp-text', type: 'slider', min: 14, max: 40, step: 1, def: 22, unit: 'px', name: 'Text size' },
   { key: 'lp-title', type: 'slider', min: 24, max: 80, step: 1, def: 48, unit: 'px', name: 'Title size' },
   { key: 'lp-title-drop', type: 'slider', min: 0, max: 1.2, step: 0.05, def: 0.8, name: 'Title position',
-    desc: 'How far down the title sits in its bar, in lines. 0.8 = resting on the double line like handwriting; 0 = the middle of the bar.' },
+    desc: 'How far down the title sits in its bar, in lines. 0.8 = on the double line like handwriting; less lifts it off the line.' },
   { key: 'lp-hand', type: 'font', def: 'Patrick Hand', name: 'Handwriting font',
     desc: 'The writing on the page. The handwriting fonts download automatically; the last three must be installed on your computer.' },
   { key: 'lp-hand-title', type: 'font', def: 'Caveat', name: 'Title font' },
@@ -170,14 +170,19 @@ function addSummarySizer(root) {
 // CSS can't tell whether text fits, so it is measured here: the title's width on one line, in
 // units of its font size, at the A4 title size, against the room in an A4 title bar, so it holds
 // for reading view and the PDF alike, whatever the window is like while the export is prepared.
+// Then the title is put ON the bar's double line like handwriting: where a font's letters sit
+// depends on the font, so the baseline is measured and the title moved down (or up) onto the line
+// (--lp-title-adjust). "Title position" in the settings moves it from there.
 const TITLE_MIN = 0.6;
 function fitTitles(root, undo) {
   for (const h of root.querySelectorAll('h1')) {
     const view = h.closest('.markdown-preview-view.lined-paper');
     if (!view || h.closest('.markdown-embed')) continue;
     const had = h.classList.contains('lp-title-wrap'), hadFit = h.classList.contains('lp-title-fit');
+    const hadAdjust = h.style.getPropertyValue('--lp-title-adjust') !== '';
     h.classList.remove('lp-title-wrap', 'lp-title-fit');         // (measured on one line, full size)
     h.style.removeProperty('--lp-title-fit');
+    h.style.removeProperty('--lp-title-adjust');
     const range = document.createRange();
     range.selectNodeContents(h);
     const cs = getComputedStyle(h);
@@ -191,14 +196,50 @@ function fitTitles(root, undo) {
       const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)');
       ratio = room / ((range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))'));
     }
-    if (ratio >= 1) continue;
-    if (ratio >= TITLE_MIN) {
+    if (ratio >= 1) { /* fits */ }
+    else if (ratio >= TITLE_MIN) {
       h.classList.add('lp-title-fit');
       h.style.setProperty('--lp-title-fit', String(Math.floor(ratio * 100) / 100));
       if (undo && !hadFit) undo.push({ t: 'cls', el: h, name: 'lp-title-fit' }, { t: 'prop', el: h, name: '--lp-title-fit' });
     } else {
       h.classList.add('lp-title-wrap');
       if (undo && !had) undo.push({ t: 'cls', el: h, name: 'lp-title-wrap' });
+    }
+    // onto the line: the (last line's) baseline on the top of the double line, 7px above the bar's end.
+    // (Measured on the first line, the title held on one line: an export is prepared in a window that
+    // is not A4 wide, so how it wraps there says nothing. A two-line title's last line is one line lower.)
+    const probe = document.createElement('span');
+    probe.style.cssText = 'display:inline-block;width:0;height:0;';
+    h.style.setProperty('white-space', 'nowrap', 'important');
+    h.appendChild(probe);
+    let base = probe.getBoundingClientRect().bottom - h.getBoundingClientRect().top;
+    probe.remove();
+    h.style.removeProperty('white-space');
+    if (h.classList.contains('lp-title-wrap')) base += parseFloat(getComputedStyle(h).lineHeight);
+    const want = px(view, 'calc(var(--line) * (var(--bar-lines) - 0.8 + var(--lp-title-drop, 0.8)))') - 7;
+    h.style.setProperty('--lp-title-adjust', (Math.round((want - base) * 4) / 4) + 'px');
+    if (undo && !hadAdjust) undo.push({ t: 'prop', el: h, name: '--lp-title-adjust' });
+  }
+  fitQuestions(root, undo);
+}
+
+// The [!question]'s text is ONE line: it never wraps (lined-paper.css / cornell-notes.css), and a
+// question too long for the line is made smaller until it fits (--lp-q-fit).
+function fitQuestions(root, undo) {
+  for (const c of root.querySelectorAll('.lined-paper .callout[data-callout="question"] > .callout-content')) {
+    if (c.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
+    const had = c.style.getPropertyValue('--lp-q-fit') !== '';
+    c.style.removeProperty('--lp-q-fit');
+    let ratio = 1;
+    for (const b of c.children) {
+      const range = document.createRange();
+      range.selectNodeContents(b);
+      const w = range.getBoundingClientRect().width, room = b.clientWidth;
+      if (w && room) ratio = Math.min(ratio, room / w);
+    }
+    if (ratio < 1) {
+      c.style.setProperty('--lp-q-fit', String(Math.floor(ratio * 100) / 100));
+      if (undo && !had) undo.push({ t: 'prop', el: c, name: '--lp-q-fit' });
     }
   }
 }

@@ -1321,3 +1321,13 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content > * {
   margin-block: 0 !important;
 }
+
+/* The question is ONE line: its text never wraps (Enter in it is a space), and a question too long
+   for the line is made smaller until it fits (the plugin measures it: --lp-q-fit) */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content :is(p, li, h2, h3, h4, h5, h6) {
+  white-space: nowrap !important;
+}
+.lined-paper.cornell .callout[data-callout="question"] > .callout-content :is(p, li, h2, h3, h4, h5, h6) {
+  font-size: calc(var(--text) * var(--text-size) * var(--lp-q-fit, 1)) !important;
+}
+

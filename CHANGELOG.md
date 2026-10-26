@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.7] - 2026-10-26
+
+### Changed
+- The note title sits ON the title bar's double line, like handwriting, whatever the font: the
+  plugin measures where the letters sit. The tails of g, y and p hang below the line, in reading
+  view and the PDF.
+- The `[!question]` text is always one line: a long question is made smaller to fit instead of
+  wrapping.
+- External links in the PDF are written in the colour of the text around them, without the
+  coloured ↗ icon.
+
 ## [1.9.6] - 2026-10-26
 
 ### Changed
@@ -179,7 +190,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.6...HEAD
+[Unreleased]: ../../compare/1.9.7...HEAD
+[1.9.7]: ../../compare/1.9.6...1.9.7
 [1.9.6]: ../../compare/1.9.5...1.9.6
 [1.9.5]: ../../compare/1.9.4...1.9.5
 [1.9.4]: ../../compare/1.9.3...1.9.4

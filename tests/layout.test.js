@@ -170,3 +170,37 @@ test('titles: smaller on one line first, two lines only when very long', async (
   const long = await look('The Moral Status of the Human Embryo in Modern Medicine: When Exactly Does a Human Life Begin and Why?');
   assert.equal(long.cls, 'lp-title-wrap');
 });
+
+// The question is one line: a long question is made smaller instead of wrapping
+test('a long question stays on one line', async () => {
+  const { title, callout } = require('./lib/notes');
+  const q = 'How do plants turn sunlight into food, and why does it matter for every living thing on Earth, today and tomorrow?';
+  const { page, context } = await openReading({ name: 'q', cornell: true, blocks: [title('Q'), `<div>${callout('question', 'Question', `<p>${q}</p>`)}</div>`] });
+  try {
+    const r = await page.evaluate(() => {
+      const p = document.querySelector('.callout[data-callout="question"] p'), range = document.createRange();
+      range.selectNodeContents(p);
+      return { lines: new Set([...range.getClientRects()].map((x) => Math.round(x.top))).size, fits: range.getBoundingClientRect().right <= p.getBoundingClientRect().right + 1 };
+    });
+    assert.deepEqual(r, { lines: 1, fits: true });
+  } finally {
+    await context.close();
+  }
+});
+
+// In the PDF an external link is written in the colour of the text around it
+test('external links in the PDF have the text colour', async () => {
+  const { pages, browser, installPlugin, MAIN } = require('./lib/harness');
+  const { title, para } = require('./lib/notes');
+  const ctx = await (await browser(false)).newContext();
+  try {
+    const page = await ctx.newPage();
+    await page.setContent(pages({ name: 'link', cornell: false, blocks: [title('Links'), para('See <a class="external-link" href="https://example.com">example</a> here')] }, 'theme-light').print);
+    await page.evaluate(installPlugin, { src: MAIN, exportMode: true });
+    await page.emulateMedia({ media: 'print' });
+    const [link, text] = await page.evaluate(() => { const a = document.querySelector('a.external-link'); return [getComputedStyle(a).color, getComputedStyle(a.parentElement).color]; });
+    assert.equal(link, text);
+  } finally {
+    await ctx.close();
+  }
+});

@@ -27,7 +27,8 @@ cssclasses: [lined-paper, cornell]  # Cornell notes
 ```
 
 Only notes with these classes are changed. The first `# Heading` becomes the title bar; the title
-rests on the bar's double line like handwriting (*Title position* in the settings). It can run
+sits on the bar's double line like handwriting, the tails of g, y and p hanging below it (*Title
+position* in the settings moves it). It can run
 under the date, up to the right margin. A title a little too long for that is made smaller and stays
 on one line; only a very long one goes on two lines inside the title bar.
 
@@ -48,8 +49,8 @@ Every Cornell block is a callout. Put a blank line between blocks.
 > What do I want to find out?
 ```
 
-It keeps **1 line** for the question (more in the settings, or more if the question is longer). Its
-text starts on the left, each line centred in the height of its own row (*Centre the question
+The question is **one line**: a long question is made smaller to fit, it never wraps (more room
+below it in the settings). Its text starts on the left, centred in the height of its row (*Centre the question
 across the page* in the settings centres it on the line).
 
 ### Cue + notes *(as many as you like)*
