@@ -52,12 +52,14 @@ const SETTINGS = [
   { section: 'Cornell notes' },
   { key: 'cn-cue', type: 'slider', min: 0.15, max: 0.5, step: 0.01, def: 0.3, pct: true, name: 'Cue column width',
     desc: 'Share of the page for the cue column (left of the divider).' },
-  { key: 'cn-question-lines', type: 'slider', min: 1, max: 6, step: 1, def: 2, name: 'Essential question lines',
+  { key: 'cn-question-lines', type: 'slider', min: 1, max: 6, step: 1, def: 1, name: 'Essential question lines',
     desc: 'Ruled lines kept for the [!question] at the top of the page.' },
   { key: 'cn-summary-rows', type: 'slider', min: 3, max: 15, step: 1, def: 5, name: 'Summary height',
     desc: 'Lines the [!summary] takes at the bottom of the last page, its "Summary" label included.' },
   { key: 'cn-summary-min-rows', type: 'slider', min: 2, max: 5, step: 1, def: 3, name: 'Summary minimum height',
     desc: 'When the notes need the room, the summary shrinks, but never below this (or below its text). If that does not fit, it moves to a new page.' },
+  { key: 'centre', type: 'toggle', cls: 'cn-question-left', invert: true, def: true, name: 'Centre the question and full-width lines',
+    desc: 'The text of [!question] and [!wide] in the middle of the page. Off: it starts on the left.' },
   { key: 'cn-wide-lines', type: 'slider', min: 1, max: 6, step: 1, def: 2, name: 'Full-width block lines',
     desc: 'Ruled lines a [!wide] block keeps at least. It grows with longer text.' },
   { key: 'cn-label-cue', type: 'text', def: 'Cues', quote: true, name: 'Cue column label' },
@@ -158,10 +160,12 @@ function addSummarySizer(root) {
 // the embed. The copy goes first in the block so it is laid out like any other callout.
 // `undo` (reading view only) collects what to take away again before the next layout.
 // A note title too long for the title bar goes on two lines, a little smaller, instead of being cut
-// off (lined-paper.css: h1.lp-title-wrap). CSS can't tell whether text fits, so it is measured
-// here: the title's width on one line, in units of its font size, against the room in an A4 title
-// bar (the sheet minus the margin and the date's space) at the A4 title size. That holds for
-// reading view and the PDF alike, whatever the window is like while the export is being prepared.
+// off (lined-paper.css: h1.lp-title-wrap); a title that fits stays on one line at full size. CSS
+// can't tell whether text fits, so it is measured here: the title's width on one line, in units of
+// its font size, at the A4 title size, against the room in an A4 title bar (the sheet minus the
+// title's own padding: the margin, and the date's space when the note has a date), so it holds for
+// the PDF whatever the window is like while the export is being prepared; in reading view, against
+// the bar on screen. Measured again once the web fonts have loaded.
 function fitTitles(root, undo) {
   for (const h of root.querySelectorAll('h1')) {
     const view = h.closest('.markdown-preview-view.lined-paper');
@@ -170,14 +174,17 @@ function fitTitles(root, undo) {
     if (had) h.classList.remove('lp-title-wrap');                 // (measured on one line)
     const range = document.createRange();
     range.selectNodeContents(h);
-    const size = parseFloat(getComputedStyle(h).fontSize);
+    const cs = getComputedStyle(h);
+    const size = parseFloat(cs.fontSize);
     let wrap = false;
-    if (size) {
-      if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
-        wrap = h.scrollWidth > h.clientWidth + 1;                 // (no A4 pages: the bar is the pane's width)
+    if (size && h.textContent.trim()) {
+      if (view.closest('.markdown-reading-view')) {
+        // reading view: the bar on screen is the real one (an A4 sheet, or the pane without A4 pages)
+        wrap = range.getBoundingClientRect().width > h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 1;
       } else {
-        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - 200;   // (200px: the date's space, as in the CSS)
-        wrap = (range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))') > room;
+        const room = px(view, '210mm') - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        const needed = (range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))');
+        wrap = needed > room + 1;
       }
     }
     if (wrap) {
@@ -488,6 +495,12 @@ module.exports = class LinedPaperPages extends Plugin {
     };
     this.setDpr();
     this.registerDomEvent(window, 'resize', () => { this.setDpr(); again(); });
+    // the handwriting fonts load from the web: once they are in, titles are measured again
+    if (document.fonts && document.fonts.addEventListener) {
+      const fonts = () => { for (const pr of document.querySelectorAll('.print')) fitTitles(pr); again(); };
+      document.fonts.addEventListener('loadingdone', fonts);
+      this.register(() => document.fonts.removeEventListener('loadingdone', fonts));
+    }
     // a picture's size is only known once it has loaded: lay the pages out again then
     this.registerDomEvent(document, 'load', (e) => {
       const view = e.target && e.target.tagName === 'IMG' && e.target.closest(SEL_VIEW);

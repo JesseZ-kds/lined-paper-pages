@@ -127,11 +127,16 @@ settings:
         max: 5
         step: 1
     -
+        id: cn-question-left
+        title: Question and full-width lines on the left
+        description: The text of [!question] and [!wide] is centred. Switch this on to start it on the left instead.
+        type: class-toggle
+    -
         id: cn-question-lines
         title: Essential question height
         description: Ruled lines for the question text (the "Question" label row above and the Cues | Notes row below are extra).
         type: variable-number-slider
-        default: 2
+        default: 1
         min: 1
         max: 6
         step: 1
@@ -191,7 +196,7 @@ settings:
   --summary-rows: var(--cn-summary-rows, 5);       /* summary height in rows, label row included: always the LAST rows of the body */
   --summary-min-rows: var(--cn-summary-min-rows, 3); /* smallest the summary may shrink to when the notes need the room (label row included) */
   --summary-lines: calc(var(--summary-rows) - 1);  /* writing lines under the label row (used by the on-screen layout) */
-  --question-lines: var(--cn-question-lines, 2);   /* [!question] writing lines (label row + Cues | Notes row are extra) */
+  --question-lines: var(--cn-question-lines, 1);   /* [!question] writing lines (label row + Cues | Notes row are extra) */
   --cue-ink: var(--ink);                           /* cue text colour; set a colour here for a 2nd pen, e.g. #1d4ed8 */
   --divider: var(--margin);                        /* divider + summary rule colour */
   --divider-x: calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue));   /* where the divider is (derived) */
@@ -1282,4 +1287,21 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 .lined-paper.cornell :is(.callout[data-callout="cue"], .callout[data-callout="notes"]) > .callout-content > :is(.callout, blockquote > .callout).callout.callout,
 .lined-paper.cornell :is(.callout[data-callout="cue"], .callout[data-callout="notes"]) > .callout-content > p :is(.internal-embed, .markdown-embed) :is(.markdown-preview-section > div, .markdown-embed-content, .markdown-embed-content > div) > .callout.callout {
   margin-block-end: 0 !important;
+}
+
+/* =====================================================================
+   THE QUESTION AND FULL-WIDTH LINES: CENTRED
+   =====================================================================
+   The text of [!question] and [!wide] is centred on the page, like a heading across both columns
+   ("Question and full-width lines on the left" in the settings puts it back on the left). A list
+   in them keeps its bullets next to its text. Callouts inside them keep their own alignment. */
+body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(p, h2, h3, h4, h5, h6, ul, ol) {
+  text-align: center !important;
+}
+body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(ul, ol) {
+  list-style-position: inside;
+  padding-inline-start: 0 !important;
+}
+body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(ul, ol) > li {
+  text-align: center !important;
 }

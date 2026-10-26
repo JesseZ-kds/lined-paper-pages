@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-10-26
+
+### Changed
+- The text of `[!question]` and `[!wide]` is centred on the page (setting: *Centre the question
+  and full-width lines*).
+- `[!question]` keeps 1 line by default (was 2).
+- A note without a date gives its title the room the date would take.
+
+### Fixed
+- A title that fits on one line could still be put on two lines: it is now measured against the
+  real title bar in reading view, and again once the handwriting fonts have loaded.
+
 ## [1.9.1] - 2026-10-26
 
 ### Fixed
@@ -131,7 +143,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.1...HEAD
+[Unreleased]: ../../compare/1.9.2...HEAD
+[1.9.2]: ../../compare/1.9.1...1.9.2
 [1.9.1]: ../../compare/1.9.0...1.9.1
 [1.9.0]: ../../compare/1.8.1...1.9.0
 [1.8.1]: ../../compare/1.8.0...1.8.1

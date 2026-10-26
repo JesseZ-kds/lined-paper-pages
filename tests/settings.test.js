@@ -52,7 +52,7 @@ function settingsPage(src) {
   class Plugin {
     constructor() { this.app = { workspace: { on: () => ({}), getLeavesOfType: () => [] } }; this.manifest = { version: 'test' }; }
     loadData() { return Promise.resolve(saved); } saveData(d) { saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }
-    addSettingTab(t) { this.tab = t; } addCommand() {} registerEvent() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
+    addSettingTab(t) { this.tab = t; } addCommand() {} registerEvent() {} register() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
   }
   const module = { exports: {} };
   new Function('require', 'module', src)(() => ({ Plugin, Notice: class {}, PluginSettingTab, Setting }), module);
@@ -163,7 +163,7 @@ test('old snippets still switched on: a one-time hint', async () => {
         class Plugin {
           constructor() { this.app = { workspace: { on: () => ({}), onLayoutReady: (f) => f(), getLeavesOfType: () => [] }, customCss: { enabledSnippets: new Set(enabled) } }; }
           loadData() { return Promise.resolve(JSON.parse(JSON.stringify(saved))); } saveData(d) { saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }
-          addSettingTab() {} addCommand() {} registerEvent() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
+          addSettingTab() {} addCommand() {} registerEvent() {} register() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
         }
         const module = { exports: {} };
         new Function('require', 'module', src)(() => ({ Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class { constructor(m) { notices.push(m); } } }), module);

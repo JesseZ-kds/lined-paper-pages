@@ -134,3 +134,22 @@ for (const [mode, cssPaging] of MODES) {
     }
   });
 }
+
+// A title that fits stays on one line at full size; without a date in the note's properties it
+// may use the date's room. The same title wraps when the date takes that room.
+test('a title that fits stays on one line; the date\'s room is used when there is no date', async () => {
+  const { title, para } = require('./lib/notes');
+  const date = '<div class="metadata-container"><div class="metadata-properties"><div class="metadata-property" data-property-key="date"><div class="metadata-property-value">2026-10-26</div></div></div></div>';
+  const wraps = async (withDate) => {
+    const { page, context } = await openReading({ name: 'title', cornell: true, blocks: [...(withDate ? [date] : []), title('When Does Human Life Begin?'), para('x')] });
+    try {
+      return await page.evaluate(() => document.querySelector('h1').classList.contains('lp-title-wrap'));
+    } finally {
+      await context.close();
+    }
+  };
+  // (in the tests' fallback font this title is ~570px: wider than the bar with a date, 518px, and
+  // narrower than without, 642px)
+  assert.equal(await wraps(false), false, 'without a date it fits on one line');
+  assert.equal(await wraps(true), true, 'with a date it needs two lines');
+});

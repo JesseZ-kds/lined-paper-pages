@@ -47,6 +47,9 @@ Every Cornell block is a callout. Put a blank line between blocks.
 > What do I want to find out?
 ```
 
+It keeps **1 line** for the question (more in the settings, or more if the question is longer), and
+its text is centred on the page.
+
 ### Cue + notes *(as many as you like)*
 
 Write each pair as one group (recommended):
@@ -81,7 +84,8 @@ the cue column.
 ```
 
 The block spans the full width on plain paper (no callout background), with a red line above
-and below it. It is at least **2 lines** tall (change it in the settings) and grows with longer
+and below it, and its text centred (*Centre the question and full-width lines* in the settings puts
+it on the left). It is at least **2 lines** tall (change it in the settings) and grows with longer
 text. The Cues | Notes divider stops on its top red line and starts again under the bottom one,
 and the red margin line always runs through it.
 

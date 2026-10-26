@@ -52,7 +52,7 @@ function installPlugin({ src, exportMode, extra }) {
     constructor() { this.app = app; this.manifest = { version: 'test' }; }
     loadData() { return Promise.resolve({}); }
     saveData() { return Promise.resolve(); }
-    addSettingTab() {} addCommand() {} registerEvent() {} registerDomEvent() {} registerInterval() {} registerEditorExtension() {}
+    addSettingTab() {} addCommand() {} registerEvent() {} register() {} registerDomEvent() {} registerInterval() {} registerEditorExtension() {}
     registerMarkdownPostProcessor(f) { processors.push(f); }
   }
   const obsidian = { Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class { constructor(m) { console.error('NOTICE ' + m); } } };

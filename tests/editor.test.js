@@ -79,7 +79,7 @@ test('editing view: <font color>[[link]]</font> shows coloured, its link opens, 
     // the plugin hands its editor extension to Obsidian; here it goes into a real CodeMirror editor
     const r = await page.evaluate((src) => {
       const opened = [];
-      class Plugin { constructor() { this.app = { workspace: { on: () => ({}), openLinkText: (h) => opened.push(h), getLeavesOfType: () => [] } }; } loadData() { return Promise.resolve({}); } saveData() {} addSettingTab() {} registerEvent() {} registerMarkdownPostProcessor() {} registerDomEvent() {} registerInterval() {} addCommand() {} registerEditorExtension(e) { window.__ext = e; } }
+      class Plugin { constructor() { this.app = { workspace: { on: () => ({}), openLinkText: (h) => opened.push(h), getLeavesOfType: () => [] } }; } loadData() { return Promise.resolve({}); } saveData() {} addSettingTab() {} registerEvent() {} register() {} registerMarkdownPostProcessor() {} registerDomEvent() {} registerInterval() {} addCommand() {} registerEditorExtension(e) { window.__ext = e; } }
       const mods = { obsidian: { Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class {} }, '@codemirror/view': CM.view, '@codemirror/state': CM.state };
       const module = { exports: {} };
       new Function('require', 'module', src)((n) => mods[n], module);
