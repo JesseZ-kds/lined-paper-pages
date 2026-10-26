@@ -407,7 +407,7 @@ function changedNote(recs) {
     for (const n of r.addedNodes) { if (removed.has(n)) removed.delete(n); else added.add(n); }
   }
   // what is left: nodes that really came or went (a node moved within the note shows up in both)
-  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim());
+  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr'));
   return [...added].some(real) || [...removed].some(real);
 }
 
@@ -587,6 +587,8 @@ module.exports = class LinedPaperPages extends Plugin {
       st.busy = true;
       st.obs.disconnect();
       if (st.onScroll) view.removeEventListener('scroll', st.onScroll);
+      if (st.sheetRo) st.sheetRo.disconnect();
+      view.querySelectorAll('.lp-sheet, .lp-hdr').forEach((e) => e.remove());
       if (st.ro) st.ro.disconnect();
       this.undoAll(st);
     });
@@ -667,6 +669,10 @@ module.exports = class LinedPaperPages extends Plugin {
         st.obs.observe(view, { childList: true, subtree: true });
         st.ro = new ResizeObserver(() => { if (!st.busy) this.queue(view, st); });
         st.ro.observe(view);
+        // (the page shadows and labels follow the note's height at once, without waiting for a layout)
+        const sizer = view.querySelector('.markdown-preview-sizer');
+        st.sheetRo = new ResizeObserver(() => this.syncSheets(view));
+        if (sizer) st.sheetRo.observe(sizer);
         this.states.set(view, st);
         this.queue(view, st);
       } else if (force) {
@@ -717,6 +723,7 @@ module.exports = class LinedPaperPages extends Plugin {
         new Notice('Lined Paper Pages could not lay out this note: ' + (e && e.message ? e.message : e) + ' (details in the developer console)');
       }
     } finally {
+      this.syncSheets(view);
       view.scrollTop = sc;
       if (anchor && anchor.isConnected) {
         const d = anchor.getBoundingClientRect().top - anchorTop;
@@ -781,14 +788,11 @@ module.exports = class LinedPaperPages extends Plugin {
     if (!(L > 4)) return false;
     const B = rows(view, '--bar-lines');
     const P = px(view, 'var(--page-h)');
-    const G = px(view, 'var(--sheet-gap, 0px)');
-    const n = Math.max(1, Math.round((sizer.getBoundingClientRect().height + G) / P));
-    this.sheets(view, sizer, st, n, P, G, B, L);
+    this.markPageTops(view, sizer, st, P, B, L);
   }
 
-  // one shadow per sheet, and the Cues | Notes labels in the header of sheets 2, 3 ...
-  sheets(view, sizer, st, n, P, G, B, L) {
-    // a [!wide] block that starts the body of sheet 2, 3 ... has no red line above it
+  // a [!wide] block that starts the body of sheet 2, 3 ... has no red line above it
+  markPageTops(view, sizer, st, P, B, L) {
     if (view.classList.contains('cornell')) {
       const top0 = sizer.getBoundingClientRect().top;
       for (const w of sizer.querySelectorAll('.callout[data-callout="wide"]')) {
@@ -800,23 +804,35 @@ module.exports = class LinedPaperPages extends Plugin {
         }
       }
     }
-    for (let k = 0; k < n; k++) {
-      const sh = document.createElement('div');
-      sh.className = 'lp-sheet';
-      sh.style.top = k * P + 'px';
-      sh.style.height = P - G + 'px';
-      sizer.appendChild(sh);
-      st.undo.push({ t: 'el', el: sh });
-    }
-    if (view.classList.contains('cornell')) {
-      for (let k = 1; k < n; k++) {
-        const h = document.createElement('div');
-        h.className = 'lp-hdr';
-        h.style.top = k * P + B * L + 'px';
-        sizer.appendChild(h);
-        st.undo.push({ t: 'el', el: h });
+  }
+
+  // The page furniture: a shadow under every sheet and, from sheet 2, the Cues | Notes labels in
+  // its header. Kept up to date on its own, as soon as the note's height changes (a ResizeObserver
+  // calls this before the page is drawn), so a new page has its labels in the very frame it
+  // appears in; a layout never takes them away and puts them back.
+  syncSheets(view) {
+    const sizer = view.querySelector('.markdown-preview-sizer');
+    if (!sizer) return;
+    let n = 0, P = 0, G = 0, B = 0, L = 0;
+    if (view.isConnected && view.offsetParent && !document.body.classList.contains('lp-no-pages')) {
+      L = px(view, 'var(--line)');
+      if (L > 4) {
+        B = rows(view, '--bar-lines');
+        P = px(view, 'var(--page-h)');
+        G = px(view, 'var(--sheet-gap, 0px)');
+        n = Math.max(1, Math.round((sizer.getBoundingClientRect().height + G) / P));
       }
     }
+    const keep = (cls, count, place) => {
+      const have = Array.from(sizer.querySelectorAll(':scope > .' + cls));
+      while (have.length > count) have.pop().remove();
+      while (have.length < count) { const d = document.createElement('div'); d.className = cls; sizer.appendChild(d); have.push(d); }
+      have.forEach((d, k) => {
+        for (const [prop, value] of Object.entries(place(k))) if (d.style[prop] !== value) d.style[prop] = value;
+      });
+    };
+    keep('lp-sheet', n, (k) => ({ top: k * P + 'px', height: P - G + 'px' }));
+    keep('lp-hdr', view.classList.contains('cornell') ? Math.max(0, n - 1) : 0, (k) => ({ top: (k + 1) * P + B * L + 'px' }));
   }
 
   paginate(view, st) {
@@ -851,7 +867,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const relTop = (el) => el.getBoundingClientRect().top - sizerTop();
     const vis = (b) => b.querySelector(':scope > :not(.lp-embed-unwrapped)') || b;
     const skip = (b) =>
-      b.matches('.metadata-container,.frontmatter-container,.mod-header,.mod-footer,.markdown-preview-pusher') ||
+      b.matches('.metadata-container,.frontmatter-container,.mod-header,.mod-footer,.markdown-preview-pusher,.lp-sheet,.lp-hdr') ||
       b.querySelector(':scope > h1') ||
       b.querySelector(':scope > .callout[data-callout="summary"]') ||
       b.querySelector(':scope > .callout[data-callout="question"]');
@@ -1014,7 +1030,7 @@ module.exports = class LinedPaperPages extends Plugin {
     // A [!notes] callout without a cue in front of it becomes a group of its own (notes only), so it
     // too stays in the notes column and continues there on the next sheet.
     if (cornell) {
-      const bl = Array.from(section.children);
+      const bl = Array.from(section.children).filter((b) => !b.matches('.lp-sheet, .lp-hdr'));   // (the page furniture isn't a block)
       let prevGroup = false;
       for (let i = 0; i < bl.length; i++) {
         const cb = bl[i];
@@ -1176,7 +1192,7 @@ module.exports = class LinedPaperPages extends Plugin {
       }
     }
 
-    this.sheets(view, sizer, st, n, P, G, B, L);
+    this.markPageTops(view, sizer, st, P, B, L);
   }
 };
 // ---------- the settings page: Settings → Lined Paper Pages ----------

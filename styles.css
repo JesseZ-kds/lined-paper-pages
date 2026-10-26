@@ -4115,3 +4115,14 @@ html body .lined-paper .callout.callout.callout[data-callout="divider"]::before 
 html body .lined-paper .callout.callout.callout[data-callout="divider"]::after { content: none !important; }
 /* editing view: on the line between the lines around it (the blank lines there are the note's own) */
 html body .markdown-source-view.lined-paper .callout.callout.callout[data-callout="divider"] { margin-block: 0 !important; padding: 0 !important; }
+
+/* =====================================================================
+   A CALLOUT INSIDE THE CUES OR NOTES
+   =====================================================================
+   The next line follows right under it: no blank line after it, as there is between two notes.
+   (Typed in, `>> > [!tip]`, embedded, `>> ![[Note#^id]]`, shown as the callout itself by the
+   plugin or as an embed without it.) */
+.lined-paper.cornell :is(.callout[data-callout="cue"], .callout[data-callout="notes"]) > .callout-content > :is(.callout, blockquote > .callout).callout.callout,
+.lined-paper.cornell :is(.callout[data-callout="cue"], .callout[data-callout="notes"]) > .callout-content > p :is(.internal-embed, .markdown-embed) :is(.markdown-preview-section > div, .markdown-embed-content, .markdown-embed-content > div) > .callout.callout {
+  margin-block-end: 0 !important;
+}

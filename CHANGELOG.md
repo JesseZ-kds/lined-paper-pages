@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-26
+
+### Fixed
+- The Cues | Notes labels and the shadow of a new page appeared late (after a layout, or only once
+  scrolling stopped). They now follow the note's height at once, in the same frame as the page,
+  and a layout never takes them away and puts them back.
+- A blank line followed every callout inside the cues or notes. The next line now starts right
+  under it; the blank line between two notes stays.
+
 ## [1.9.0] - 2026-10-26
 
 ### Changed
@@ -122,7 +131,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.0...HEAD
+[Unreleased]: ../../compare/1.9.1...HEAD
+[1.9.1]: ../../compare/1.9.0...1.9.1
 [1.9.0]: ../../compare/1.8.1...1.9.0
 [1.8.1]: ../../compare/1.8.0...1.8.1
 [1.8.0]: ../../releases/tag/1.8.0

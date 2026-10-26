@@ -163,3 +163,68 @@ test('a change made while scrolling is laid out once, after scrolling stops', as
     await context.close();
   }
 });
+
+// The page shadows and the Cues | Notes labels of sheets 2, 3 ... follow the note at once: they are
+// there before the first layout, a page added while scrolling has its labels in the next frame
+// (while the layout itself waits until scrolling stops), and a layout never takes them away
+for (const cssPaging of [false, true]) {
+  test(`page labels appear with their page, without waiting for a layout (${cssPaging ? 'CSS' : 'plugin'} pagination)`, async (t) => {
+    const { page, context } = await openReading(longNote, { cssPaging, viewport: { width: 1000, height: 800 } });
+    if (!page) return t.skip('this pagination mode is not available in this browser');
+    try {
+      const furniture = () => page.evaluate(() => {
+        const P = parseFloat(getComputedStyle(document.querySelector('.lp-sheet:nth-of-type(2)') || document.body).top) || 0;
+        return { sheets: document.querySelectorAll('.lp-sheet').length, labels: document.querySelectorAll('.lp-hdr').length, P };
+      });
+      const f = await furniture();
+      assert.ok(f.sheets >= 5, `${f.sheets} sheets`);
+      assert.equal(f.labels, f.sheets - 1, 'every sheet after the first has its labels');
+
+      // a layout keeps them (no label is taken away)
+      const removed = await page.evaluate(async () => {
+        let n = 0;
+        const mo = new MutationObserver((recs) => { for (const r of recs) for (const x of r.removedNodes) if (x.nodeType === 1 && x.matches('.lp-hdr, .lp-sheet')) n++; });
+        mo.observe(document.querySelector('.markdown-preview-sizer'), { childList: true });
+        const view = document.querySelector('.markdown-preview-view');
+        window.plugin.layout(view, window.plugin.states.get(view));
+        await new Promise((r) => setTimeout(r, 100));
+        mo.disconnect();
+        return n;
+      });
+      assert.equal(removed, 0, 'a layout took labels away');
+
+      // while scrolling, a change that adds a page: its labels are there in the next frame
+      const r = await page.evaluate(async () => {
+        const view = document.querySelector('.markdown-preview-view');
+        view.style.cssText += ';overflow:auto;height:100vh';
+        let layouts = 0;
+        const layout = window.plugin.layout.bind(window.plugin);
+        window.plugin.layout = (...a) => { layouts++; return layout(...a); };
+        const before = document.querySelectorAll('.lp-hdr').length;
+        view.scrollTop = 500; view.dispatchEvent(new Event('scroll'));   // (scrolling: no layout now)
+        const d = document.createElement('div');
+        d.innerHTML = '<blockquote><div class="callout" data-callout="cue"><div class="callout-content"><p>NEW</p></div></div><div class="callout" data-callout="notes"><div class="callout-content"><p>' + 'NEW notes alpha beta gamma delta '.repeat(150) + '</p></div></div></blockquote>';
+        document.querySelector('.mod-footer').before(d);
+        await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+        const next = { after: document.querySelectorAll('.lp-hdr').length, sheets: document.querySelectorAll('.lp-sheet').length, layouts };
+        // (scrolling stops: the layout runs)
+        await new Promise((res) => setTimeout(res, 900));
+        return { before, next, settled: { after: document.querySelectorAll('.lp-hdr').length, sheets: document.querySelectorAll('.lp-sheet').length, layouts } };
+      });
+      assert.equal(r.next.layouts, 0, 'no layout yet (still scrolling)');
+      if (cssPaging) {
+        // the browser makes the pages: the new page and its labels are there in the next frame
+        assert.ok(r.next.after > r.before, `labels for the new page: ${r.before} → ${r.next.after}`);
+        assert.equal(r.next.after, r.next.sheets - 1);
+      } else {
+        // the plugin makes the pages: the new page (and its labels) come with the layout, once scrolling stops
+        assert.equal(r.settled.layouts, 1);
+        assert.ok(r.settled.after > r.before, `labels for the new page: ${r.before} → ${r.settled.after}`);
+      }
+      assert.equal(r.settled.after, r.settled.sheets - 1);
+      assert.deepEqual(page.errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}

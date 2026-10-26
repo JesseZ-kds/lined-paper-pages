@@ -132,7 +132,8 @@ fit the box (change the 80 % in the settings).
 A callout is never split between two pages: when it doesn't fit at the bottom of a page, it moves
 to the next page whole. A long title goes on to the next line instead of being cut off.
 
-In reading view and the PDF a callout leaves one blank line after it. In editing view it takes
+Inside the cues or notes, the next line starts right under a callout. Elsewhere, in reading view
+and the PDF, a callout leaves one blank line after it. In editing view it takes
 only its own lines, because the empty lines you type between blocks are already there.
 
 ## Embedding a callout from another note

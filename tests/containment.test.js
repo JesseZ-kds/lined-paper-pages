@@ -78,11 +78,11 @@ for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination'
       assert.deepEqual(r.problems, []);
       assert.deepEqual(page.errors, []);
       if (!cssPaging) {
-        // taking the pages away restores the note
+        // taking the pages away restores the note (the page shadows and labels stay: they follow the height)
         const undone = await page.evaluate(() => {
           const view = document.querySelector('.markdown-preview-view');
           window.plugin.undoAll(window.plugin.states.get(view));
-          return { notes: document.querySelectorAll('.callout[data-callout="notes"]').length, blocks: view.querySelector('.markdown-preview-sizer').querySelectorAll(':scope > div:not(.markdown-preview-pusher, .mod-header, .mod-footer)').length };
+          return { notes: document.querySelectorAll('.callout[data-callout="notes"]').length, blocks: view.querySelector('.markdown-preview-sizer').querySelectorAll(':scope > div:not(.markdown-preview-pusher, .mod-header, .mod-footer, .lp-sheet, .lp-hdr)').length };
         });
         assert.deepEqual(undone, { notes: 5, blocks: 6 });
       }

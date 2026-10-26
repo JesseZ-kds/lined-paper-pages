@@ -114,3 +114,23 @@ test('a short title stays on one line, at full size', async () => {
     await context.close();
   }
 });
+
+// Inside the notes, the next line comes right under a callout: no blank line after it
+for (const [mode, cssPaging] of MODES) {
+  test(`no blank line after a callout in the notes (${mode})`, async (t) => {
+    const { page, context } = await openReading(note('calloutAtBreak', { fill: 10 }), { cssPaging });
+    if (!page) return t.skip(`${mode} is not available in this browser`);
+    try {
+      const gap = await page.evaluate(() => {
+        const box = document.querySelector('.callout[data-callout="quote"]').getBoundingClientRect();
+        const next = [...document.querySelectorAll('li')].find((li) => li.textContent.includes('AFTERQUOTE')).getBoundingClientRect();
+        const line = parseFloat(getComputedStyle(document.querySelector('.callout-content p')).lineHeight);
+        return { gap: Math.round(next.top - box.bottom), line };
+      });
+      // (the box is drawn a few pixels up, onto the ruled lines: less than half a line is no blank line)
+      assert.ok(gap.gap >= 0 && gap.gap < gap.line / 2, `${gap.gap}px between the callout and the next line (a line is ${gap.line}px)`);
+    } finally {
+      await context.close();
+    }
+  });
+}
