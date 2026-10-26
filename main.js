@@ -53,7 +53,7 @@ const SETTINGS = [
   { key: 'cn-cue', type: 'slider', min: 0.15, max: 0.5, step: 0.01, def: 0.3, pct: true, name: 'Cue column width',
     desc: 'Share of the page for the cue column (left of the divider).' },
   { key: 'cn-question-lines', type: 'slider', min: 1, max: 6, step: 1, def: 1, name: 'Essential question lines',
-    desc: 'Ruled lines kept for the [!question] at the top of the page.' },
+    desc: 'Ruled lines kept for the [!question] at the top of the page. Its "Question" label and the question share the first.' },
   { key: 'cn-summary-rows', type: 'slider', min: 3, max: 15, step: 1, def: 5, name: 'Summary height',
     desc: 'Lines the [!summary] takes at the bottom of the last page, its "Summary" label included.' },
   { key: 'cn-summary-min-rows', type: 'slider', min: 2, max: 5, step: 1, def: 3, name: 'Summary minimum height',
@@ -223,19 +223,31 @@ function fitTitles(root, undo) {
   fitQuestions(root, undo);
 }
 
-// The [!question]'s text is ONE line: it never wraps (lined-paper.css / cornell-notes.css), and a
-// question too long for the line is made smaller until it fits (--lp-q-fit).
+// The [!question] is ONE line: its label, then its text, which never wraps (cornell-notes.css); a
+// question too long for the line is made smaller until it fits (--lp-q-fit). Measured like the title:
+// in units of the font size, at the A4 sizes, against an A4 line (an export is prepared in a window
+// that is not A4 wide); without A4 pages, against the line on screen.
 function fitQuestions(root, undo) {
   for (const c of root.querySelectorAll('.lined-paper .callout[data-callout="question"] > .callout-content')) {
-    if (c.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
+    const view = c.closest('.markdown-preview-view.lined-paper');
+    if (!view || c.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
     const had = c.style.getPropertyValue('--lp-q-fit') !== '';
     c.style.removeProperty('--lp-q-fit');
+    const label = c.parentElement.querySelector(':scope > .callout-title');
+    const width = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
     let ratio = 1;
     for (const b of c.children) {
-      const range = document.createRange();
-      range.selectNodeContents(b);
-      const w = range.getBoundingClientRect().width, room = b.clientWidth;
-      if (w && room) ratio = Math.min(ratio, room / w);
+      const w = width(b);
+      if (!w) continue;
+      if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
+        ratio = Math.min(ratio, b.clientWidth / w);
+      } else {
+        const text = px(view, 'calc(var(--lp-text, 22px) * var(--print-scale) * var(--text-size, 1))');
+        const labelSize = px(view, 'calc(var(--lp-text, 22px) * var(--print-scale) * var(--label-size, 0.85))');
+        const labelW = label && label.offsetWidth ? (width(label) / parseFloat(getComputedStyle(label.querySelector('.callout-title-inner') || label).fontSize)) * labelSize + text * 0.5 : 0;
+        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)') - labelW;
+        ratio = Math.min(ratio, room / ((w / parseFloat(getComputedStyle(b).fontSize)) * text));
+      }
     }
     if (ratio < 1) {
       c.style.setProperty('--lp-q-fit', String(Math.floor(ratio * 100) / 100));
@@ -499,6 +511,105 @@ function putSectionsBack(r) {
   if (all && r.pusherEl) r.pusherEl.style.marginBottom = '0px';
 }
 
+// ---------- commands ----------
+// Commands for the command palette; give them hotkeys in Settings → Hotkeys (search "Lined Paper").
+// Two kinds: ones that make the open note lined paper / Cornell notes (its cssclasses property), and
+// ones that type a block at the cursor ("|" in a template is where the cursor goes).
+
+// the note's cssclasses with lined paper set to `kind` ('lined', 'cornell' or 'off'); other classes kept.
+// (cssclasses may be a list, a single word or "a, b"; the old `cssclass` property is folded in)
+function paperClasses(fm, kind) {
+  const list = [];
+  for (const v of [fm.cssclasses, fm.cssclass]) {
+    for (const c of Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[,\s]+/) : []) {
+      if (c && !list.includes(String(c))) list.push(String(c));
+    }
+  }
+  const rest = list.filter((c) => c !== 'lined-paper' && c !== 'cornell');
+  const paper = kind === 'cornell' ? ['lined-paper', 'cornell'] : kind === 'lined' ? ['lined-paper'] : [];
+  return [...paper, ...rest];
+}
+
+const TEMPLATES = {
+  cornell: (title) => `# ${title}\n\n> [!question] Question\n> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n> [!summary] Summary\n> \n`,
+  group: () => '>> [!cue]\n>> |\n>\n>> [!notes]\n>> \n',
+  question: () => '> [!question] Question\n> |\n',
+  summary: () => '> [!summary] Summary\n> |\n',
+  wide: () => '> [!wide]\n> |\n',
+  divider: () => '> [!divider]\n\n|',
+  nextpage: () => '> [!nextpage]\n\n|',
+};
+const COLOURS = [['blue', '#4f81bd'], ['red', '#c0504d'], ['green', '#9bbb59'], ['orange', '#f79646'], ['purple', '#8064a2']];
+
+// type a block on lines of its own at the cursor (a blank line before it where needed; every template
+// ends with a line break, which leaves the blank line after it), and put the cursor at its "|"
+function insertBlock(editor, template) {
+  const cur = editor.getCursor();
+  const line = editor.getLine(cur.line);
+  let text = template;
+  let at = { line: cur.line, ch: line.length };
+  if (line.trim() === '') {
+    at = { line: cur.line, ch: 0 };
+    if (cur.line > 0 && editor.getLine(cur.line - 1).trim() !== '') text = '\n' + text;
+    editor.replaceRange('', at, { line: cur.line, ch: line.length });
+  } else {
+    text = '\n\n' + text;
+  }
+  const mark = text.indexOf('|');
+  text = text.replace('|', '');
+  editor.replaceRange(text, at);
+  const before = text.slice(0, mark).split('\n');
+  editor.setCursor({ line: at.line + before.length - 1, ch: (before.length === 1 ? at.ch : 0) + before[before.length - 1].length });
+}
+
+function addPaperCommands(plugin) {
+  const app = plugin.app;
+  const setPaper = (kind, label) => (checking) => {
+    const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
+    if (!file || file.extension !== 'md') return false;
+    if (!checking) {
+      app.fileManager.processFrontMatter(file, (fm) => {
+        const cls = paperClasses(fm, kind);
+        delete fm.cssclass;
+        if (cls.length) fm.cssclasses = cls; else delete fm.cssclasses;
+      }).then(() => new Notice('Lined Paper Pages: ' + label));
+    }
+    return true;
+  };
+  plugin.addCommand({ id: 'make-lined-paper', name: 'Make this note lined paper', checkCallback: setPaper('lined', 'lined paper') });
+  plugin.addCommand({ id: 'make-cornell', name: 'Make this note Cornell notes', checkCallback: setPaper('cornell', 'Cornell notes') });
+  plugin.addCommand({ id: 'make-plain', name: 'Make this note a plain note again', checkCallback: setPaper('off', 'plain note') });
+
+  const insert = (id, name, key) => plugin.addCommand({
+    id, name,
+    editorCallback: (editor, view) => insertBlock(editor, TEMPLATES[key]((view && view.file && view.file.basename) || 'Title')),
+  });
+  insert('insert-cornell-page', 'Insert Cornell page (title, question, cue + notes, summary)', 'cornell');
+  insert('insert-cue-notes', 'Insert cue + notes', 'group');
+  insert('insert-question', 'Insert essential question', 'question');
+  insert('insert-summary', 'Insert summary', 'summary');
+  insert('insert-wide', 'Insert full-width lines ([!wide])', 'wide');
+  insert('insert-divider', 'Insert divider line', 'divider');
+  insert('insert-nextpage', 'Insert page break', 'nextpage');
+
+  // colour the selected text (or type an empty coloured span to write in)
+  for (const [name, hex] of COLOURS) {
+    plugin.addCommand({
+      id: 'colour-' + name, name: `Colour text ${name}`,
+      editorCallback: (editor) => {
+        const sel = editor.getSelection();
+        const open = `<font color="${hex}">`;
+        if (sel) editor.replaceSelection(open + sel + '</font>');
+        else {
+          const cur = editor.getCursor();
+          editor.replaceRange(open + '</font>', cur);
+          editor.setCursor({ line: cur.line, ch: cur.ch + open.length });
+        }
+      },
+    });
+  }
+}
+
 module.exports = class LinedPaperPages extends Plugin {
   onload() {
     this.states = new WeakMap();
@@ -588,6 +699,7 @@ module.exports = class LinedPaperPages extends Plugin {
       name: 'Re-paginate reading view',
       callback: () => { this.scheduleScan(true); new Notice('Lined Paper Pages: re-paginating'); },
     });
+    addPaperCommands(this);
     console.debug('[lined-paper-pages] loaded');
 
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(again);
@@ -1070,6 +1182,10 @@ module.exports = class LinedPaperPages extends Plugin {
       if (cols.every((x) => !x.k)) return null;
       // nothing would stay behind: the caller moves the whole group instead
       if (!cols.some((x) => (x.k ? x.k.kept : x.content.children.length > 0))) return null;
+      // a column none of which stays (e.g. two lines of notes with only room for one: a paragraph
+      // keeps at least 2 lines together) moves whole, and in the PDF it takes the group's row with
+      // it: the whole group starts on the next sheet, its cue too
+      if (cols.some((x) => x.k && !x.k.kept)) return null;
 
       const wrapper = block.cloneNode(false);
       wrapper.style.removeProperty('padding-top');                 // (a pushed block's padding is copied too)
@@ -1258,6 +1374,9 @@ module.exports = class LinedPaperPages extends Plugin {
     this.markPageTops(view, sizer, st, P, B, L);
   }
 };
+module.exports.paperClasses = paperClasses;   // (for the tests)
+module.exports.insertBlock = insertBlock;
+module.exports.TEMPLATES = TEMPLATES;
 // ---------- the settings page: Settings → Lined Paper Pages ----------
 class LinedPaperSettingTab extends PluginSettingTab {
   constructor(app, plugin) {

@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.8] - 2026-10-26
+
+### Added
+- Commands (give them hotkeys in Settings → Hotkeys): *Make this note lined paper / Cornell notes /
+  a plain note again* (sets `cssclasses`, keeping other classes), *Insert Cornell page*, *Insert cue
+  + notes*, *Insert essential question*, *Insert summary*, *Insert full-width lines*, *Insert divider
+  line*, *Insert page break*, and *Colour text blue / red / green / orange / purple*.
+
+### Changed
+- `[!question]` is one row: the "Question" label and the question on the same ruled line.
+
+### Fixed
+- A cue + notes group starting on the last row of a page could leave its cue there and move its
+  notes to the next page in reading view, while the PDF moved the whole group: now both move it.
+
 ## [1.9.7] - 2026-10-26
 
 ### Changed
@@ -190,7 +205,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.7...HEAD
+[Unreleased]: ../../compare/1.9.8...HEAD
+[1.9.8]: ../../compare/1.9.7...1.9.8
 [1.9.7]: ../../compare/1.9.6...1.9.7
 [1.9.6]: ../../compare/1.9.5...1.9.6
 [1.9.5]: ../../compare/1.9.4...1.9.5

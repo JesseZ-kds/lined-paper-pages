@@ -3,6 +3,7 @@
 How to turn a note into lined paper or a Cornell notes page, and every block you can use.
 
 - [Turning a note into paper](#turning-a-note-into-paper)
+- [Commands and hotkeys](#commands-and-hotkeys)
 - [Cornell notes](#cornell-notes)
 - [Other callouts](#other-callouts)
 - [Embedding a callout from another note](#embedding-a-callout-from-another-note)
@@ -34,6 +35,32 @@ on one line; only a very long one goes on two lines inside the title bar.
 
 The red margin line runs down the whole page, footer included, like on real paper.
 
+If a note shows no lines, its `cssclasses` property is missing or misspelt: run **Make this note
+Cornell notes** (or **Make this note lined paper**) to set it.
+
+## Commands and hotkeys
+
+Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a command a hotkey in
+**Settings → Hotkeys** (search "Lined Paper").
+
+| Command | What it does |
+| --- | --- |
+| Make this note lined paper | Sets `cssclasses: [lined-paper]` (other classes are kept) |
+| Make this note Cornell notes | Sets `cssclasses: [lined-paper, cornell]` |
+| Make this note a plain note again | Takes the two classes off |
+| Insert Cornell page | Title (the note's name), question, one cue + notes group, summary |
+| Insert cue + notes | A `[!cue]` / `[!notes]` group, the cursor in the cue |
+| Insert essential question | `[!question]` |
+| Insert summary | `[!summary]` |
+| Insert full-width lines | `[!wide]` |
+| Insert divider line | `[!divider]` |
+| Insert page break | `[!nextpage]` |
+| Colour text blue / red / green / orange / purple | Wraps the selected text (or the cursor) in `<font color="…">` |
+
+Blocks go on lines of their own, with the blank lines around them that Markdown needs, and the
+cursor ends up where you write next. Suggested hotkeys: Ctrl/Cmd + Shift + C for *Insert cue +
+notes*, Ctrl/Cmd + Shift + N for *Make this note Cornell notes* (check they are free first).
+
 ## Cornell notes
 
 > **Quick reference (also for AI):** [cornell-note-guide.md](cornell-note-guide.md) has the exact
@@ -49,8 +76,9 @@ Every Cornell block is a callout. Put a blank line between blocks.
 > What do I want to find out?
 ```
 
-The question is **one line**: a long question is made smaller to fit, it never wraps (more room
-below it in the settings). Its text starts on the left, centred in the height of its row (*Centre the question
+The question is **one line**: the "Question" label, then the question, on the same ruled line. A
+long question is made smaller to fit, it never wraps (more room below it in the settings). It is
+centred in the height of its row (*Centre the question
 across the page* in the settings centres it on the line).
 
 ### Cue + notes *(as many as you like)*

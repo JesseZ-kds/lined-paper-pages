@@ -79,7 +79,8 @@ cssclasses: [lined-paper, cornell]
 ```
 
 Use `cssclasses: [lined-paper]` for lined paper without the Cornell layout. Only notes with these
-classes are changed. The [examples](examples/) folder has two complete notes to copy.
+classes are changed. Commands (with hotkeys if you like) set the classes and type the blocks for you:
+see [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys). The [examples](examples/) folder has two complete notes to copy.
 
 ## Documentation
 
