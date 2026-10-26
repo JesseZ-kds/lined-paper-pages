@@ -163,30 +163,40 @@ function addSummarySizer(root) {
 // a copy of the callout straight in the page, exactly as if it had been written there, and hide
 // the embed. The copy goes first in the block so it is laid out like any other callout.
 // `undo` (reading view only) collects what to take away again before the next layout.
-// A note title too long for the title bar goes on two lines, a little smaller, instead of being cut
-// off (lined-paper.css: h1.lp-title-wrap). CSS can't tell whether text fits, so it is measured
-// here: the title's width on one line, in units of its font size, against the room in an A4 title
-// bar (the sheet minus the margin and the date's space) at the A4 title size. That holds for
-// reading view and the PDF alike, whatever the window is like while the export is being prepared.
+// A note title stays on one line in its usual place, low in the title bar. It runs under the date
+// (which sits in the bar's top corner) up to the right margin. One a little too long for that is
+// made smaller until it fits (down to TITLE_MIN of its size, lined-paper.css: h1.lp-title-fit);
+// only a very long one goes on two lines instead (h1.lp-title-wrap), never cut off with "…".
+// CSS can't tell whether text fits, so it is measured here: the title's width on one line, in
+// units of its font size, at the A4 title size, against the room in an A4 title bar, so it holds
+// for reading view and the PDF alike, whatever the window is like while the export is prepared.
+const TITLE_MIN = 0.6;
 function fitTitles(root, undo) {
   for (const h of root.querySelectorAll('h1')) {
     const view = h.closest('.markdown-preview-view.lined-paper');
     if (!view || h.closest('.markdown-embed')) continue;
-    const had = h.classList.contains('lp-title-wrap');
-    if (had) h.classList.remove('lp-title-wrap');                 // (measured on one line)
+    const had = h.classList.contains('lp-title-wrap'), hadFit = h.classList.contains('lp-title-fit');
+    h.classList.remove('lp-title-wrap', 'lp-title-fit');         // (measured on one line, full size)
+    h.style.removeProperty('--lp-title-fit');
     const range = document.createRange();
     range.selectNodeContents(h);
-    const size = parseFloat(getComputedStyle(h).fontSize);
-    let wrap = false;
-    if (size) {
-      if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
-        wrap = h.scrollWidth > h.clientWidth + 1;                 // (no A4 pages: the bar is the pane's width)
-      } else {
-        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - 200;   // (200px: the date's space, as in the CSS)
-        wrap = (range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))') > room;
-      }
+    const cs = getComputedStyle(h);
+    const size = parseFloat(cs.fontSize);
+    if (!size || !h.textContent.trim()) continue;
+    let ratio;
+    if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
+      // (no A4 pages: the bar is the pane's width)
+      ratio = (h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / range.getBoundingClientRect().width;
+    } else {
+      const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)');
+      ratio = room / ((range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))'));
     }
-    if (wrap) {
+    if (ratio >= 1) continue;
+    if (ratio >= TITLE_MIN) {
+      h.classList.add('lp-title-fit');
+      h.style.setProperty('--lp-title-fit', String(Math.floor(ratio * 100) / 100));
+      if (undo && !hadFit) undo.push({ t: 'cls', el: h, name: 'lp-title-fit' }, { t: 'prop', el: h, name: '--lp-title-fit' });
+    } else {
       h.classList.add('lp-title-wrap');
       if (undo && !had) undo.push({ t: 'cls', el: h, name: 'lp-title-wrap' });
     }

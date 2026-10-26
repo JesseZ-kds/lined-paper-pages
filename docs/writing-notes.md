@@ -27,8 +27,9 @@ cssclasses: [lined-paper, cornell]  # Cornell notes
 ```
 
 Only notes with these classes are changed. The first `# Heading` becomes the title bar; the title
-rests on the bar's double line like handwriting (*Title position* in the settings). A title too long
-for one line goes on two lines inside the title bar, a little smaller.
+rests on the bar's double line like handwriting (*Title position* in the settings). It can run
+under the date, up to the right margin. A title a little too long for that is made smaller and stays
+on one line; only a very long one goes on two lines inside the title bar.
 
 The red margin line runs down the whole page, footer included, like on real paper.
 

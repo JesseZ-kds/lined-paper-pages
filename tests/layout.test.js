@@ -78,7 +78,7 @@ for (const [mode, cssPaging] of MODES) {
 }
 
 // Long titles go on to a new line instead of being cut off with "…"; a note title too long for the
-// title bar goes on two lines inside it
+// title bar is made smaller (or, if very long, goes on two lines inside it)
 for (const [mode, cssPaging] of MODES) {
   test(`long titles wrap instead of being cut off (${mode})`, async (t) => {
     const { page, context } = await openReading(note('longTitles'), { cssPaging });
@@ -90,11 +90,11 @@ for (const [mode, cssPaging] of MODES) {
         const cut = (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
         const box = inner.closest('.callout').getBoundingClientRect();
         const text = inner.closest('.callout').querySelector('.callout-content p').getBoundingClientRect();
-        return { twoLines: h.classList.contains('lp-title-wrap'), titleCut: cut(h), calloutTitleCut: cut(inner),
+        return { fitted: h.classList.contains('lp-title-wrap') || h.classList.contains('lp-title-fit'), titleCut: cut(h), calloutTitleCut: cut(inner),
           calloutTitleWraps: inner.getBoundingClientRect().height > 1.5 * parseFloat(getComputedStyle(inner).lineHeight),
           calloutHoldsAll: inner.getBoundingClientRect().top >= box.top - 1 && text.bottom <= box.bottom + 1 };
       });
-      assert.deepEqual(r, { twoLines: true, titleCut: false, calloutTitleCut: false, calloutTitleWraps: true, calloutHoldsAll: true });
+      assert.deepEqual(r, { fitted: true, titleCut: false, calloutTitleCut: false, calloutTitleWraps: true, calloutHoldsAll: true });
     } finally {
       await context.close();
     }
@@ -109,7 +109,7 @@ for (const [mode, cssPaging] of MODES) {
 test('a short title stays on one line, at full size', async () => {
   const { page, context } = await openReading(note('short'));
   try {
-    assert.equal(await page.evaluate(() => document.querySelector('h1').classList.contains('lp-title-wrap')), false);
+    assert.equal(await page.evaluate(() => document.querySelector('h1').className), '');
   } finally {
     await context.close();
   }
@@ -142,10 +142,31 @@ test('a title that fits stays on one line at full size', async () => {
   try {
     const r = await page.evaluate(() => {
       const h = document.querySelector('h1'), cs = getComputedStyle(h);
-      return { wrap: h.classList.contains('lp-title-wrap'), size: cs.fontSize, padRight: cs.paddingRight, white: cs.whiteSpace };
+      return { wrap: h.className !== '', size: cs.fontSize, padRight: cs.paddingRight, white: cs.whiteSpace };
     });
-    assert.deepEqual(r, { wrap: false, size: r.size, padRight: '200px', white: 'nowrap' });
+    assert.deepEqual(r, { wrap: false, size: r.size, padRight: '60px', white: 'nowrap' });
   } finally {
     await context.close();
   }
+});
+
+// A title a little too long for the bar is made smaller and stays on one line, low in the bar;
+// only a very long one goes on two lines
+test('titles: smaller on one line first, two lines only when very long', async () => {
+  const { title, para } = require('./lib/notes');
+  const look = async (t) => {
+    const { page, context } = await openReading({ name: 'title', cornell: true, blocks: [title(t), para('x')] });
+    try {
+      return await page.evaluate(() => {
+        const h = document.querySelector('h1'), r = document.createRange();
+        r.selectNodeContents(h);
+        return { cls: h.className, lines: r.getClientRects().length > 1 ? 2 : 1, fits: r.getBoundingClientRect().right <= h.getBoundingClientRect().right - parseFloat(getComputedStyle(h).paddingRight) + 1 };
+      });
+    } finally {
+      await context.close();
+    }
+  };
+  assert.deepEqual(await look('The Immune System: How the Body Fights Infection'), { cls: 'lp-title-fit', lines: 1, fits: true });
+  const long = await look('The Moral Status of the Human Embryo in Modern Medicine: When Exactly Does a Human Life Begin and Why?');
+  assert.equal(long.cls, 'lp-title-wrap');
 });

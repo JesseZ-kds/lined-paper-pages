@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.6] - 2026-10-26
+
+### Changed
+- The note title stays on one line, low in the title bar, as before: it may run under the date (which
+  sits in the bar's top corner) up to the right margin, and a title a little too long for that is
+  made smaller instead of going on two lines. Only a very long title goes on two lines.
+
 ## [1.9.5] - 2026-10-26
 
 ### Changed
@@ -172,7 +179,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.5...HEAD
+[Unreleased]: ../../compare/1.9.6...HEAD
+[1.9.6]: ../../compare/1.9.5...1.9.6
 [1.9.5]: ../../compare/1.9.4...1.9.5
 [1.9.4]: ../../compare/1.9.3...1.9.4
 [1.9.3]: ../../compare/1.9.2...1.9.3

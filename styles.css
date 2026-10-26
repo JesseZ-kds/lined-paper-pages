@@ -1060,7 +1060,7 @@ settings:
   box-sizing: border-box;
   height: calc(var(--line) * var(--bar-lines));
   margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-x) * -1) !important;
-  padding: var(--title-drop) 200px 0 var(--pad-x) !important;   /* (top: the title sits low, on its line) */
+  padding: var(--title-drop) var(--pad-r) 0 var(--pad-x) !important;   /* (top: the title sits low, on its line, under the date) */
   line-height: calc(var(--line) * (var(--bar-lines) - 0.4)) !important;
   background-color: var(--bar);
   background-image:
@@ -1089,8 +1089,12 @@ settings:
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* A title too long for one line (the plugin finds those): two lines in the same bar, a little
-   smaller, never cut off with "…" */
+/* A title a little too long for one line (the plugin finds those): a little smaller, still on one
+   line in the same place */
+html body .lined-paper h1.lp-title-fit.lp-title-fit {
+  font-size: calc(var(--title) * var(--lp-title-fit, 1)) !important;
+}
+/* A title far too long for one line: two lines in the same bar, smaller, never cut off with "…" */
 html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
   white-space: normal !important;
   text-overflow: clip !important;
@@ -1098,7 +1102,7 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
   text-wrap: balance;
   font-size: calc(var(--title) * var(--lp-title-wrap-size, 0.66)) !important;
   line-height: calc(var(--line) * (var(--bar-lines) - 0.4) / 2) !important;
-  padding-top: calc(var(--line) * 0.15) !important;
+  padding-top: calc(var(--line) * 0.15) !important;   /* (the second line rests where a one-line title does) */
 }
 
 /* Date: top right corner */
