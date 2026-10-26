@@ -230,6 +230,23 @@ const notes = {
     para('AFTERTWO text'),
   ],
 
+  // a quote callout in the notes, after `fill` lines of notes: for some `fill` it lands on a page
+  // break, and must move to the next page whole
+  calloutAtBreak: ({ fill = 20 } = {}) => [
+    title('Callout at a break'),
+    group('<p>What is the Islamic viewpoint?</p>', `<p>${Array.from({ length: fill }, (_, i) => 'n' + (i + 1)).join('<br>')}</p>` +
+      callout('quote', 'QUOTETITLE Keith L. Moore', '<p>QUOTETEXT Development of a human being begins with fertilisation, a process by which two highly specialised cells, the sperm and the ovum, unite to form a single cell.</p>') +
+      '<ul><li>AFTERQUOTE Biologists believe life begins from fertilisation.</li></ul>'),
+  ],
+
+  // titles too long for one line: the note's title, and a callout's
+  longTitles: () => [
+    title('The Moral Status of the Embryo: When Does Human Life Begin?'),
+    group('<p>What is the Scientific viewpoint?</p>',
+      callout('quote', 'LONGTITLE Keith L. Moore and T. V. N. Persaud, The Developing Human: Clinically Oriented Embryology', '<p>Development begins with fertilisation.</p>')),
+    para('after'),
+  ],
+
   // a realistic page, for the screenshots in the README
   showcase: () => {
     const c = (colour, text) => `<font color="${colour}">${text}</font>`;

@@ -868,13 +868,20 @@ settings:
     .lined-paper.cornell .callout.callout:not([data-callout="cue"], [data-callout="notes"], [data-callout="question"], [data-callout="summary"], [data-callout="wide"], [data-callout="divider"])) > .callout-title {
   top: 0;
   flex: none;
-  height: var(--callout-row);
+  height: auto;
   min-height: var(--callout-row);
   line-height: var(--callout-row);
 }
 :is(.lined-paper:not(.cornell) .callout.callout,
-    .lined-paper.cornell .callout.callout:not([data-callout="cue"], [data-callout="notes"], [data-callout="question"], [data-callout="summary"], [data-callout="wide"], [data-callout="divider"])) > .callout-title :is(.callout-title-inner, .callout-icon, .callout-fold) {
+    .lined-paper.cornell .callout.callout:not([data-callout="cue"], [data-callout="notes"], [data-callout="question"], [data-callout="summary"], [data-callout="wide"], [data-callout="divider"])) > .callout-title :is(.callout-icon, .callout-fold) {
   height: var(--callout-row);
+  line-height: var(--callout-row);
+}
+/* (the title's text: one row per line, as many lines as it needs) */
+:is(.lined-paper:not(.cornell) .callout.callout,
+    .lined-paper.cornell .callout.callout:not([data-callout="cue"], [data-callout="notes"], [data-callout="question"], [data-callout="summary"], [data-callout="wide"], [data-callout="divider"])) > .callout-title .callout-title-inner {
+  height: auto;
+  min-height: var(--callout-row);
   line-height: var(--callout-row);
 }
 :is(.lined-paper:not(.cornell) .callout.callout,
@@ -905,8 +912,9 @@ settings:
   box-sizing: border-box;
   display: flex;
   align-items: center;
+  align-items: flex-start;       /* (a title on several lines: the icon stays on its first line) */
   gap: 8px;
-  height: var(--line);
+  height: auto;
   min-height: var(--line);
   padding: 0 !important;
   font-size: calc(var(--text) * var(--callout-text-size));
@@ -917,8 +925,9 @@ settings:
   top: calc(var(--callout-offset) * -1 - var(--shift) - 1px);
 }
 
-/* Title = exactly one line, in the same handwriting as the callout's text (Obsidian's own font
-   would otherwise show in editing and in embeds) */
+/* Title = one line per row (a long title goes on to the next line, it is never cut off with
+   "…"), in the same handwriting as the callout's text (Obsidian's own font would otherwise show in
+   editing and in embeds) */
 .lined-paper .callout,
 .lined-paper .callout-title,
 .lined-paper .callout-title-inner {
@@ -929,9 +938,8 @@ settings:
   line-height: var(--line);
   flex: 1 1 auto;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .lined-paper .callout-icon,
@@ -1000,6 +1008,17 @@ settings:
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* A title too long for one line (the plugin finds those): two lines in the same bar, a little
+   smaller, never cut off with "…" */
+html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  font-size: calc(var(--title) * var(--lp-title-wrap-size, 0.66)) !important;
+  line-height: calc(var(--line) * (var(--bar-lines) - 0.4) / 2) !important;
+  padding-top: calc(var(--line) * 0.15) !important;
 }
 
 /* Date: top right corner */
@@ -2513,6 +2532,11 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     row-gap: calc(var(--page-h) - var(--pg-body) - 0.5px);      /* footer + desk + next sheet's header */
   }
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section.markdown-preview-section.markdown-preview-section > div { clip-path: none !important; }
+  /* a callout, table, code block or picture is never split between two sheets: it moves to the
+     next sheet whole (as in the PDF, and as the plugin does when it makes the pages) */
+  html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(.callout:not([data-callout="cue"], [data-callout="notes"]), pre, table, img, .image-embed) {
+    break-inside: avoid;
+  }
   /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(h2, h3, h4, h5, h6),
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> :is(h2, h3, h4, h5, h6)) { break-after: avoid; }

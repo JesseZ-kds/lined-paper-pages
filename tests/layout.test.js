@@ -2,7 +2,7 @@
 // Reading view looks exactly like the PDF export: every word on the same page, in the same place.
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { render, compare, describeMismatch, closeBrowsers } = require('./lib/harness');
+const { render, openReading, compare, describeMismatch, closeBrowsers } = require('./lib/harness');
 const { note } = require('./lib/notes');
 
 after(closeBrowsers);
@@ -13,7 +13,7 @@ const CASES = [
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],
-  ['divider'], ['dividerPlain'], ['pictures'],
+  ['divider'], ['dividerPlain'], ['pictures'], ['calloutAtBreak', { fill: 28 }], ['longTitles'],
 ];
 const label = (name, params) => name + (params ? ' ' + JSON.stringify(params) : '');
 
@@ -59,3 +59,58 @@ for (const dpr of [1.25, 1.5]) {
     assert.deepEqual(off.map((w) => w.w), []);
   });
 }
+
+// A callout is never split between two pages: when it doesn't fit, it moves to the next page whole
+// (here: a quote in the notes, with the notes growing line by line until it lands on the break)
+for (const [mode, cssPaging] of MODES) {
+  test(`a callout on a page break moves to the next page whole (${mode})`, async (t) => {
+    for (let fill = 24; fill <= 31; fill++) {
+      const r = await render(note('calloutAtBreak', { fill }), { cssPaging });
+      if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+      for (const [where, words] of [['reading view', r.reading.words], ['PDF', r.pdf.words]]) {
+        const pages = new Set(words.filter((w) => ['QUOTETITLE', 'QUOTETEXT', 'cell.'].includes(w.w)).map((w) => w.page));
+        assert.equal(pages.size, 1, `${where}, ${fill} lines of notes: the callout is split over pages ${[...pages]}`);
+      }
+      const c = compare(r.reading, r.pdf);
+      assert.ok(c.ok, `${fill} lines of notes: ` + describeMismatch(c));
+    }
+  });
+}
+
+// Long titles go on to a new line instead of being cut off with "…"; a note title too long for the
+// title bar goes on two lines inside it
+for (const [mode, cssPaging] of MODES) {
+  test(`long titles wrap instead of being cut off (${mode})`, async (t) => {
+    const { page, context } = await openReading(note('longTitles'), { cssPaging });
+    if (!page) return t.skip(`${mode} is not available in this browser`);
+    try {
+      const r = await page.evaluate(() => {
+        const h = document.querySelector('h1');
+        const inner = document.querySelector('.callout[data-callout="quote"] .callout-title-inner');
+        const cut = (el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+        const box = inner.closest('.callout').getBoundingClientRect();
+        const text = inner.closest('.callout').querySelector('.callout-content p').getBoundingClientRect();
+        return { twoLines: h.classList.contains('lp-title-wrap'), titleCut: cut(h), calloutTitleCut: cut(inner),
+          calloutTitleWraps: inner.getBoundingClientRect().height > 1.5 * parseFloat(getComputedStyle(inner).lineHeight),
+          calloutHoldsAll: inner.getBoundingClientRect().top >= box.top - 1 && text.bottom <= box.bottom + 1 };
+      });
+      assert.deepEqual(r, { twoLines: true, titleCut: false, calloutTitleCut: false, calloutTitleWraps: true, calloutHoldsAll: true });
+    } finally {
+      await context.close();
+    }
+    // in the PDF the whole title is in the title bar of page 1
+    const pdf = (await render(note('longTitles'), { cssPaging })).pdf;
+    for (const w of ['Moral', 'Embryo:', 'Human', 'Begin?']) {
+      assert.ok(pdf.words.some((p) => p.w === w && p.page === 1 && p.bottom < 120), `"${w}" in the PDF's title bar`);
+    }
+  });
+}
+
+test('a short title stays on one line, at full size', async () => {
+  const { page, context } = await openReading(note('short'));
+  try {
+    assert.equal(await page.evaluate(() => document.querySelector('h1').classList.contains('lp-title-wrap')), false);
+  } finally {
+    await context.close();
+  }
+});

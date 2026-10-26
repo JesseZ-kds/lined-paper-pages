@@ -26,7 +26,9 @@ cssclasses: [lined-paper, cornell]  # Cornell notes
 ---
 ```
 
-Only notes with these classes are changed. The first `# Heading` becomes the title bar; the title rests on the bar's double line like handwriting (*Title position* in the settings).
+Only notes with these classes are changed. The first `# Heading` becomes the title bar; the title
+rests on the bar's double line like handwriting (*Title position* in the settings). A title too long
+for one line goes on two lines inside the title bar, a little smaller.
 
 The red margin line runs down the whole page, footer included, like on real paper.
 
@@ -126,6 +128,9 @@ reading view and in the PDF; while editing you can still see it.
 Every other callout (`[!note]`, `[!tip]`, `[!warning]`, …) keeps Obsidian's own colours. Its
 box is **80 % of the height of the lines it spans** and centred on them, and its text is spaced to
 fit the box (change the 80 % in the settings).
+
+A callout is never split between two pages: when it doesn't fit at the bottom of a page, it moves
+to the next page whole. A long title goes on to the next line instead of being cut off.
 
 In reading view and the PDF a callout leaves one blank line after it. In editing view it takes
 only its own lines, because the empty lines you type between blocks are already there.

@@ -156,6 +156,36 @@ function addSummarySizer(root) {
 // a copy of the callout straight in the page, exactly as if it had been written there, and hide
 // the embed. The copy goes first in the block so it is laid out like any other callout.
 // `undo` (reading view only) collects what to take away again before the next layout.
+// A note title too long for the title bar goes on two lines, a little smaller, instead of being cut
+// off (lined-paper.css: h1.lp-title-wrap). CSS can't tell whether text fits, so it is measured
+// here: the title's width on one line, in units of its font size, against the room in an A4 title
+// bar (the sheet minus the margin and the date's space) at the A4 title size. That holds for
+// reading view and the PDF alike, whatever the window is like while the export is being prepared.
+function fitTitles(root, undo) {
+  for (const h of root.querySelectorAll('h1')) {
+    const view = h.closest('.markdown-preview-view.lined-paper');
+    if (!view || h.closest('.markdown-embed')) continue;
+    const had = h.classList.contains('lp-title-wrap');
+    if (had) h.classList.remove('lp-title-wrap');                 // (measured on one line)
+    const range = document.createRange();
+    range.selectNodeContents(h);
+    const size = parseFloat(getComputedStyle(h).fontSize);
+    let wrap = false;
+    if (size) {
+      if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
+        wrap = h.scrollWidth > h.clientWidth + 1;                 // (no A4 pages: the bar is the pane's width)
+      } else {
+        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - 200;   // (200px: the date's space, as in the CSS)
+        wrap = (range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))') > room;
+      }
+    }
+    if (wrap) {
+      h.classList.add('lp-title-wrap');
+      if (undo && !had) undo.push({ t: 'cls', el: h, name: 'lp-title-wrap' });
+    }
+  }
+}
+
 const SEL_EMBED = '.markdown-embed, .internal-embed';
 const EMBED_SKIP = '.mod-header, .mod-footer, .markdown-preview-pusher, .embed-title, .markdown-embed-title, .markdown-embed-link, .cn-sum-sizer, .lp-embed-copy';
 // The callout an embed shows, or null when it shows anything else too. Obsidian's wrappers around
@@ -435,7 +465,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) unwrapCalloutEmbeds(el); addSummarySizer(el); };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -459,12 +489,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapCalloutEmbeds(document.body); addSummarySizer(document.body); });
+    this.registerDomEvent(window, 'beforeprint', () => { unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapCalloutEmbeds(pr); addSummarySizer(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -648,6 +678,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (document.body.classList.contains('lp-no-pages')) return;
       if (!view.offsetParent) return; // hidden
       unwrapCalloutEmbeds(view, st.undo);
+      fitTitles(view, st.undo);
       addSummarySizer(view);
       if (this.cssPaged()) {
         // the browser paginates with CSS (lined-paper.css): only add the sheet shadows + labels

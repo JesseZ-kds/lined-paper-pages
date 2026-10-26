@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-26
+
+### Fixed
+- A callout that landed on a page break was split between two pages (its title or last line
+  hidden behind the page edge) in reading view with CSS pagination. A callout, table, code block
+  or picture now always moves to the next page whole, as in the PDF.
+- Long callout titles were cut off with "…": they now continue on the next line, and the callout
+  grows by whole lines.
+- A note title too long for the title bar was cut off with "…": it now goes on two lines inside
+  the bar, a little smaller, in reading view and the PDF.
+
 ## [1.8.0] - 2026-10-25
 
 ### Added
@@ -99,5 +110,6 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.8.0...HEAD
+[Unreleased]: ../../compare/1.8.1...HEAD
+[1.8.1]: ../../compare/1.8.0...1.8.1
 [1.8.0]: ../../releases/tag/1.8.0
