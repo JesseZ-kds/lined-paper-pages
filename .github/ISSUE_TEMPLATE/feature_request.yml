@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea for something new.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: What should it look like or do? A sketch or a photo of real paper notes is welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What would it help you with?

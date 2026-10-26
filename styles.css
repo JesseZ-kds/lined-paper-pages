@@ -1,0 +1,58 @@
+/* Lined Paper Pages: styles for what the plugin adds */
+
+/* the plugin measures positions itself; stop the browser re-scrolling while it works */
+.markdown-reading-view .markdown-preview-view.lined-paper { overflow-anchor: none; }
+
+/* "Cues | Notes" labels in the header of sheets 2, 3 ... (Cornell) */
+.lined-paper.cornell .lp-hdr {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--line);
+  z-index: 2;
+  pointer-events: none;
+}
+.lined-paper.cornell .lp-hdr::before,
+.lined-paper.cornell .lp-hdr::after {
+  position: absolute;
+  bottom: 0;
+  height: var(--line);
+  line-height: calc(var(--line) - var(--shift) - 1px);
+  font-family: var(--hand);
+  font-size: calc(var(--text) * var(--label-size));
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.lined-paper.cornell .lp-hdr::before { content: var(--label-cue); left: var(--pad-x); }
+.lined-paper.cornell .lp-hdr::after  { content: var(--label-notes); left: calc(var(--divider-x) + var(--gap) + 2px); }
+
+/* one shadow per A4 sheet (only the outer shadow is painted, so it never covers the page) */
+.markdown-reading-view .lined-paper .lp-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+body.lp-no-pages .lp-sheet { display: none; }
+
+/* Style Settings "Hide Cues | Notes labels on page 2, 3 ..." */
+body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none; }
+/* Settings page (Settings → Lined Paper Pages) */
+.lp-setting-value {
+  min-width: 3.5em;
+  margin-right: 8px;
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lp-setting-default {
+  margin-top: 2px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+/* An embedded callout is shown as a copy in the page; the embed itself is hidden */
+html body .lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped { display: none !important; }
