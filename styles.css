@@ -1077,10 +1077,6 @@ settings:
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* No date in the note's properties: the title may use the room the date would take */
-.markdown-preview-view.lined-paper:not(:has(.metadata-property[data-property-key="date"])) h1 {
-  padding-right: var(--pad-x) !important;
-}
 /* A title too long for one line (the plugin finds those): two lines in the same bar, a little
    smaller, never cut off with "…" */
 html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
@@ -4151,4 +4147,20 @@ body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="ques
 }
 body:not(.cn-question-left) .lined-paper.cornell .callout:is([data-callout="question"], [data-callout="wide"]) > .callout-content > :is(ul, ol) > li {
   text-align: center !important;
+}
+
+/* The question's text is centred in the height too: its lines fill the rows between the "Question"
+   label and the red rule, the text in the middle of them, each line centred between its two ruled
+   lines (not sitting on the lower one) */
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: calc(var(--line) * var(--question-lines));
+  position: relative;
+  top: var(--title-nudge);
+}
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content > * {
+  margin-block: 0 !important;
 }

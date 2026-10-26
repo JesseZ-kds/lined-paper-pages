@@ -160,12 +160,10 @@ function addSummarySizer(root) {
 // the embed. The copy goes first in the block so it is laid out like any other callout.
 // `undo` (reading view only) collects what to take away again before the next layout.
 // A note title too long for the title bar goes on two lines, a little smaller, instead of being cut
-// off (lined-paper.css: h1.lp-title-wrap); a title that fits stays on one line at full size. CSS
-// can't tell whether text fits, so it is measured here: the title's width on one line, in units of
-// its font size, at the A4 title size, against the room in an A4 title bar (the sheet minus the
-// title's own padding: the margin, and the date's space when the note has a date), so it holds for
-// the PDF whatever the window is like while the export is being prepared; in reading view, against
-// the bar on screen. Measured again once the web fonts have loaded.
+// off (lined-paper.css: h1.lp-title-wrap). CSS can't tell whether text fits, so it is measured
+// here: the title's width on one line, in units of its font size, against the room in an A4 title
+// bar (the sheet minus the margin and the date's space) at the A4 title size. That holds for
+// reading view and the PDF alike, whatever the window is like while the export is being prepared.
 function fitTitles(root, undo) {
   for (const h of root.querySelectorAll('h1')) {
     const view = h.closest('.markdown-preview-view.lined-paper');
@@ -174,17 +172,14 @@ function fitTitles(root, undo) {
     if (had) h.classList.remove('lp-title-wrap');                 // (measured on one line)
     const range = document.createRange();
     range.selectNodeContents(h);
-    const cs = getComputedStyle(h);
-    const size = parseFloat(cs.fontSize);
+    const size = parseFloat(getComputedStyle(h).fontSize);
     let wrap = false;
-    if (size && h.textContent.trim()) {
-      if (view.closest('.markdown-reading-view')) {
-        // reading view: the bar on screen is the real one (an A4 sheet, or the pane without A4 pages)
-        wrap = range.getBoundingClientRect().width > h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 1;
+    if (size) {
+      if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
+        wrap = h.scrollWidth > h.clientWidth + 1;                 // (no A4 pages: the bar is the pane's width)
       } else {
-        const room = px(view, '210mm') - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-        const needed = (range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))');
-        wrap = needed > room + 1;
+        const room = px(view, '210mm') - px(view, 'var(--pad-x)') - 200;   // (200px: the date's space, as in the CSS)
+        wrap = (range.getBoundingClientRect().width / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))') > room;
       }
     }
     if (wrap) {

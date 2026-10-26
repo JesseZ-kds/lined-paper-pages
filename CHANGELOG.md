@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-10-26
+
+### Changed
+- The text of `[!question]` is centred in the height as well: in the middle of its rows, between
+  the "Question" label and the red line.
+
+### Fixed
+- The note title looks as it did in 1.9.1 again (same size, place and room in the title bar,
+  with or without a date).
+
 ## [1.9.2] - 2026-10-26
 
 ### Changed
@@ -143,7 +153,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.9.2...HEAD
+[Unreleased]: ../../compare/1.9.3...HEAD
+[1.9.3]: ../../compare/1.9.2...1.9.3
 [1.9.2]: ../../compare/1.9.1...1.9.2
 [1.9.1]: ../../compare/1.9.0...1.9.1
 [1.9.0]: ../../compare/1.8.1...1.9.0
