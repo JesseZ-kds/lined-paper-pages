@@ -452,7 +452,7 @@ function colourEditorExtension(plugin) {
     toDOM() {
       const s = document.createElement('span');
       s.className = 'lp-colour';
-      s.style.color = this.run.colour;
+      s.style.color = PEN_VAR[this.run.colour.toLowerCase()] || this.run.colour;
       fillColoured(s, this.run.inner, this.opener);
       return s;
     }
@@ -573,7 +573,9 @@ const TEMPLATES = {
   divider: () => '>> [!divider]\n\n|',
   nextpage: () => '>> [!nextpage]\n\n|',
 };
-const COLOURS = [['blue', '#4f81bd'], ['red', '#c0504d'], ['green', '#9bbb59'], ['orange', '#f79646'], ['purple', '#8064a2']];
+// the pens (lined-paper.css "PEN COLOURS": each shown as var(--pen-…), lighter in dark theme)
+const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], ['purple', '#6a1b9a'], ['orange', '#d84315']];
+const PEN_VAR = Object.fromEntries(COLOURS.map(([name, hex]) => [hex, `var(--pen-${name}, ${hex})`]));
 
 // type a block on lines of its own at the cursor (a blank line before it where needed; every template
 // ends with a line break, which leaves the blank line after it), and put the cursor at its "|"
@@ -627,22 +629,23 @@ function addPaperCommands(plugin) {
   insert('insert-divider', 'Insert divider line', 'divider');
   insert('insert-nextpage', 'Insert page break', 'nextpage');
 
-  // colour the selected text (or type an empty coloured span to write in)
+  // write the selected text with a pen (or type an empty pen span to write in)
+  const wrap = (editor, open, close) => {
+    const sel = editor.getSelection();
+    if (sel) editor.replaceSelection(open + sel + close);
+    else {
+      const cur = editor.getCursor();
+      editor.replaceRange(open + close, cur);
+      editor.setCursor({ line: cur.line, ch: cur.ch + open.length });
+    }
+  };
   for (const [name, hex] of COLOURS) {
     plugin.addCommand({
-      id: 'colour-' + name, name: `Colour text ${name}`,
-      editorCallback: (editor) => {
-        const sel = editor.getSelection();
-        const open = `<font color="${hex}">`;
-        if (sel) editor.replaceSelection(open + sel + '</font>');
-        else {
-          const cur = editor.getCursor();
-          editor.replaceRange(open + '</font>', cur);
-          editor.setCursor({ line: cur.line, ch: cur.ch + open.length });
-        }
-      },
+      id: 'colour-' + name, name: `Pen: ${name}`,
+      editorCallback: (editor) => wrap(editor, `<font color="${hex}">`, '</font>'),
     });
   }
+  plugin.addCommand({ id: 'highlighter', name: 'Pen: highlighter', editorCallback: (editor) => wrap(editor, '==', '==') });
 }
 
 module.exports = class LinedPaperPages extends Plugin {

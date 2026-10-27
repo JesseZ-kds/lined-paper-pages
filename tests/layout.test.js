@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],

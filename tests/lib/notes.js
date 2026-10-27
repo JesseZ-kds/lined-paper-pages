@@ -213,6 +213,15 @@ const notes = {
     block(callout('divider', 'Divider', '')),
     block(callout('summary', 'Summary', '<p>s</p>')),
   ],
+  // empty `>>` lines in the cues and notes (two paragraphs, a paragraph after a list) are empty
+  // ruled lines on the page, also across a page break
+  gaps: ({ fill = 0 } = {}) => [
+    title('Gaps'),
+    block(callout('question', 'Question', '<p>Why?</p>')),
+    ...Array.from({ length: fill }, (_, i) => group(`<p>c${i}</p>`, `<p>n${i}</p>`)),
+    group('<p>cue A</p><p>cue B</p>', `<p>note 1</p><p>note 2</p><ul><li>item</li></ul><p>after list</p><p>${words(40)}</p><p>last</p>`),
+  ],
+
   // every page block written in a quote of its own (`>> [!divider]`), as the insert commands write them
   nested: () => {
     const q = (x) => `<div><blockquote>${x}</blockquote></div>`;

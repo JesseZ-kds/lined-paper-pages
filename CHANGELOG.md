@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-27
+
+### Added
+- Pen colours: *Pen: blue / red / green / purple / orange* and *Pen: highlighter* (`==text==`),
+  like pens on paper: clear to read and to print on white paper, a little lighter in dark theme.
+  See *Pen colours* in docs/writing-notes.md.
+
+### Changed
+- An empty `>>` line in the cues or notes (between two paragraphs, or after a list) is an empty
+  ruled line on the page.
+- The *Colour text …* commands are now the *Pen* commands (same hotkeys), with the pen colours.
+
+### Fixed
+- The red line under the `[!question]` replaced the ruled line there: in the margin, left of the red
+  margin line, that ruled line was missing. The red line is now drawn on top of it.
+
 ## [1.10.2] - 2026-10-27
 
 ### Changed
@@ -254,7 +270,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.10.2...HEAD
+[Unreleased]: ../../compare/1.11.0...HEAD
+[1.11.0]: ../../compare/1.10.2...1.11.0
 [1.10.2]: ../../compare/1.10.1...1.10.2
 [1.10.1]: ../../compare/1.10.0...1.10.1
 [1.10.0]: ../../compare/1.9.9...1.10.0

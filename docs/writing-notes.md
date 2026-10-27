@@ -7,6 +7,7 @@ How to turn a note into lined paper or a Cornell notes page, and every block you
 - [Cornell notes](#cornell-notes)
 - [Other callouts](#other-callouts)
 - [Embedding a callout from another note](#embedding-a-callout-from-another-note)
+- [Pen colours](#pen-colours)
 - [Coloured links and embeds](#coloured-links-and-embeds)
 - [Pictures](#pictures)
 - [PDF export](#pdf-export)
@@ -56,7 +57,8 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Insert full-width lines | `[!wide]` |
 | Insert divider line | `[!divider]` |
 | Insert page break | `[!nextpage]` |
-| Colour text blue / red / green / orange / purple | Wraps the selected text (or the cursor) in `<font color="…">` |
+| Pen: blue / red / green / purple / orange | Writes the selected text (or what you type next) in that pen: `<font color="…">` (see [Pen colours](#pen-colours)) |
+| Pen: highlighter | Marks the selected text with a yellow highlighter: `==text==` |
 
 Blocks go on lines of their own, with the blank lines around them that Markdown needs, and the
 cursor ends up where you write next. Every block is written in a quote of its own (`>> [!question]`,
@@ -214,6 +216,26 @@ callout's text size. An embed that loads late (e.g. a big note) is picked up as 
 appears.
 
 Embeds of anything else (a whole note, a heading, a paragraph) stay ordinary Obsidian embeds.
+
+## Pen colours
+
+Five pens and a highlighter, like writing on paper: dark enough to read easily and to print clearly
+on white paper. Use the *Pen* commands (give them hotkeys), or type the tags yourself:
+
+| Pen | Write | Good for |
+| --- | --- | --- |
+| Black (normal text) | just write | the notes themselves |
+| Blue | `<font color="#1e4fbf">text</font>` | key words, terms, links |
+| Red | `<font color="#c62828">text</font>` | warnings, common mistakes, corrections |
+| Green | `<font color="#2e7d32">text</font>` | examples |
+| Purple | `<font color="#6a1b9a">text</font>` | names, people, sources, quotes |
+| Orange | `<font color="#d84315">text</font>` | dates, numbers, formulas |
+| Highlighter | `==text==` | the one thing to remember |
+
+In dark theme the pens are a little lighter, so they stay easy to read on the dark paper (on screen
+and in a PDF exported from dark theme). For printing, export from the light theme: white paper with
+the pen colours above. Any other colour (`<font color="#4f81bd">`) still works and is shown as
+written.
 
 ## Coloured links and embeds
 

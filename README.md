@@ -101,10 +101,11 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Insert full-width lines (`[!wide]`) | Ctrl/Cmd + Alt + W |
 | Insert divider line | Ctrl/Cmd + Alt + D |
 | Insert page break | Ctrl/Cmd + Alt + Enter |
-| Colour text blue / red / green / orange / purple | Ctrl/Cmd + Alt + 1 … 5 |
+| Pen: blue / red / green / purple / orange | Ctrl/Cmd + Alt + 1 … 5 |
+| Pen: highlighter | Ctrl/Cmd + Alt + H |
 | Re-paginate reading view | — |
 
-The *Insert* and *Colour* commands work in editing view (where there is a cursor); switch with
+The *Insert* and *Pen* commands work in editing view (where there is a cursor); switch with
 Ctrl/Cmd + E (*Toggle reading view*). Details: [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys).
 
 ## Documentation

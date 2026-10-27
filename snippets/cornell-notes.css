@@ -1341,3 +1341,16 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
   font-size: calc(var(--text) * var(--text-size) * var(--lp-q-fit, 1)) !important;
 }
 
+
+/* =====================================================================
+   A BLANK LINE IN THE CUES OR NOTES IS A BLANK LINE ON THE PAGE
+   =====================================================================
+   An empty `>>` line between two paragraphs (or after a list) is an empty ruled line, as written.
+   (Two paragraphs, or a paragraph after a list, only ever come from such an empty line: lines
+   written straight under each other stay one paragraph, with Enter as a new line. At the top of a
+   continued column on the next page there is nothing before it, so no empty line there.) */
+/* (not next to a paragraph holding an embed, ![[Note#^callout]]: that is a callout, laid out like a
+   typed one) */
+.lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"]) > .callout-content > :is(p:not(:has(.internal-embed, .markdown-embed)), ul, ol) + p:not(:has(.internal-embed, .markdown-embed)) {
+  margin-top: var(--line) !important;
+}

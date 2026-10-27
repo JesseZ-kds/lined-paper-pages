@@ -2407,12 +2407,14 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
 
 /* The question's own paper stops at the bottom of its red line: its Cues | Notes row below that is
    see-through, so the row's ruled line, margin line and divider are the page's own (one straight
-   divider, no step). Its red line still runs from the margin line to the right edge. */
+   divider, no step). Its red line runs from the margin line to the right edge, drawn ON the ruled
+   line under the question (which still shows in the margin, left of the red margin line). */
 @media print {
   html body .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] { 
     background-color: transparent !important;
     background-image:
     linear-gradient(var(--divider), var(--divider)),
+    linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--margin), var(--margin)),
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--rule), var(--rule)),
@@ -2429,11 +2431,13 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     linear-gradient(var(--paper), var(--paper)) !important;
     background-size:
     calc(100% - var(--margin-x)) 2px,
+    100% 1px,
     1px calc(100% - var(--line) - var(--shift) + 1px),
     100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px,
     100% calc(100% - var(--line) - var(--shift) + 1px) !important;
     background-position:
     var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
+    0 calc(100% - var(--line) - var(--shift)),
     var(--margin-x) 0,
     0 calc(100% - var(--line) * 2 - var(--shift)),
     0 calc(100% - var(--line) * 3 - var(--shift)),
@@ -2457,6 +2461,7 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     background-color: transparent !important;
     background-image:
     linear-gradient(var(--divider), var(--divider)),
+    linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--margin), var(--margin)),
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--rule), var(--rule)),
@@ -2473,11 +2478,13 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     linear-gradient(var(--paper), var(--paper)) !important;
     background-size:
     calc(100% - var(--margin-x)) 2px,
+    100% 1px,
     1px calc(100% - var(--line) - var(--shift) + 1px),
     100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px,
     100% calc(100% - var(--line) - var(--shift) + 1px) !important;
     background-position:
     var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
+    0 calc(100% - var(--line) - var(--shift)),
     var(--margin-x) 0,
     0 calc(100% - var(--line) * 2 - var(--shift)),
     0 calc(100% - var(--line) * 3 - var(--shift)),
@@ -2728,6 +2735,40 @@ html body:not(.lp-embed-x) :is(.markdown-preview-view, .markdown-source-view).li
   padding: 0 !important;
   height: auto !important;
   background: none !important;
+}
+
+/* ---------- PEN COLOURS ----------
+   The colours of the "Pen" commands, like real pens on paper: strong enough to read and to print
+   clearly on white, never neon. <font color="#1e4fbf">text</font> writes in blue pen; ==text==
+   is a yellow highlighter. In dark theme (dark paper, on screen and in its PDF) the same pens are
+   lighter, so they stay easy to read. */
+body {
+  --pen-blue: #1e4fbf;
+  --pen-red: #c62828;
+  --pen-green: #2e7d32;
+  --pen-purple: #6a1b9a;
+  --pen-orange: #d84315;
+  --pen-highlight: rgba(255, 214, 0, 0.42);
+}
+body.theme-dark {
+  --pen-blue: #8ab4f8;
+  --pen-red: #f28b82;
+  --pen-green: #81c995;
+  --pen-purple: #c58af9;
+  --pen-orange: #fcad70;
+  --pen-highlight: rgba(255, 214, 0, 0.28);
+}
+.lined-paper font[color="#1e4fbf" i] { color: var(--pen-blue) !important; }
+.lined-paper font[color="#c62828" i] { color: var(--pen-red) !important; }
+.lined-paper font[color="#2e7d32" i] { color: var(--pen-green) !important; }
+.lined-paper font[color="#6a1b9a" i] { color: var(--pen-purple) !important; }
+.lined-paper font[color="#d84315" i] { color: var(--pen-orange) !important; }
+.lined-paper :is(mark, .cm-highlight) {
+  background-color: var(--pen-highlight) !important;
+  color: inherit !important;
+  border-radius: 2px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 /* A link inside a colour you set (<font color="#4f81bd">[[note]]</font> or
