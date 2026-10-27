@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],
@@ -241,4 +241,23 @@ for (const [mode, cssPaging] of MODES) {
     assert.equal(at('SUMMARY').page, 2);
     assert.equal(at('c3').page, 1);
   });
+}
+
+// A `# Title` under [!nextpage] is the title of the new page: in its title bar at the top of page 2
+// (as the note's title is on page 1), and the page goes on under it as page 1 does
+for (const [mode, cssPaging] of MODES) {
+  for (const [name, params] of [['pageTitle', {}], ['pageTitle', { question: false }], ['pageTitlePlain', {}]]) {
+    test(`a title after a page break is the next page's title: ${name} ${JSON.stringify(params)} (${mode})`, async (t) => {
+      const r = await render(note(name, params), { cssPaging });
+      if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+      const at = (w) => r.pdf.words.filter((x) => x.w === w);
+      const first = at('First')[0], second = at('Second')[0];
+      assert.equal(second.page, 2, 'the second title is on page 2');
+      assert.ok(Math.abs(second.y - first.y) < 2 && Math.abs(second.x - first.x) < 2, 'in the same place as the title on page 1');
+      // what follows is where it is on page 1
+      const one = at(name === 'pageTitlePlain' ? 'one' : 'c1')[0], two = at(name === 'pageTitlePlain' ? 'two' : 'c2')[0];
+      assert.equal(two.page, 2);
+      assert.ok(Math.abs(two.y - one.y) < 2, `page 2 goes on under its title as page 1 does (${one.y} / ${two.y})`);
+    });
+  }
 }

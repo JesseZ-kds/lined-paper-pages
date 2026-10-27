@@ -2702,6 +2702,50 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   }
 }
 
+/* ---------- A TITLE FOR A NEW PAGE:  > [!nextpage]  then  # Title ----------
+   A `# Title` straight under a [!nextpage] is the title of that page: it is written in the page's
+   title bar, like the note's title on page 1 (with its Cues | Notes row on Cornell notes), and the
+   page goes on under it as page 1 does (a [!question] under it too). It starts at the top of the
+   page's body and is moved up into the header with `top` (a negative margin would be cut off by the
+   page break), giving the room back with margin-bottom. */
+html body .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div > h1,
+html body .markdown-preview-view.lined-paper > div:has(> .callout[data-callout="nextpage"]) + div > h1 {
+  position: relative !important;
+  top: calc(var(--line) * var(--bar-lines) * -1) !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: 24 !important;   /* (under a [!wide] that covers its Cues | Notes row, as on page 1) */
+  margin-top: 0 !important;
+  margin-left: calc(var(--pad-x) * -1) !important;
+  margin-right: calc(var(--pad-r) * -1) !important;
+  margin-bottom: calc(var(--line) * var(--bar-lines) * -1) !important;
+}
+/* (Cornell notes: the header is the title bar and the Cues | Notes row) */
+html body .markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div > h1,
+html body .markdown-preview-view.lined-paper.cornell > div:has(> .callout[data-callout="nextpage"]) + div > h1 {
+  top: calc(var(--line) * (var(--bar-lines) + 1) * -1) !important;
+}
+/* (over a [!question] under it, so the tails of g, y, p show, as on page 1) */
+html body .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div:has(+ div > .callout[data-callout="question"]) > h1,
+html body .markdown-preview-view.lined-paper > div:has(> .callout[data-callout="nextpage"]) + div:has(+ div > .callout[data-callout="question"]) > h1 {
+  z-index: 26 !important;
+}
+/* (without a [!question] the title carries the Cues | Notes row too: it is one row taller) */
+html body .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div > h1,
+html body .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) > div:has(> .callout[data-callout="nextpage"]) + div > h1 {
+  margin-bottom: calc(var(--line) * (var(--bar-lines) + 1) * -1) !important;
+}
+/* a [!question] under the page's title sits right under it, on the header's Cues | Notes row, as on
+   page 1 (moved with `top` too: next to the title's negative margin, a negative margin of its own
+   would merge into that one and be lost) */
+html body .markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div:has(> h1) + div > .callout[data-callout="question"],
+html body .markdown-preview-view.lined-paper.cornell > div:has(> .callout[data-callout="nextpage"]) + div:has(> h1) + div > .callout[data-callout="question"] {
+  top: calc(var(--line) * -1) !important;
+  margin-top: 0 !important;
+  margin-bottom: calc(var(--line) * -1) !important;
+  z-index: 25;
+}
+
 /* ---------- EMBEDS ----------
    `![[Note#^callout]]`: the plugin shows the callout in the page itself and hides the embed. */
 html body .lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped { display: none !important; }
@@ -2748,7 +2792,9 @@ body {
   --pen-green: #2e7d32;
   --pen-purple: #6a1b9a;
   --pen-orange: #d84315;
-  --pen-highlight: rgba(255, 214, 0, 0.42);
+  --pen-highlight: rgba(255, 221, 0, 0.5);
+  --pen-highlight-edge: rgba(255, 200, 0, 0.7);
+  --pen-highlight-blend: multiply;
 }
 body.theme-dark {
   --pen-blue: #8ab4f8;
@@ -2756,17 +2802,43 @@ body.theme-dark {
   --pen-green: #81c995;
   --pen-purple: #c58af9;
   --pen-orange: #fcad70;
-  --pen-highlight: rgba(255, 214, 0, 0.28);
+  /* (on dark paper a see-through yellow turns olive: the highlighter is a solid stroke, dark text on it) */
+  --pen-highlight: rgba(250, 215, 70, 0.86);
+  --pen-highlight-edge: rgba(240, 195, 30, 0.95);
+  --pen-highlight-blend: normal;
 }
+body.theme-dark .lined-paper :is(mark, .cm-highlight) { color: #1f2328 !important; }
+/* The colours of Word / Office's palette, often used for notes (<font color="#4f81bd">), are a
+   little lighter in dark theme too, so they stay as easy to read as the pens (as written on white
+   paper). */
+body.theme-dark .lined-paper font[color="#4f81bd" i] { color: #7fa7dc !important; }
+body.theme-dark .lined-paper font[color="#c0504d" i] { color: #e58582 !important; }
+body.theme-dark .lined-paper font[color="#9bbb59" i] { color: #b5d47c !important; }
+body.theme-dark .lined-paper font[color="#8064a2" i] { color: #b49fd4 !important; }
+body.theme-dark .lined-paper font[color="#4bacc6" i] { color: #7ccbe0 !important; }
+body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important; }
 .lined-paper font[color="#1e4fbf" i] { color: var(--pen-blue) !important; }
 .lined-paper font[color="#c62828" i] { color: var(--pen-red) !important; }
 .lined-paper font[color="#2e7d32" i] { color: var(--pen-green) !important; }
 .lined-paper font[color="#6a1b9a" i] { color: var(--pen-purple) !important; }
 .lined-paper font[color="#d84315" i] { color: var(--pen-orange) !important; }
+/* the highlighter: a see-through yellow stroke over the middle of the letters, a little slanted, its
+   ends darker where the pen lands and lifts, the text showing through it */
 .lined-paper :is(mark, .cm-highlight) {
-  background-color: var(--pen-highlight) !important;
   color: inherit !important;
-  border-radius: 2px;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(100deg, transparent 0.6%, var(--pen-highlight-edge) 2.2%, var(--pen-highlight) 7%, var(--pen-highlight) 93%, var(--pen-highlight-edge) 97.8%, transparent 99.4%),
+    linear-gradient(178deg, transparent 8%, var(--pen-highlight) 30%, transparent 90%) !important;
+  background-size: 100% 64%, 100% 64% !important;
+  background-position: 0 62%, 0 62% !important;
+  background-repeat: no-repeat !important;
+  padding: 0 0.25em;
+  margin: 0 -0.25em;            /* (the stroke runs a little past the words; the text doesn't move) */
+  border-radius: 0.5em 0.2em 0.45em 0.25em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;   /* (a highlight over two lines: a stroke on each) */
+  mix-blend-mode: var(--pen-highlight-blend);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }

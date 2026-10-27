@@ -213,6 +213,24 @@ const notes = {
     block(callout('divider', 'Divider', '')),
     block(callout('summary', 'Summary', '<p>s</p>')),
   ],
+  // a `# Title` after [!nextpage] is the next page's title: with a question under it, without (the
+  // title carries the Cues | Notes row), with a [!wide] under it, and on plain lined paper
+  pageTitle: ({ question = true, wide = false } = {}) => [
+    title('First topic'),
+    ...(question ? [block(callout('question', 'Question', '<p>Q one?</p>'))] : []),
+    group('<p>c1</p>', '<p>n1</p>'),
+    block(callout('nextpage', 'Next page', '')),
+    title('Second topic'),
+    ...(question ? [block(callout('question', 'Question', '<p>Q two?</p>'))] : []),
+    ...(wide ? [block(callout('wide', 'Wide', '<p>WIDE under the title</p>'))] : []),
+    group('<p>c2</p>', '<p>n2</p>'),
+  ],
+  pageTitlePlain: () => [
+    title('First topic'), para('text on page one'),
+    block(callout('nextpage', 'Next page', '')),
+    title('Second topic'), para('text on page two'),
+  ],
+
   // empty `>>` lines in the cues and notes (two paragraphs, a paragraph after a list) are empty
   // ruled lines on the page, also across a page break
   gaps: ({ fill = 0 } = {}) => [
@@ -341,7 +359,7 @@ const notes = {
 };
 
 // lined paper only (no Cornell layout)
-const PLAIN = new Set(['plain', 'plainLong', 'callouts', 'nextPage', 'pictures', 'dividerPlain', 'showcasePlain']);
+const PLAIN = new Set(['plain', 'pageTitlePlain', 'plainLong', 'callouts', 'nextPage', 'pictures', 'dividerPlain', 'showcasePlain']);
 
 function note(name, params) {
   if (!notes[name]) throw new Error('no test note ' + name);

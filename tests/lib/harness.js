@@ -194,10 +194,11 @@ function compare(reading, pdf, tolerance = 4) {
     if (!pool.has(p.w)) pool.set(p.w, []);
     pool.get(p.w).push(p);
   }
-  const titles = reading.words.filter((r) => r.title).map((r) => r.w);
+  // (a page's own `# Title`, after [!nextpage], is in its title bar too: at the top of its page)
+  const titles = reading.words.filter((r) => r.title).map((r) => ({ w: r.w, page: r.page }));
   for (const t of titles) {
-    const c = pool.get(t);
-    const i = c ? c.findIndex((p) => p.page === 1 && p.bottom < 140) : -1;
+    const c = pool.get(t.w);
+    const i = c ? c.findIndex((p) => p.page === t.page && p.bottom < 140) : -1;
     if (i >= 0) c.splice(i, 1);
   }
   const missing = [];

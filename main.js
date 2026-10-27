@@ -1091,9 +1091,13 @@ module.exports = class LinedPaperPages extends Plugin {
     const sizerTop = () => sizer.getBoundingClientRect().top;
     const relTop = (el) => el.getBoundingClientRect().top - sizerTop();
     const vis = (b) => b.querySelector(':scope > :not(.lp-embed-unwrapped)') || b;
+    // a `# Title` right after [!nextpage] is the title of the next sheet (laid out, below); the
+    // note's own title, on sheet 1, is not
+    const afterBreak = (b) => !!(b.previousElementSibling && b.previousElementSibling.querySelector(':scope > .callout[data-callout="nextpage"]'));
+    const pageTitle = (b) => !!b.querySelector(':scope > h1') && afterBreak(b);
     const skip = (b) =>
       b.matches('.metadata-container,.frontmatter-container,.mod-header,.mod-footer,.markdown-preview-pusher,.lp-sheet,.lp-hdr') ||
-      b.querySelector(':scope > h1') ||
+      (b.querySelector(':scope > h1') && !pageTitle(b)) ||
       b.querySelector(':scope > .callout[data-callout="summary"]') ||
       b.querySelector(':scope > .callout[data-callout="question"]');
     // where a block's writing ends: for a cue/notes group the bottom of its cue and notes (a summary
@@ -1314,6 +1318,9 @@ module.exports = class LinedPaperPages extends Plugin {
       }
       if (skip(block)) continue;
       if (forceNext != null && vis(block).getBoundingClientRect().height) { block._lpForce = forceNext; forceNext = null; }
+      // a [!wide] straight under a sheet's `# Title` sits on the header's Cues | Notes row, as under
+      // the note's title on sheet 1
+      if (vis(block).matches('.callout[data-callout="wide"]') && block.previousElementSibling && pageTitle(block.previousElementSibling)) block._lpTopWide = true;
       let guard = 0, back = false;
       // (measured once per layout: place() sets the margin to 0, and a block can be placed twice)
       if (!gaps.has(block)) gaps.set(block, parseFloat(getComputedStyle(vis(block)).marginTop) || 0);
@@ -1332,10 +1339,12 @@ module.exports = class LinedPaperPages extends Plugin {
         if (block._lpForce != null) {
           // a [!wide] block that starts the page after [!nextpage] sits one row higher, on the header's
           // Cues | Notes row (it draws its own under its red line, like the essential question)
-          const topWide = v.matches('.callout[data-callout="wide"]') && block.previousElementSibling &&
-            block.previousElementSibling.querySelector(':scope > .callout[data-callout="nextpage"]');
-          const target = start(block._lpForce) - (topWide ? L : 0);
-          block._lpTopWide = !!topWide;
+          const topWide = v.matches('.callout[data-callout="wide"]') && afterBreak(block);
+          // a `# Title` after [!nextpage] goes in the sheet's title bar, at the very top of the sheet
+          // (cornell-notes.css / lined-paper.css draw it there: it is moved up with `top`)
+          const title = pageTitle(block);
+          const target = title ? block._lpForce * P : start(block._lpForce) - (topWide ? L : 0);
+          block._lpTopWide = !!(topWide || title);
           block._lpForce = null;
           place(block, v, target);
           continue;

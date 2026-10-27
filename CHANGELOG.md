@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-27
+
+### Added
+- A `# Title` straight under `[!nextpage]` is the title of the new page: in its title bar, like the
+  note's title on page 1, with the page carrying on under it the same way (a `[!question]` or a
+  `[!wide]` under it too). Reading view and the PDF.
+
+### Changed
+- The highlighter (`==text==`) looks like a real highlighter: a see-through yellow stroke across the
+  middle of the words, slightly slanted, darker at its ends; on dark paper a solid yellow stroke
+  with dark text.
+- In dark theme the Word / Office colours often used in notes (`#4f81bd`, `#c0504d`, `#9bbb59`,
+  `#8064a2`, `#4bacc6`, `#f79646`) are a little lighter, like the pens, so they stay easy to read.
+
 ## [1.11.0] - 2026-10-27
 
 ### Added
@@ -270,7 +284,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.11.0...HEAD
+[Unreleased]: ../../compare/1.12.0...HEAD
+[1.12.0]: ../../compare/1.11.0...1.12.0
 [1.11.0]: ../../compare/1.10.2...1.11.0
 [1.10.2]: ../../compare/1.10.1...1.10.2
 [1.10.1]: ../../compare/1.10.0...1.10.1

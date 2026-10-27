@@ -149,6 +149,19 @@ blank line above and a blank line below, and in editing view on its own ruled ro
 Everything under it starts at the top of the next page. The callout itself is invisible in
 reading view and in the PDF; while editing you can still see it.
 
+**A new topic on a new page:** put a `# Title` straight under it. It becomes that page's title, in
+its title bar, exactly like the note's title on page 1, and the page carries on under it the same
+way (a `[!question]` under it sits right below the title, then Cues | Notes):
+
+```markdown
+>> [!nextpage]
+
+# Second topic
+
+>> [!question] Question
+>> What is the second topic about?
+```
+
 ### Summary *(optional, always last)*
 
 ```markdown
@@ -232,8 +245,11 @@ on white paper. Use the *Pen* commands (give them hotkeys), or type the tags you
 | Orange | `<font color="#d84315">text</font>` | dates, numbers, formulas |
 | Highlighter | `==text==` | the one thing to remember |
 
-In dark theme the pens are a little lighter, so they stay easy to read on the dark paper (on screen
-and in a PDF exported from dark theme). For printing, export from the light theme: white paper with
+The highlighter looks like a real one: a see-through yellow stroke across the middle of the words,
+slightly slanted, darker at its ends. In dark theme the pens are a little lighter and the
+highlighter is a solid yellow stroke with dark text, so they stay easy to read on the dark paper
+(on screen and in a PDF exported from dark theme); the Word / Office colours (`#4f81bd`, `#c0504d`,
+`#9bbb59`, `#8064a2`, `#4bacc6`, `#f79646`) are a little lighter there too. For printing, export from the light theme: white paper with
 the pen colours above. Any other colour (`<font color="#4f81bd">`) still works and is shown as
 written.
 
