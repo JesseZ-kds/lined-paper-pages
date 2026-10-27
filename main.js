@@ -46,6 +46,8 @@ const SETTINGS = [
   { key: 'lp-hand', type: 'font', def: 'Patrick Hand', name: 'Handwriting font',
     desc: 'The writing on the page. The handwriting fonts download automatically; the last three must be installed on your computer.' },
   { key: 'lp-hand-title', type: 'font', def: 'Caveat', name: 'Title font' },
+  { key: 'auto-break', type: 'toggle', cls: 'lp-no-auto-break', invert: true, def: true, name: 'Start a new page at every # title',
+    desc: 'Every # title after the note\'s own title starts a new page and is that page\'s title, as if [!nextpage] were written above it.' },
   { key: 'links', type: 'toggle', cls: 'lp-link-underline', def: false, name: 'Underline links',
     desc: 'Links are shown in their colour only, like writing. Switch this on to underline them.' },
 
@@ -305,6 +307,26 @@ function unwrapQuotedBlocks(root, undo) {
   }
 }
 
+// Every `# Title` after the note's own title starts a new page and is that page's title, as if
+// a [!nextpage] were written above it (unless one is): the plugin puts an invisible one there
+// (reading view and the PDF). Off with "Start a new page at every # title" in the settings.
+function autoBreaks(root, undo) {
+  if (document.body.classList.contains('lp-no-auto-break')) return;
+  for (const h of root.querySelectorAll('.lined-paper h1')) {
+    const block = h.parentElement;
+    const view = h.closest('.markdown-preview-view');
+    if (!block || !view || block.tagName !== 'DIV' || h.closest('.markdown-embed, .callout')) continue;
+    if (view.querySelector('h1') === h) continue;                         // (the note's own title)
+    const prev = block.previousElementSibling;
+    if (prev && prev.querySelector(':scope > .callout[data-callout="nextpage"]')) continue;
+    const br = document.createElement('div');
+    br.className = 'lp-auto-break';
+    br.innerHTML = '<div class="callout" data-callout="nextpage"></div>';
+    block.before(br);
+    if (undo) undo.push({ t: 'el', el: br });
+  }
+}
+
 // A [!summary] written before a [!nextpage] belongs to the part of the note above it: it goes on the
 // bottom rows of THAT page (not with the summary at the end of the note). The plugin's own pages place
 // it themselves (paginate); for the PDF and the browser's own pages it is tied, with anchors named for
@@ -538,7 +560,7 @@ function changedNote(recs) {
     for (const n of r.addedNodes) { if (removed.has(n)) removed.delete(n); else added.add(n); }
   }
   // what is left: nodes that really came or went (a node moved within the note shows up in both)
-  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr'));
+  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr, .lp-auto-break'));
   return [...added].some(real) || [...removed].some(real);
 }
 
@@ -714,7 +736,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) anchorMidSummaries(v); };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -744,12 +766,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) anchorMidSummaries(pr); });
+    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); anchorMidSummaries(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -964,6 +986,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (document.body.classList.contains('lp-no-pages')) return;
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
+      autoBreaks(view, st.undo);
       unwrapCalloutEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);

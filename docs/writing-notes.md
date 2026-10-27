@@ -149,9 +149,12 @@ blank line above and a blank line below, and in editing view on its own ruled ro
 Everything under it starts at the top of the next page. The callout itself is invisible in
 reading view and in the PDF; while editing you can still see it.
 
-**A new topic on a new page:** put a `# Title` straight under it. It becomes that page's title, in
-its title bar, exactly like the note's title on page 1, and the page carries on under it the same
-way (a `[!question]` under it sits right below the title, then Cues | Notes):
+**A new topic on a new page:** just write a new `# Title`. Every `# Title` after the note's own
+title starts a new page by itself, as if `[!nextpage]` were written above it (switch this off with
+*Start a new page at every # title* in the settings). It becomes that page's title, in its title
+bar, exactly like the note's title on page 1, and the page carries on under it the same way (a
+`[!question]` under it sits right below the title, then Cues | Notes). A summary just before it
+stays with the part above it. Writing the `[!nextpage]` yourself does the same:
 
 ```markdown
 >> [!nextpage]

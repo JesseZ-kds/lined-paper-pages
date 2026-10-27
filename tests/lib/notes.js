@@ -239,6 +239,9 @@ const notes = {
     group('<p>c2</p>', '<p>n2</p>'),
     block(callout('summary', 'Summary', '<p>SUMTWO second summary</p>')),
   ],
+  // the same without [!nextpage]: a new `# Title` starts the new page by itself
+  autoBreak: ({ fill = 0 } = {}) => notes.midSummary({ fill }).filter((b) => !b.includes('data-callout="nextpage"')),
+  autoBreakPlain: () => notes.pageTitlePlain().filter((b) => !b.includes('data-callout="nextpage"')),
   pageTitlePlain: () => [
     title('First topic'), para('text on page one'),
     block(callout('nextpage', 'Next page', '')),
@@ -373,7 +376,7 @@ const notes = {
 };
 
 // lined paper only (no Cornell layout)
-const PLAIN = new Set(['plain', 'pageTitlePlain', 'plainLong', 'callouts', 'nextPage', 'pictures', 'dividerPlain', 'showcasePlain']);
+const PLAIN = new Set(['plain', 'pageTitlePlain', 'autoBreakPlain', 'plainLong', 'callouts', 'nextPage', 'pictures', 'dividerPlain', 'showcasePlain']);
 
 function note(name, params) {
   if (!notes[name]) throw new Error('no test note ' + name);

@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }], ['autoBreak'], ['autoBreak', { fill: 13 }], ['autoBreakPlain'],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],
@@ -280,3 +280,40 @@ for (const [mode, cssPaging] of MODES) {
     });
   }
 }
+
+// Every `# Title` after the note's own title starts a new page by itself, as if [!nextpage] were
+// written above it (and a summary before it stays with its part); the setting turns that off
+for (const [mode, cssPaging] of MODES) {
+  for (const [name, params] of [['autoBreak', {}], ['autoBreak', { fill: 13 }], ['autoBreakPlain', {}]]) {
+    test(`a new # title starts a new page: ${name} ${JSON.stringify(params)} (${mode})`, async (t) => {
+      const r = await render(note(name, params), { cssPaging });
+      if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+      const at = (w) => r.pdf.words.find((x) => x.w === w);
+      const first = at('First'), second = at('Second');
+      assert.ok(second.page > 1 && Math.abs(second.y - first.y) < 2, 'the second title is the title of a new page');
+      if (name === 'autoBreak') {
+        assert.equal(at('SUMONE').page, second.page - 1, 'the summary before it stays with its part');
+        assert.equal(at('two?').page, second.page);
+      }
+    });
+  }
+}
+test('"Start a new page at every # title" off: a # title stays where it is', async () => {
+  const { openReading } = require('./lib/harness');
+  const { page, context } = await openReading(note('autoBreakPlain'));
+  try {
+    const pageOf = () => page.evaluate(() => {
+      const h = [...document.querySelectorAll('h1')][1];
+      return { breaks: document.querySelectorAll('.lp-auto-break').length, top: Math.round(h.getBoundingClientRect().top - document.querySelector('.markdown-preview-sizer').getBoundingClientRect().top) };
+    });
+    const on = await pageOf();
+    assert.equal(on.breaks, 1);
+    await page.evaluate(() => { document.body.classList.add('lp-no-auto-break'); window.plugin.scheduleScan(true); });
+    await page.waitForTimeout(400);
+    const off = await pageOf();
+    assert.equal(off.breaks, 0);
+    assert.ok(off.top < on.top, `on page 1 again (${off.top} < ${on.top})`);
+  } finally {
+    await context.close();
+  }
+});

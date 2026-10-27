@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-27
+
+### Added
+- Every `# Title` after the note's own title starts a new page by itself, as if `[!nextpage]` were
+  written above it: it is that page's title, and a summary just before it stays with the part above
+  it. Setting: *Start a new page at every # title* (on).
+
 ## [1.12.1] - 2026-10-27
 
 ### Added
@@ -292,7 +299,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.12.1...HEAD
+[Unreleased]: ../../compare/1.13.0...HEAD
+[1.13.0]: ../../compare/1.12.1...1.13.0
 [1.12.1]: ../../compare/1.12.0...1.12.1
 [1.12.0]: ../../compare/1.11.0...1.12.0
 [1.11.0]: ../../compare/1.10.2...1.11.0
