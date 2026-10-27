@@ -2181,6 +2181,7 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   html body .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
     background-color: var(--paper) !important;
     background-image:
+      linear-gradient(var(--divider), var(--divider)),
       linear-gradient(var(--margin), var(--margin)),
       linear-gradient(var(--divider), var(--divider)),
       linear-gradient(var(--rule), var(--rule)),
@@ -2196,10 +2197,12 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
       linear-gradient(var(--rule), var(--rule)),
       linear-gradient(var(--rule), var(--rule)) !important;
     background-size:
+      calc(100% - var(--margin-x)) 2px,
       1px 100%,
       2px calc(var(--line) + var(--shift) + 1px),
       100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px !important;
     background-position:
+      var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
       var(--margin-x) 0,
       var(--divider-pos) 100%,
       0 calc(var(--line) * 1 - var(--shift) - 1px),
@@ -2470,14 +2473,14 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   }
 }
 
-/* The question's own paper stops just under its last ruled line: its Cues | Notes row below that is
+/* The question's own paper stops at the bottom of its red line: its Cues | Notes row below that is
    see-through, so the row's ruled line, margin line and divider are the page's own (one straight
-   divider, no step). Its last line is an ordinary ruled line, like every writing line. */
+   divider, no step). Its red line still runs from the margin line to the right edge. */
 @media print {
   html body .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] { 
     background-color: transparent !important;
     background-image:
-    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--divider), var(--divider)),
     linear-gradient(var(--margin), var(--margin)),
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--rule), var(--rule)),
@@ -2493,12 +2496,12 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--paper), var(--paper)) !important;
     background-size:
-    100% 1px,
+    calc(100% - var(--margin-x)) 2px,
     1px calc(100% - var(--line) - var(--shift) + 1px),
     100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px,
     100% calc(100% - var(--line) - var(--shift) + 1px) !important;
     background-position:
-    0 calc(100% - var(--line) - var(--shift)),
+    var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
     var(--margin-x) 0,
     0 calc(100% - var(--line) * 2 - var(--shift)),
     0 calc(100% - var(--line) * 3 - var(--shift)),
@@ -2521,7 +2524,7 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] { 
     background-color: transparent !important;
     background-image:
-    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--divider), var(--divider)),
     linear-gradient(var(--margin), var(--margin)),
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--rule), var(--rule)),
@@ -2537,12 +2540,12 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     linear-gradient(var(--rule), var(--rule)),
     linear-gradient(var(--paper), var(--paper)) !important;
     background-size:
-    100% 1px,
+    calc(100% - var(--margin-x)) 2px,
     1px calc(100% - var(--line) - var(--shift) + 1px),
     100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px, 100% 1px,
     100% calc(100% - var(--line) - var(--shift) + 1px) !important;
     background-position:
-    0 calc(100% - var(--line) - var(--shift)),
+    var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px),
     var(--margin-x) 0,
     0 calc(100% - var(--line) * 2 - var(--shift)),
     0 calc(100% - var(--line) * 3 - var(--shift)),
@@ -3029,15 +3032,6 @@ settings:
         description: The text of [!wide] is centred. Switch this on to start it on the left instead.
         type: class-toggle
     -
-        id: cn-question-lines
-        title: Essential question height
-        description: Ruled lines for the question text (the "Question" label row above and the Cues | Notes row below are extra).
-        type: variable-number-slider
-        default: 1
-        min: 1
-        max: 6
-        step: 1
-    -
         id: cn-label-size
         title: Title size
         description: Size of the Question, Summary, Cues and Notes titles, as a share of the text size (0.85 = 85%).
@@ -3093,7 +3087,7 @@ settings:
   --summary-rows: var(--cn-summary-rows, 5);       /* summary height in rows, label row included: always the LAST rows of the body */
   --summary-min-rows: var(--cn-summary-min-rows, 3); /* smallest the summary may shrink to when the notes need the room (label row included) */
   --summary-lines: calc(var(--summary-rows) - 1);  /* writing lines under the label row (used by the on-screen layout) */
-  --question-lines: var(--cn-question-lines, 1);   /* [!question] writing lines (label row + Cues | Notes row are extra) */
+  --question-lines: 1;                             /* [!question] writing lines: always one (label row + Cues | Notes row are extra) */
   --cue-ink: var(--ink);                           /* cue text colour; set a colour here for a 2nd pen, e.g. #1d4ed8 */
   --divider: var(--margin);                        /* divider + summary rule colour */
   --divider-x: calc(var(--pad-x) + (100% - var(--pad-x) * 2) * var(--cue));   /* where the divider is (derived) */
@@ -3532,9 +3526,9 @@ settings:
 }
 
 /* ---------- Essential question: top of the page, above the Cornell layout ----------
-   A full-width block right under the title bar: a "Question" label row, the question's ruled line(s)
-   (ordinary ruled lines, like every writing line), then one row holding the Cues | Notes labels.
-   The cue/notes divider starts at that row.
+   A full-width block right under the title bar: a "Question" label row, the question's line, a red
+   rule under it (like the summary's), then one row holding the Cues | Notes labels, where the notes
+   start. The cue/notes divider starts under the red rule.
    (Without a question, a plain Cues | Notes row is drawn right under the title bar instead.) */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
   position: relative;
@@ -3552,8 +3546,9 @@ settings:
      shadow, NOT as a background layer, so it can never break the lines painted below. */
   box-shadow: inset 0 0 0 9999px rgba(var(--callout-color, 8, 109, 221), 0.1) !important;
   background:
-    /* (the question's line is an ordinary ruled line, like every other writing line: no red rule
-       under it) */
+    /* the red rule under the question: spans from the margin line to the right edge,
+       sits on the ruled line just above the Cues | Notes row */
+    linear-gradient(var(--divider), var(--divider)) var(--margin-x) calc(100% - var(--line) - var(--shift) + 1px) / calc(100% - var(--margin-x)) 2px no-repeat,
     linear-gradient(var(--margin), var(--margin)) var(--margin-x) 0 / 1px 100% no-repeat,
     linear-gradient(to right, var(--divider-clear) var(--divider-x), var(--divider) var(--divider-x), var(--divider) calc(var(--divider-x) + 2px), var(--divider-clear) calc(var(--divider-x) + 2px)) 0 100% / 100% calc(var(--line) + var(--shift) + 1px) no-repeat,
     repeating-linear-gradient(to bottom,
@@ -4208,16 +4203,21 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
   text-align: center !important;
 }
 
-/* The question's text is centred in the height of the row it is on: each line in the middle
-   between its two ruled lines (not sitting on the lower one), starting on the first row */
-/* The question: the "Question" label on the first row, the question on the row under it (one line,
-   centred between its two ruled lines), then the Cues | Notes row. "Essential question lines" above
-   1 adds rows for the question. */
+/* The question is always exactly three rows: the "Question" label, the question (one line, centred
+   between its two ruled lines, the red line under it), then the Cues | Notes row, where the notes
+   start. A fixed height: no setting, old snippet or callout spacing can add an empty row. */
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] {
-  /* (its own variable: a cornell-notes.css snippet left on from an earlier install sets
-     --question-lines to its old default, 2, which put an empty row under the question) */
-  --q-rows: var(--cn-question-lines, 1);
-  min-height: calc(var(--line) * (var(--q-rows) + 2)) !important;
+  height: calc(var(--line) * 3) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+.markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > :is(.callout-title, .callout-content) {
+  height: var(--line) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: visible !important;
 }
 .markdown-preview-view.lined-paper.cornell .callout[data-callout="question"] > .callout-content {
   position: relative;

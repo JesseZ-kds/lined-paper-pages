@@ -52,8 +52,6 @@ const SETTINGS = [
   { section: 'Cornell notes' },
   { key: 'cn-cue', type: 'slider', min: 0.15, max: 0.5, step: 0.01, def: 0.3, pct: true, name: 'Cue column width',
     desc: 'Share of the page for the cue column (left of the divider).' },
-  { key: 'cn-question-lines', type: 'slider', min: 1, max: 6, step: 1, def: 1, name: 'Essential question lines',
-    desc: 'Ruled lines kept for the [!question] text at the top of the page (its "Question" label has a row of its own above).' },
   { key: 'cn-summary-rows', type: 'slider', min: 3, max: 15, step: 1, def: 5, name: 'Summary height',
     desc: 'Lines the [!summary] takes at the bottom of the last page, its "Summary" label included.' },
   { key: 'cn-summary-min-rows', type: 'slider', min: 2, max: 5, step: 1, def: 3, name: 'Summary minimum height',

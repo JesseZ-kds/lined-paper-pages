@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-10-27
+
+### Changed
+- The red line under the `[!question]` is back (1.10.1 had made it an ordinary ruled line).
+- The question block is always exactly three rows: the "Question" label, the question, then the
+  Cues | Notes row, so the cues and notes start on the line right below the question. The
+  *Essential question lines* setting is gone: a value of 2 saved by an earlier version (in the
+  plugin or in Style Settings) left an empty row under the question.
+
 ## [1.10.1] - 2026-10-26
 
 ### Changed
@@ -245,7 +254,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.10.1...HEAD
+[Unreleased]: ../../compare/1.10.2...HEAD
+[1.10.2]: ../../compare/1.10.1...1.10.2
 [1.10.1]: ../../compare/1.10.0...1.10.1
 [1.10.0]: ../../compare/1.9.9...1.10.0
 [1.9.9]: ../../compare/1.9.8...1.9.9

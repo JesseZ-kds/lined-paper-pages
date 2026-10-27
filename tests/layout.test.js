@@ -222,6 +222,9 @@ test('the question is a label row and one line, also with an old snippet on', as
     assert.equal(await rows(), 3);
     await page.addStyleTag({ content: '.lined-paper.cornell { --question-lines: 2; }' });
     assert.equal(await rows(), 3);
+    // ... or an "Essential question lines" of 2 saved by an earlier version (plugin or Style Settings)
+    await page.evaluate(() => document.body.style.setProperty('--cn-question-lines', '2'));
+    assert.equal(await rows(), 3);
   } finally {
     await context.close();
   }

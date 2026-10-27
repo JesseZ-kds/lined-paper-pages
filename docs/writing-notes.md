@@ -78,9 +78,10 @@ Every Cornell block is a callout. Put a blank line between blocks.
 > What do I want to find out?
 ```
 
-The "Question" label has a row of its own, and the question is **one line** under it: a long
-question is made smaller to fit, it never wraps (more rows in the settings). It is centred between
-its two ruled lines (*Centre the question across the page* in the settings centres it on the line).
+The question block is always three rows: the "Question" label, the question on **one line** (a long
+question is made smaller to fit, it never wraps), a red line under it, then the Cues | Notes row,
+with the cues and notes starting on the line right below. The question is centred between its two
+ruled lines (*Centre the question across the page* in the settings centres it on the line).
 
 ### Cue + notes *(as many as you like)*
 
