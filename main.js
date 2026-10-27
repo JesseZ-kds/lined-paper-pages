@@ -334,32 +334,54 @@ function autoBreaks(root, undo) {
 // last --summary-rows rows of that page (or one blank line under the content, if lower), its bottom
 // the end of that page's writing (the start of the next page's body, less the header and footer).
 let midSummaries = 0;
-const isMidSummary = (sum) => {
-  const block = sum.parentElement;
-  const next = block && block.nextElementSibling;
-  return nextPageBlock(next) || breaksBefore(next);
+// Each part of a note (up to a [!nextpage], or a `# Title` that starts a new page) is a page of its
+// own: a summary anywhere in it (its own block, or written inside the part's last group) belongs at
+// the bottom of that part's last page.
+const topBlock = (el) => {
+  let b = el;
+  while (b.parentElement && !b.parentElement.matches('.markdown-preview-section, .markdown-preview-view, .print')) b = b.parentElement;
+  return b;
 };
+const breakAfter = (b) => {
+  for (let n = b && b.nextElementSibling; n; n = n.nextElementSibling) if (nextPageBlock(n) || breaksBefore(n)) return n;
+  return null;
+};
+const isMidSummary = (sum) => !!breakAfter(topBlock(sum));
+// the last of a part's content before a page break (a group: its cue and its notes), not counting
+// a summary written in a block of its own
+function partEnd(brk) {
+  for (let p = brk.previousElementSibling; p; p = p.previousElementSibling) {
+    if (p.matches('.lp-sheet, .lp-hdr, .markdown-preview-pusher, .mod-header, .metadata-container') || p.querySelector(':scope > .callout[data-callout="summary"]')) continue;
+    if (!p.textContent.trim() && !p.querySelector('img')) continue;
+    const cols = p.querySelectorAll(':scope > blockquote > .callout:is([data-callout="cue"], [data-callout="notes"])');
+    return cols.length ? Array.from(cols) : [p];
+  }
+  return [];
+}
 function anchorMidSummaries(root, undo) {
   for (const sum of root.querySelectorAll('.lined-paper.cornell .callout[data-callout="summary"], .lined-paper .cornell .callout[data-callout="summary"]')) {
-    if (!isMidSummary(sum) || sum.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
-    const block = sum.parentElement;
-    let before = block.previousElementSibling;
-    while (before && (!before.textContent.trim() && !before.querySelector('img') || before.matches('.lp-sheet, .lp-hdr, .markdown-preview-pusher, .mod-header'))) before = before.previousElementSibling;
-    const after = nextPageBlock(block.nextElementSibling) ? block.nextElementSibling.nextElementSibling : block.nextElementSibling;
-    if (!before || !after) continue;
+    if (sum.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
+    const brk = breakAfter(topBlock(sum));
+    if (!brk) continue;
+    const after = nextPageBlock(brk) ? brk.nextElementSibling : brk;
+    const above = partEnd(brk);
+    if (!above.length || !after) continue;
     const n = sum.dataset.lpMid || String(++midSummaries);
     const set = (el, name, val) => {
       if (undo && el.style.getPropertyValue(name) === '') undo.push({ t: 'prop', el, name });
       el.style.setProperty(name, val, 'important');
     };
     if (!sum.dataset.lpMid) { sum.dataset.lpMid = n; if (undo) undo.push({ t: 'attr', el: sum, name: 'data-lp-mid' }); }
-    const own = (el, name) => {
+    const own = (el, names) => {
       const has = getComputedStyle(el).anchorName;
-      return has && has !== 'none' && !has.includes(name) ? has + ', ' + name : name;
+      const keep = has && has !== 'none' ? has.split(',').map((x) => x.trim()).filter((x) => !x.startsWith(`--lp-sum-`)) : [];
+      return [...keep, ...names].join(', ');
     };
-    set(before, 'anchor-name', own(before, `--lp-sum-above-${n}`));
-    set(after, 'anchor-name', own(after, `--lp-sum-next-${n}`));
-    set(sum, 'top', `max(calc(anchor(--lp-sum-next-${n} top) - var(--lp-break-gap) - var(--line) * var(--summary-rows)), calc(anchor(--lp-sum-above-${n} bottom) + var(--line)))`);
+    // (two anchors above: the bottom of the cue and of the notes, whichever is lower)
+    set(above[0], 'anchor-name', own(above[0], above.length > 1 ? [`--lp-sum-above-${n}`] : [`--lp-sum-above-${n}`, `--lp-sum-above2-${n}`]));
+    if (above.length > 1) set(above[above.length - 1], 'anchor-name', own(above[above.length - 1], [`--lp-sum-above2-${n}`]));
+    set(after, 'anchor-name', own(after, [`--lp-sum-next-${n}`]));
+    set(sum, 'top', `max(calc(anchor(--lp-sum-next-${n} top) - var(--lp-break-gap) - var(--line) * var(--summary-rows)), calc(max(anchor(--lp-sum-above-${n} bottom), anchor(--lp-sum-above2-${n} bottom)) + var(--line)))`);
     set(sum, 'bottom', `calc(anchor(--lp-sum-next-${n} top) + var(--lp-break-gap))`);
   }
 }
@@ -1379,10 +1401,19 @@ module.exports = class LinedPaperPages extends Plugin {
         forceNext = k > 0 && y <= start(k) + 0.5 ? k : k + 1;
         // a summary just before it: on the bottom rows of the sheet the part above ends on (the same
         // rule as the summary at the end of the note), and the next part starts on the sheet after it
-        const ms = cornell && block.previousElementSibling && block.previousElementSibling.querySelector(':scope > .callout[data-callout="summary"]');
+        // (the summary of the part this break ends: the last one since the part began, in a block of
+        // its own or written inside the part's last group)
+        let ms = null;
+        if (cornell) {
+          for (let p = block.previousElementSibling; p && !nextPageBlock(p); p = p.previousElementSibling) {
+            const found = Array.from(p.querySelectorAll('.callout[data-callout="summary"]')).filter((x) => !x.closest('.markdown-embed:not(.lp-embed-copy)')).pop();
+            if (found) { ms = found; break; }
+            if (breaksBefore(p)) break;
+          }
+        }
         if (ms) {
           let usedEnd = 0;
-          for (let p = ms.parentElement.previousElementSibling; p; p = p.previousElementSibling) {
+          for (let p = block.previousElementSibling; p; p = p.previousElementSibling) {
             if (p.matches('.lp-sheet, .lp-hdr, .markdown-preview-pusher, .mod-header, .metadata-container') || p.querySelector(':scope > .callout[data-callout="summary"]')) continue;
             const v = vis(p);
             if (v.getBoundingClientRect().height) { usedEnd = bottomOf(v) - sizerTop(); break; }

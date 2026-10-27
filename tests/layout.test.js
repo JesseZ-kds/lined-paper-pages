@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }], ['autoBreak'], ['autoBreak', { fill: 13 }], ['autoBreakPlain'],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }], ['autoBreak'], ['autoBreak', { fill: 13 }], ['autoBreak', { inGroup: true }], ['autoBreak', { fill: 13, inGroup: true }], ['autoBreakPlain'],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],
@@ -266,9 +266,10 @@ for (const [mode, cssPaging] of MODES) {
 // last page (shrinking, or taking a page of its own, when the notes need the room, like the summary
 // at the end), with the next part starting on the page after it
 for (const [mode, cssPaging] of MODES) {
-  for (const fill of [0, 11, 13, 15]) {
-    test(`a summary before a page break stays with its part (${fill} groups, ${mode})`, async (t) => {
-      const r = await render(note('midSummary', { fill }), { cssPaging });
+  for (const [name, fill, inGroup] of [['midSummary', 0], ['midSummary', 11], ['midSummary', 13], ['midSummary', 15],
+    ['autoBreak', 0, true], ['autoBreak', 11, true], ['autoBreak', 13, true], ['autoBreak', 15, true]]) {
+    test(`a summary before a page break stays with its part (${name}, ${fill} groups${inGroup ? ', written inside the last group' : ''}, ${mode})`, async (t) => {
+      const r = await render(note(name, { fill, inGroup }), { cssPaging });
       if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
       const at = (w) => r.pdf.words.find((x) => x.w === w);
       const one = at('SUMONE'), two = at('SUMTWO'), last = at('nlast'), second = at('Second');

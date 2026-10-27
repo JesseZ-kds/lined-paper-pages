@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-10-27
+
+### Fixed
+- Each part of a note (up to a new `# Title` or a `[!nextpage]`) is a page of its own: its summary
+  goes on the bottom lines of that part's last page also when it is written straight under the
+  part's last group (`>> [!summary]` inside the group's quote) or with other blocks between it and
+  the next title. Before, such a summary went to the end of the note, on top of the last one.
+
 ## [1.13.1] - 2026-10-27
 
 ### Fixed
@@ -307,7 +315,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.13.1...HEAD
+[Unreleased]: ../../compare/1.13.2...HEAD
+[1.13.2]: ../../compare/1.13.1...1.13.2
 [1.13.1]: ../../compare/1.13.0...1.13.1
 [1.13.0]: ../../compare/1.12.1...1.13.0
 [1.12.1]: ../../compare/1.12.0...1.12.1

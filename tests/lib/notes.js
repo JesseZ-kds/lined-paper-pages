@@ -227,12 +227,14 @@ const notes = {
   ],
   // a summary before [!nextpage]: on the bottom rows of its own part's last page (`fill` one-line
   // groups first), then the next part, with a summary of its own at the end
-  midSummary: ({ fill = 0 } = {}) => [
+  // (`inGroup`: each summary written straight under its part's last group, so inside that group's quote)
+  midSummary: ({ fill = 0, inGroup = false } = {}) => [
     title('First topic'),
     block(callout('question', 'Question', '<p>Q one?</p>')),
     ...Array.from({ length: fill }, (_, i) => group(`<p>c${i}</p>`, `<p>n${i}</p>`)),
-    group('<p>clast</p>', '<p>nlast</p>'),
-    block(callout('summary', 'Summary', '<p>SUMONE first summary</p>')),
+    ...(inGroup
+      ? [group('<p>clast</p>', '<p>nlast</p>').replace('</blockquote>', callout('summary', 'Summary', '<p>SUMONE first summary</p>') + '</blockquote>')]
+      : [group('<p>clast</p>', '<p>nlast</p>'), block(callout('summary', 'Summary', '<p>SUMONE first summary</p>'))]),
     block(callout('nextpage', 'Next page', '')),
     title('Second topic'),
     block(callout('question', 'Question', '<p>Q two?</p>')),
@@ -240,7 +242,7 @@ const notes = {
     block(callout('summary', 'Summary', '<p>SUMTWO second summary</p>')),
   ],
   // the same without [!nextpage]: a new `# Title` starts the new page by itself
-  autoBreak: ({ fill = 0 } = {}) => notes.midSummary({ fill }).filter((b) => !b.includes('data-callout="nextpage"')),
+  autoBreak: ({ fill = 0, inGroup = false } = {}) => notes.midSummary({ fill, inGroup }).filter((b) => !b.includes('data-callout="nextpage"')),
   autoBreakPlain: () => notes.pageTitlePlain().filter((b) => !b.includes('data-callout="nextpage"')),
   pageTitlePlain: () => [
     title('First topic'), para('text on page one'),

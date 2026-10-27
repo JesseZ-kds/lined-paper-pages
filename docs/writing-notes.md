@@ -177,9 +177,10 @@ stays with the part above it. Writing the `[!nextpage]` yourself does the same:
 - If the notes take some of that room, it shrinks, but never below 3 lines or below its own text.
 - If even that doesn't fit, it **moves to a new page**.
 - You may also write it inside the last group, as `>> [!summary]`.
-- **One summary per part:** a summary written just before a `[!nextpage]` sums up the part above it.
-  It goes on the bottom lines of that part's last page, with the same rules, and the next part
-  starts on the page after it:
+- **One summary per part:** each part of a note (up to the next `# Title` or `[!nextpage]`) is a page
+  of its own, and its summary (a block of its own, or written inside the part's last group) goes on
+  the bottom lines of that part's last page, with the same rules; the next part starts on the page
+  after it:
 
   ```markdown
   >> [!summary] Summary
