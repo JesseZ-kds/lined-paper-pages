@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-10-27
+
+### Added
+- A `[!summary]` written just before `[!nextpage]` stays with the part of the note above it: on the
+  bottom lines of that part's last page (shrinking, or taking a page of its own, like the summary at
+  the end), with the next part starting on the page after it. Before, it was moved to the end of
+  the note, on top of the last summary. Reading view and the PDF.
+
 ## [1.12.0] - 2026-10-27
 
 ### Added
@@ -284,7 +292,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.12.0...HEAD
+[Unreleased]: ../../compare/1.12.1...HEAD
+[1.12.1]: ../../compare/1.12.0...1.12.1
 [1.12.0]: ../../compare/1.11.0...1.12.0
 [1.11.0]: ../../compare/1.10.2...1.11.0
 [1.10.2]: ../../compare/1.10.1...1.10.2

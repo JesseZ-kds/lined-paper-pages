@@ -225,6 +225,20 @@ const notes = {
     ...(wide ? [block(callout('wide', 'Wide', '<p>WIDE under the title</p>'))] : []),
     group('<p>c2</p>', '<p>n2</p>'),
   ],
+  // a summary before [!nextpage]: on the bottom rows of its own part's last page (`fill` one-line
+  // groups first), then the next part, with a summary of its own at the end
+  midSummary: ({ fill = 0 } = {}) => [
+    title('First topic'),
+    block(callout('question', 'Question', '<p>Q one?</p>')),
+    ...Array.from({ length: fill }, (_, i) => group(`<p>c${i}</p>`, `<p>n${i}</p>`)),
+    group('<p>clast</p>', '<p>nlast</p>'),
+    block(callout('summary', 'Summary', '<p>SUMONE first summary</p>')),
+    block(callout('nextpage', 'Next page', '')),
+    title('Second topic'),
+    block(callout('question', 'Question', '<p>Q two?</p>')),
+    group('<p>c2</p>', '<p>n2</p>'),
+    block(callout('summary', 'Summary', '<p>SUMTWO second summary</p>')),
+  ],
   pageTitlePlain: () => [
     title('First topic'), para('text on page one'),
     block(callout('nextpage', 'Next page', '')),

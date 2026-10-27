@@ -174,6 +174,18 @@ way (a `[!question]` under it sits right below the title, then Cues | Notes):
 - If the notes take some of that room, it shrinks, but never below 3 lines or below its own text.
 - If even that doesn't fit, it **moves to a new page**.
 - You may also write it inside the last group, as `>> [!summary]`.
+- **One summary per part:** a summary written just before a `[!nextpage]` sums up the part above it.
+  It goes on the bottom lines of that part's last page, with the same rules, and the next part
+  starts on the page after it:
+
+  ```markdown
+  >> [!summary] Summary
+  >> What the first topic comes down to.
+
+  >> [!nextpage]
+
+  # Second topic
+  ```
 
 ## Other callouts
 

@@ -1354,3 +1354,20 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 .lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"]) > .callout-content > :is(p:not(:has(.internal-embed, .markdown-embed)), ul, ol) + p:not(:has(.internal-embed, .markdown-embed)) {
   margin-top: var(--line) !important;
 }
+
+/* =====================================================================
+   A SUMMARY BEFORE A PAGE BREAK:  > [!summary]  then  > [!nextpage]
+   =====================================================================
+   It sums up the part of the note above it, so it goes on the bottom rows of that part's last page,
+   not with the summary at the end of the note. The plugin ties it to the content above it and to
+   the first block after the page break (main.js, anchorMidSummaries): its bottom is the start of
+   the next page's body less this gap (the footer of its own page, the gap between the sheets and
+   the next page's header). */
+.lined-paper.cornell {
+  --lp-break-gap: calc(var(--page-h) - var(--body-end) + var(--line) * (var(--bar-lines) + 1));
+}
+@media print {
+  .lined-paper.cornell {
+    --lp-break-gap: calc(var(--tail-print) + var(--head-h));
+  }
+}

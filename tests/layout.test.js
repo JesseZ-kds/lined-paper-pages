@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],
@@ -258,6 +258,25 @@ for (const [mode, cssPaging] of MODES) {
       const one = at(name === 'pageTitlePlain' ? 'one' : 'c1')[0], two = at(name === 'pageTitlePlain' ? 'two' : 'c2')[0];
       assert.equal(two.page, 2);
       assert.ok(Math.abs(two.y - one.y) < 2, `page 2 goes on under its title as page 1 does (${one.y} / ${two.y})`);
+    });
+  }
+}
+
+// A summary written before [!nextpage] sums up the part above it: on the bottom rows of that part's
+// last page (shrinking, or taking a page of its own, when the notes need the room, like the summary
+// at the end), with the next part starting on the page after it
+for (const [mode, cssPaging] of MODES) {
+  for (const fill of [0, 11, 13, 15]) {
+    test(`a summary before a page break stays with its part (${fill} groups, ${mode})`, async (t) => {
+      const r = await render(note('midSummary', { fill }), { cssPaging });
+      if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+      const at = (w) => r.pdf.words.find((x) => x.w === w);
+      const one = at('SUMONE'), two = at('SUMTWO'), last = at('nlast'), second = at('Second');
+      assert.ok(one.page === last.page || one.page === last.page + 1, `the first summary is on its part's last page (${one.page}, notes end on ${last.page})`);
+      assert.ok(one.page > last.page || one.y > last.y + 20, 'under its notes');
+      assert.equal(second.page, one.page + 1, 'the next part starts on the page after it');
+      assert.equal(two.page, second.page);
+      assert.ok(one.bottom <= two.bottom + 2 && one.y > 800, 'at the bottom of its page, like the summary at the end');
     });
   }
 }

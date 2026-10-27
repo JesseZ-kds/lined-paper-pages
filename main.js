@@ -305,6 +305,43 @@ function unwrapQuotedBlocks(root, undo) {
   }
 }
 
+// A [!summary] written before a [!nextpage] belongs to the part of the note above it: it goes on the
+// bottom rows of THAT page (not with the summary at the end of the note). The plugin's own pages place
+// it themselves (paginate); for the PDF and the browser's own pages it is tied, with anchors named for
+// it alone, to the content above it and to the first block after the page break: its top is the
+// last --summary-rows rows of that page (or one blank line under the content, if lower), its bottom
+// the end of that page's writing (the start of the next page's body, less the header and footer).
+let midSummaries = 0;
+const isMidSummary = (sum) => {
+  const block = sum.parentElement;
+  const next = block && block.nextElementSibling;
+  return !!(next && next.querySelector(':scope > .callout[data-callout="nextpage"]'));
+};
+function anchorMidSummaries(root, undo) {
+  for (const sum of root.querySelectorAll('.lined-paper.cornell .callout[data-callout="summary"], .lined-paper .cornell .callout[data-callout="summary"]')) {
+    if (!isMidSummary(sum) || sum.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
+    const block = sum.parentElement;
+    let before = block.previousElementSibling;
+    while (before && (!before.textContent.trim() && !before.querySelector('img') || before.matches('.lp-sheet, .lp-hdr, .markdown-preview-pusher, .mod-header'))) before = before.previousElementSibling;
+    const after = block.nextElementSibling.nextElementSibling;
+    if (!before || !after) continue;
+    const n = sum.dataset.lpMid || String(++midSummaries);
+    const set = (el, name, val) => {
+      if (undo && el.style.getPropertyValue(name) === '') undo.push({ t: 'prop', el, name });
+      el.style.setProperty(name, val, 'important');
+    };
+    if (!sum.dataset.lpMid) { sum.dataset.lpMid = n; if (undo) undo.push({ t: 'attr', el: sum, name: 'data-lp-mid' }); }
+    const own = (el, name) => {
+      const has = getComputedStyle(el).anchorName;
+      return has && has !== 'none' && !has.includes(name) ? has + ', ' + name : name;
+    };
+    set(before, 'anchor-name', own(before, `--lp-sum-above-${n}`));
+    set(after, 'anchor-name', own(after, `--lp-sum-next-${n}`));
+    set(sum, 'top', `max(calc(anchor(--lp-sum-next-${n} top) - var(--lp-break-gap) - var(--line) * var(--summary-rows)), calc(anchor(--lp-sum-above-${n} bottom) + var(--line)))`);
+    set(sum, 'bottom', `calc(anchor(--lp-sum-next-${n} top) + var(--lp-break-gap))`);
+  }
+}
+
 function unwrapCalloutEmbeds(root, undo) {
   for (const emb of root.querySelectorAll(SEL_EMBED)) {
     if (emb.closest('.lp-embed-unwrapped') || emb.parentElement.closest(SEL_EMBED)) continue;
@@ -677,7 +714,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) anchorMidSummaries(v); };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -707,12 +744,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); });
+    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) anchorMidSummaries(pr); });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -930,6 +967,7 @@ module.exports = class LinedPaperPages extends Plugin {
       unwrapCalloutEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
+      anchorMidSummaries(view, st.undo);
       if (this.cssPaged()) {
         // the browser paginates with CSS (lined-paper.css): only add the sheet shadows + labels
         if (this.decorate(view, st) !== false) {
@@ -988,6 +1026,7 @@ module.exports = class LinedPaperPages extends Plugin {
             break;
           case 'prop': u.el.style.removeProperty(u.name); break;
           case 'cls': u.el.classList.remove(u.name); break;
+          case 'attr': u.el.removeAttribute(u.name); break;
           case 'unq': u.c.replaceWith(u.bq); u.bq.append(u.c); break;
         }
       } catch (e) { /* node was re-rendered by Obsidian: nothing to undo */ }
@@ -1312,6 +1351,30 @@ module.exports = class LinedPaperPages extends Plugin {
         const k = Math.max(0, Math.floor((y + 0.5) / P));
         // (already in the gap before sheet k's body, with nothing of sheet k above it: sheet k is next)
         forceNext = k > 0 && y <= start(k) + 0.5 ? k : k + 1;
+        // a summary just before it: on the bottom rows of the sheet the part above ends on (the same
+        // rule as the summary at the end of the note), and the next part starts on the sheet after it
+        const ms = cornell && block.previousElementSibling && block.previousElementSibling.querySelector(':scope > .callout[data-callout="summary"]');
+        if (ms) {
+          let usedEnd = 0;
+          for (let p = ms.parentElement.previousElementSibling; p; p = p.previousElementSibling) {
+            if (p.matches('.lp-sheet, .lp-hdr, .markdown-preview-pusher, .mod-header, .metadata-container') || p.querySelector(':scope > .callout[data-callout="summary"]')) continue;
+            const v = vis(p);
+            if (v.getBoundingClientRect().height) { usedEnd = bottomOf(v) - sizerTop(); break; }
+          }
+          const copy = ms.parentElement.querySelector(':scope > .cn-sum-sizer');
+          const need = Math.max(sumMin, copy ? Math.round(copy.getBoundingClientRect().height / L) : 0);
+          let j = Math.max(0, Math.floor((usedEnd - T) / P));
+          const used = usedEnd > j * P + T ? j * P + Math.ceil((usedEnd - j * P - T) / L) * L : 0;
+          if (used && j * P + E0 - (used + L) < need * L - 0.5) j++;     // + the blank line
+          const bodyEnd = j * P + E0;
+          let top = bodyEnd - Math.max(sumRows, need) * L;
+          if (used > j * P) top = Math.min(Math.max(top, used + L), bodyEnd - need * L);
+          for (const [name, val] of [['top', top + 'px'], ['bottom', 'auto'], ['height', bodyEnd - top + 'px'], ['min-height', '0px']]) {
+            ms.style.setProperty(name, val, 'important');
+            st.undo.push({ t: 'prop', el: ms, name });
+          }
+          forceNext = j + 1;
+        }
         lastForced = Math.max(lastForced, forceNext);
         prev = null;
         continue;
@@ -1396,7 +1459,8 @@ module.exports = class LinedPaperPages extends Plugin {
       if (v.getBoundingClientRect().height) maxB = Math.max(maxB, bottomOf(v) - sizerTop());
     }
     let n = Math.max(1, Math.floor((maxB - T) / P) + 1, lastForced + 1);
-    const sum = sizer.querySelector('.callout[data-callout="summary"]');
+    // (the summary at the end of the note: not one written before a [!nextpage], placed above)
+    const sum = Array.from(sizer.querySelectorAll('.callout[data-callout="summary"]')).filter((x) => !isMidSummary(x)).pop();
 
     // SUMMARY: always the last rows of the body of the last sheet.
     //   it needs its label row + every line of its text, and never less than --summary-min-rows (3);
