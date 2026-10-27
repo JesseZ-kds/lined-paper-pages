@@ -304,7 +304,7 @@ test('"Start a new page at every # title" off: a # title stays where it is', asy
   try {
     const pageOf = () => page.evaluate(() => {
       const h = [...document.querySelectorAll('h1')][1];
-      return { breaks: document.querySelectorAll('.lp-auto-break').length, top: Math.round(h.getBoundingClientRect().top - document.querySelector('.markdown-preview-sizer').getBoundingClientRect().top) };
+      return { breaks: document.querySelectorAll('.lp-break-before').length, top: Math.round(h.getBoundingClientRect().top - document.querySelector('.markdown-preview-sizer').getBoundingClientRect().top) };
     });
     const on = await pageOf();
     assert.equal(on.breaks, 1);

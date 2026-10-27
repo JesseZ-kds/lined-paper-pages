@@ -23,6 +23,21 @@ const longNote = {
   ],
 };
 
+// the same with headings: `## Heading`s between the groups, and a `# Title` (a new page) now and then
+const headedNote = {
+  name: 'headed',
+  cornell: true,
+  blocks: [
+    title('Long'),
+    ...Array.from({ length: 45 }, (_, i) => [
+      ...(i && i % 15 === 0 ? [title(`Part ${i / 15}`), block(callout('question', 'Question', `<p>Q ${i}?</p>`))] : []),
+      ...(i % 5 === 2 ? [`<div class="el-h2"><h2>Heading ${i}</h2></div>`] : []),
+      group(`<p>cue ${i}</p>`, `<p>${`note ${i} alpha beta gamma delta epsilon zeta eta theta iota kappa `.repeat(1 + (i % 3))}</p>`),
+    ]).flat(),
+    block(callout('summary', 'Summary', '<p>sum</p>')),
+  ],
+};
+
 // installs the stand-in renderer and hands it to the plugin
 function virtualReadingView({ margin, strict, start }) {
   const pv = document.querySelector('.markdown-preview-view');
@@ -99,11 +114,12 @@ async function scrollThrough(page) {
   return seen;
 }
 
+for (const [what, note] of [['a long note', longNote], ['a long note with headings and titles', headedNote]]) {
 for (const margin of ['vh', 'fixed']) {
   for (const strict of [false, true]) {
     for (const start of [0, 3000]) {
-      test(`scrolling a long note: Obsidian keeps ${margin === 'vh' ? 'one screen' : '800 px'} around the screen${strict ? ', re-attaches sections' : ''}, opened at ${start}px`, async () => {
-        const { page, context } = await openReading(longNote, { viewport: { width: 1000, height: 800 } });
+      test(`scrolling ${what}: Obsidian keeps ${margin === 'vh' ? 'one screen' : '800 px'} around the screen${strict ? ', re-attaches sections' : ''}, opened at ${start}px`, async () => {
+        const { page, context } = await openReading(note, { viewport: { width: 1000, height: 800 } });
         try {
           await page.evaluate(virtualReadingView, { margin, strict, start });
           await page.waitForTimeout(800);
@@ -111,9 +127,16 @@ for (const margin of ['vh', 'fixed']) {
           const seen = await scrollThrough(page);
           assert.equal(seen.resets, 0, 'the scroll position was reset');
           assert.equal(seen.moved, 0, 'text on screen moved after a scroll');
-          assert.deepEqual([...seen.sections], [47], 'sections were added or taken away');
+          assert.equal(seen.sections.size, 1, 'sections were added or taken away');
           assert.equal(seen.sheets.size, 1, 'the number of pages changed');
           assert.equal(await page.evaluate(() => window.layouts), 0, 'the pages were laid out again while scrolling');
+          // nothing of the plugin's between Obsidian's blocks (its renderer counts on the order of
+          // its sections: an element put in between made it jump back to the top)
+          const foreign = await page.evaluate(() => {
+            const own = new Set(window.renderer.sections.map((s) => s.el));
+            return [...window.renderer.sizerEl.children].filter((c) => !own.has(c) && !c.matches('.markdown-preview-pusher, .mod-header, .mod-footer, .lp-sheet, .lp-hdr, .lp-cont')).map((c) => c.className);
+          });
+          assert.deepEqual(foreign, [], 'the plugin put elements between the sections');
           // jumping to a heading: Obsidian scrolls there itself, then updates
           const jumped = await page.evaluate(async () => {
             const pv = document.querySelector('.markdown-preview-view');
@@ -130,6 +153,7 @@ for (const margin of ['vh', 'fixed']) {
       });
     }
   }
+}
 }
 
 test('a change made while scrolling is laid out once, after scrolling stops', async () => {

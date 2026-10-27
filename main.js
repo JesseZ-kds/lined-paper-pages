@@ -308,22 +308,22 @@ function unwrapQuotedBlocks(root, undo) {
 }
 
 // Every `# Title` after the note's own title starts a new page and is that page's title, as if
-// a [!nextpage] were written above it (unless one is): the plugin puts an invisible one there
-// (reading view and the PDF). Off with "Start a new page at every # title" in the settings.
+// a [!nextpage] were written above it (unless one is). The plugin only marks the title's block
+// (.lp-break-before): reading view is Obsidian's, built a piece at a time, and an element put in
+// between its blocks made it lose its place (it jumped back to the top while scrolling).
+// Off with "Start a new page at every # title" in the settings.
+const breaksBefore = (b) => !!(b && b.classList.contains('lp-break-before'));
+const nextPageBlock = (b) => !!(b && b.querySelector(':scope > .callout[data-callout="nextpage"]'));
 function autoBreaks(root, undo) {
-  if (document.body.classList.contains('lp-no-auto-break')) return;
+  const off = document.body.classList.contains('lp-no-auto-break');
   for (const h of root.querySelectorAll('.lined-paper h1')) {
     const block = h.parentElement;
     const view = h.closest('.markdown-preview-view');
     if (!block || !view || block.tagName !== 'DIV' || h.closest('.markdown-embed, .callout')) continue;
-    if (view.querySelector('h1') === h) continue;                         // (the note's own title)
-    const prev = block.previousElementSibling;
-    if (prev && prev.querySelector(':scope > .callout[data-callout="nextpage"]')) continue;
-    const br = document.createElement('div');
-    br.className = 'lp-auto-break';
-    br.innerHTML = '<div class="callout" data-callout="nextpage"></div>';
-    block.before(br);
-    if (undo) undo.push({ t: 'el', el: br });
+    const want = !off && view.querySelector('h1') !== h && !nextPageBlock(block.previousElementSibling);   // (not the note's own title)
+    if (want === breaksBefore(block)) continue;
+    block.classList.toggle('lp-break-before', want);
+    if (want && undo) undo.push({ t: 'cls', el: block, name: 'lp-break-before' });
   }
 }
 
@@ -337,7 +337,7 @@ let midSummaries = 0;
 const isMidSummary = (sum) => {
   const block = sum.parentElement;
   const next = block && block.nextElementSibling;
-  return !!(next && next.querySelector(':scope > .callout[data-callout="nextpage"]'));
+  return nextPageBlock(next) || breaksBefore(next);
 };
 function anchorMidSummaries(root, undo) {
   for (const sum of root.querySelectorAll('.lined-paper.cornell .callout[data-callout="summary"], .lined-paper .cornell .callout[data-callout="summary"]')) {
@@ -345,7 +345,7 @@ function anchorMidSummaries(root, undo) {
     const block = sum.parentElement;
     let before = block.previousElementSibling;
     while (before && (!before.textContent.trim() && !before.querySelector('img') || before.matches('.lp-sheet, .lp-hdr, .markdown-preview-pusher, .mod-header'))) before = before.previousElementSibling;
-    const after = block.nextElementSibling.nextElementSibling;
+    const after = nextPageBlock(block.nextElementSibling) ? block.nextElementSibling.nextElementSibling : block.nextElementSibling;
     if (!before || !after) continue;
     const n = sum.dataset.lpMid || String(++midSummaries);
     const set = (el, name, val) => {
@@ -1155,7 +1155,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const vis = (b) => b.querySelector(':scope > :not(.lp-embed-unwrapped)') || b;
     // a `# Title` right after [!nextpage] is the title of the next sheet (laid out, below); the
     // note's own title, on sheet 1, is not
-    const afterBreak = (b) => !!(b.previousElementSibling && b.previousElementSibling.querySelector(':scope > .callout[data-callout="nextpage"]'));
+    const afterBreak = (b) => nextPageBlock(b.previousElementSibling) || breaksBefore(b);
     const pageTitle = (b) => !!b.querySelector(':scope > h1') && afterBreak(b);
     const skip = (b) =>
       b.matches('.metadata-container,.frontmatter-container,.mod-header,.mod-footer,.markdown-preview-pusher,.lp-sheet,.lp-hdr') ||
@@ -1304,6 +1304,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (cols.some((x) => x.k && !x.k.kept)) return null;
 
       const wrapper = block.cloneNode(false);
+      wrapper.classList.add('lp-cont');                         // (the rest of a block, on the next sheet)
       wrapper.style.removeProperty('padding-top');                 // (a pushed block's padding is copied too)
       const g = v.cloneNode(false);
       g.style.removeProperty('margin-top');                        // starts right on the first body row
@@ -1369,7 +1370,9 @@ module.exports = class LinedPaperPages extends Plugin {
     let forceNext = null, lastForced = 0;
     for (let idx = 0; idx < section.children.length; idx++) {
       const block = section.children[idx];
-      if (block.querySelector(':scope > .callout[data-callout="nextpage"]')) {
+      // (a `# Title` marked to start a new page breaks right where it is, like a [!nextpage] above it)
+      const autoBreak = breaksBefore(block);
+      if (autoBreak || block.querySelector(':scope > .callout[data-callout="nextpage"]')) {
         const y = block.getBoundingClientRect().top - sizerTop();
         const k = Math.max(0, Math.floor((y + 0.5) / P));
         // (already in the gap before sheet k's body, with nothing of sheet k above it: sheet k is next)
@@ -1400,7 +1403,7 @@ module.exports = class LinedPaperPages extends Plugin {
         }
         lastForced = Math.max(lastForced, forceNext);
         prev = null;
-        continue;
+        if (!autoBreak) continue;
       }
       if (skip(block)) continue;
       if (forceNext != null && vis(block).getBoundingClientRect().height) { block._lpForce = forceNext; forceNext = null; }
@@ -1455,6 +1458,7 @@ module.exports = class LinedPaperPages extends Plugin {
           const c = cut(block, sizerTop() + end(k));
           if (c && c.kept) {
             const w = block.cloneNode(false);
+            w.classList.add('lp-cont');
             w.style.removeProperty('padding-top');
             w.append(c.first, ...c.after);
             block.after(w);

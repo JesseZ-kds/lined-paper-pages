@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-10-27
+
+### Fixed
+- Reading view jumped back to the top while scrolling a note with more than one `# Title`. To start a
+  new page at a title, 1.13.0 put an invisible page break between Obsidian's own blocks, which made
+  Obsidian lose its place. Now the title's own block is only marked (a class), and the page breaks
+  there as before.
+
 ## [1.13.0] - 2026-10-27
 
 ### Added
@@ -299,7 +307,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.13.0...HEAD
+[Unreleased]: ../../compare/1.13.1...HEAD
+[1.13.1]: ../../compare/1.13.0...1.13.1
 [1.13.0]: ../../compare/1.12.1...1.13.0
 [1.12.1]: ../../compare/1.12.0...1.12.1
 [1.12.0]: ../../compare/1.11.0...1.12.0

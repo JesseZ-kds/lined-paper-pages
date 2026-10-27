@@ -2767,6 +2767,19 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
     html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) {
       break-after: column !important;
     }
+    html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section > .lp-break-before {
+      break-before: column !important;
+    }
+  }
+}
+/* A `# Title` that starts a new page by itself (the plugin marks its block: "Start a new page at
+   every # title"): a page break right before it, as a [!nextpage] above it would give */
+.markdown-preview-view.lined-paper .lp-break-before {
+  clear: both;
+}
+@media print {
+  .markdown-preview-view.lined-paper .lp-break-before {
+    break-before: page !important;
   }
 }
 
@@ -2776,8 +2789,8 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
    page goes on under it as page 1 does (a [!question] under it too). It starts at the top of the
    page's body and is moved up into the header with `top` (a negative margin would be cut off by the
    page break), giving the room back with margin-bottom. */
-html body .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div > h1,
-html body .markdown-preview-view.lined-paper > div:has(> .callout[data-callout="nextpage"]) + div > h1 {
+html body .markdown-preview-view.lined-paper .markdown-preview-section > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before) > h1,
+html body .markdown-preview-view.lined-paper > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before) > h1 {
   position: relative !important;
   top: calc(var(--line) * var(--bar-lines) * -1) !important;
   left: auto !important;
@@ -2789,25 +2802,25 @@ html body .markdown-preview-view.lined-paper > div:has(> .callout[data-callout="
   margin-bottom: calc(var(--line) * var(--bar-lines) * -1) !important;
 }
 /* (Cornell notes: the header is the title bar and the Cues | Notes row) */
-html body .markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div > h1,
-html body .markdown-preview-view.lined-paper.cornell > div:has(> .callout[data-callout="nextpage"]) + div > h1 {
+html body .markdown-preview-view.lined-paper.cornell .markdown-preview-section > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before) > h1,
+html body .markdown-preview-view.lined-paper.cornell > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before) > h1 {
   top: calc(var(--line) * (var(--bar-lines) + 1) * -1) !important;
 }
 /* (over a [!question] under it, so the tails of g, y, p show, as on page 1) */
-html body .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div:has(+ div > .callout[data-callout="question"]) > h1,
-html body .markdown-preview-view.lined-paper > div:has(> .callout[data-callout="nextpage"]) + div:has(+ div > .callout[data-callout="question"]) > h1 {
+html body .markdown-preview-view.lined-paper .markdown-preview-section > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before):has(+ div > .callout[data-callout="question"]) > h1,
+html body .markdown-preview-view.lined-paper > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before):has(+ div > .callout[data-callout="question"]) > h1 {
   z-index: 26 !important;
 }
 /* (without a [!question] the title carries the Cues | Notes row too: it is one row taller) */
-html body .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div > h1,
-html body .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) > div:has(> .callout[data-callout="nextpage"]) + div > h1 {
+html body .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) .markdown-preview-section > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before) > h1,
+html body .markdown-preview-view.lined-paper.cornell:not(:has(.callout[data-callout="question"])) > :is(div:has(> .callout[data-callout="nextpage"]) + div, div.lp-break-before) > h1 {
   margin-bottom: calc(var(--line) * (var(--bar-lines) + 1) * -1) !important;
 }
 /* a [!question] under the page's title sits right under it, on the header's Cues | Notes row, as on
    page 1 (moved with `top` too: next to the title's negative margin, a negative margin of its own
    would merge into that one and be lost) */
-html body .markdown-preview-view.lined-paper.cornell .markdown-preview-section > div:has(> .callout[data-callout="nextpage"]) + div:has(> h1) + div > .callout[data-callout="question"],
-html body .markdown-preview-view.lined-paper.cornell > div:has(> .callout[data-callout="nextpage"]) + div:has(> h1) + div > .callout[data-callout="question"] {
+html body .markdown-preview-view.lined-paper.cornell .markdown-preview-section > :is(div:has(> .callout[data-callout="nextpage"]) + div:has(> h1), div.lp-break-before:has(> h1)) + div > .callout[data-callout="question"],
+html body .markdown-preview-view.lined-paper.cornell > :is(div:has(> .callout[data-callout="nextpage"]) + div:has(> h1), div.lp-break-before:has(> h1)) + div > .callout[data-callout="question"] {
   top: calc(var(--line) * -1) !important;
   margin-top: 0 !important;
   margin-bottom: calc(var(--line) * -1) !important;
