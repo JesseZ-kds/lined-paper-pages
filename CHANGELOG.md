@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.13.4] - 2026-10-29
+
+### Fixed
+- Switching to reading view (or opening a note) showed the note half laid out for a moment: the
+  titles of later pages piled up in the first page's title bar, their questions stacked under it.
+  Until a changed note is laid out again, only the paper shows now (at most 1.5 s), then the
+  finished pages.
+
 ## [1.13.3] - 2026-10-29
 
 ### Fixed
@@ -329,7 +337,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.13.3...HEAD
+[Unreleased]: ../../compare/1.13.4...HEAD
+[1.13.4]: ../../compare/1.13.3...1.13.4
 [1.13.3]: ../../compare/1.13.2...1.13.3
 [1.13.2]: ../../compare/1.13.1...1.13.2
 [1.13.1]: ../../compare/1.13.0...1.13.1

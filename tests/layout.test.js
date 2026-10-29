@@ -318,3 +318,28 @@ test('"Start a new page at every # title" off: a # title stays where it is', asy
     await context.close();
   }
 });
+
+// Opening a note, or showing it again after an edit, its blocks are not shown until they are laid
+// out (titles of later pages piled up on the first page, for a moment): only the paper shows, then
+// the laid-out note
+test('a changed note shows only the paper until it is laid out again', async () => {
+  const { openReading } = require('./lib/harness');
+  const { page, context } = await openReading(note('autoBreak'));
+  try {
+    const state = () => page.evaluate(() => {
+      const view = document.querySelector('.markdown-preview-view');
+      const h = [...document.querySelectorAll('h1')];
+      return { pending: view.classList.contains('lp-pending'), titlesShown: h.map((x) => getComputedStyle(x).visibility === 'visible') };
+    });
+    assert.deepEqual(await state(), { pending: false, titlesShown: [true, true] });
+    // Obsidian renders a block again (an edit, or the note shown again in reading view)
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.markdown-preview-sizer > div')].find((d) => d.querySelector(':scope > h1') && d.textContent.includes('Second')); b.replaceWith(b.cloneNode(true)); });
+    await page.waitForTimeout(30);
+    assert.deepEqual(await state(), { pending: true, titlesShown: [false, false] });
+    await page.waitForTimeout(800);
+    assert.deepEqual(await state(), { pending: false, titlesShown: [true, true] });
+    assert.deepEqual(page.errors, []);
+  } finally {
+    await context.close();
+  }
+});

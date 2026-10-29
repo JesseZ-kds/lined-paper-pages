@@ -890,6 +890,7 @@ module.exports = class LinedPaperPages extends Plugin {
   }
 
   onunload() {
+    document.querySelectorAll('.lp-pending').forEach((v) => v.classList.remove('lp-pending'));
     for (const def of SETTINGS) {
       if (!def.key || this.settings[def.key] === undefined) continue;
       if (def.type === 'toggle') { if (this.ownClasses.has(def.cls)) document.body.classList.remove(def.cls); }
@@ -984,7 +985,9 @@ module.exports = class LinedPaperPages extends Plugin {
         st.obs = new MutationObserver((recs) => {
           if (st.busy) return;
           keepOrder(view);
-          if (changedNote(recs)) this.queue(view, st);
+          // the note changed (also: opened, or shown again in reading view after editing): until it
+          // is laid out again, only the paper shows, not its blocks half in their old places
+          if (changedNote(recs)) { view.classList.add('lp-pending'); this.queue(view, st); }
         });
         // (and never while scrolling: see queue())
         st.onScroll = () => { st.scrollAt = performance.now(); };
@@ -997,6 +1000,7 @@ module.exports = class LinedPaperPages extends Plugin {
         st.sheetRo = new ResizeObserver(() => this.syncSheets(view));
         if (sizer) st.sheetRo.observe(sizer);
         this.states.set(view, st);
+        view.classList.add('lp-pending');
         this.queue(view, st);
       } else if (force) {
         this.queue(view, st);
@@ -1057,6 +1061,8 @@ module.exports = class LinedPaperPages extends Plugin {
       }
       st.obs.takeRecords();
       st.busy = false;
+      // laid out (or nothing to lay out): the note shows again (see lp-pending in lined-paper.css)
+      if (view.offsetParent || document.body.classList.contains('lp-no-pages')) view.classList.remove('lp-pending');
     }
   }
 

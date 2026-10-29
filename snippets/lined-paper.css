@@ -2536,6 +2536,15 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
   }
 }
 @keyframes lp-hint { from { visibility: hidden; } to { visibility: visible; } }
+/* While the plugin lays a note out again after it changed (opened, edited, shown again in reading
+   view), only the paper shows: not the note's blocks half in their old places (titles of later pages
+   on top of the first, ...). At most 1.5 s, should the plugin not finish. */
+@media screen {
+  body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper.lp-pending .markdown-preview-sizer > :not(.lp-sheet, .lp-hdr, .markdown-preview-pusher) {
+    animation: lp-wait 1.5s step-end both;
+  }
+}
+@keyframes lp-wait { from { visibility: hidden; } to { visibility: visible; } }
 @media print {
   html body .markdown-preview-view.lined-paper .mod-footer { display: none !important; }
 }
