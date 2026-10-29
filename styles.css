@@ -2938,9 +2938,11 @@ body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important
 
 /* An embed of a callout (`![[Note#^callout]]`): the plugin shows the callout itself. Should an
    embed still be shown (plugin off, or still loading), it gets no embed frame either: no coloured
-   bar, no padding, no scroll box, no link icon, and the text size of the page. */
-.lined-paper :is(.internal-embed, .markdown-embed):has(.callout),
-.lined-paper :is(.internal-embed, .markdown-embed):has(.callout) :is(.markdown-embed, .markdown-embed-content, .markdown-preview-view, .markdown-preview-sizer) {
+   bar, no padding, no scroll box, no link icon, and the text size of the page.
+   The same for an embed of any one block (`![[Note#^block-id]]`: a paragraph, a list, a quote...):
+   its text is written into the page like your own, on the ruled lines, with no side bar. */
+.lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed),
+.lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-embed, .markdown-embed-content, .markdown-preview-view, .markdown-preview-sizer) {
   --embed-border-start: none;
   --embed-border-left: none;
   --embed-padding: 0;
@@ -2961,10 +2963,10 @@ body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important
   max-width: 100% !important;
   box-sizing: border-box !important;
 }
-.lined-paper :is(.internal-embed, .markdown-embed):has(.callout) :is(.markdown-preview-pusher, .mod-header, .mod-footer) {
+.lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-preview-pusher, .mod-header, .mod-footer) {
   display: none !important;
 }
-.lined-paper :is(.internal-embed, .markdown-embed):has(.callout) :is(.markdown-embed-title, .markdown-embed-link, .embed-title) {
+.lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-embed-title, .markdown-embed-link, .embed-title) {
   display: none !important;
 }
 /* Editing: an embedded callout on a quote line (`>> ![[Note#^callout]]` in a Cornell group) starts

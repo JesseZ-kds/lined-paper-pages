@@ -89,3 +89,28 @@ test('a link inside <font color> is a working, coloured link in reading view and
     await context.close();
   }
 });
+
+// An embed of one block that is not a callout (`![[Other#^id]]` of a paragraph or a list) has no
+// embed frame either (no side bar, no title, no link icon, no padding): its text is written on the
+// ruled lines like the text around it
+test('a block embed has no embed frame and its text is on the lines', async () => {
+  const { openReading } = require('./lib/harness');
+  const { page, context } = await openReading(note('blockEmbeds'));
+  try {
+    const r = await page.evaluate(() => {
+      const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)';
+      document.querySelector('.markdown-preview-view').appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+      const frames = [...document.querySelectorAll('.internal-embed')].map((e) => {
+        const cs = getComputedStyle(e), t = e.querySelector('.markdown-embed-title, .embed-title'), link = e.querySelector('.markdown-embed-link');
+        return [cs.borderLeftWidth, cs.paddingLeft, t ? getComputedStyle(t).display : 'none', link ? getComputedStyle(link).display : 'none'].join(' ');
+      });
+      const at = (re) => [...document.querySelectorAll('p, li')].find((p) => re.test(p.textContent) && !p.querySelector('p, li')).getBoundingClientRect().top;
+      const rows = [(at(/^EMBP/) - at(/^before/)) / L, (at(/^after/) - at(/^EMBP/)) / L];
+      return { frames: [...new Set(frames)], rows: rows.map((x) => +x.toFixed(2)) };
+    });
+    assert.deepEqual(r.frames, ['0px 0px none none']);
+    assert.deepEqual(r.rows, [1, 1], 'the embedded line is the next ruled line, and the line after it the one after');
+  } finally {
+    await context.close();
+  }
+});

@@ -586,13 +586,27 @@ function changedNote(recs) {
   return [...added].some(real) || [...removed].some(real);
 }
 
+// Obsidian puts its blocks back next to each other as it builds and rebuilds a long note: the rest
+// of a block continued on the next sheet (.lp-cont) can end up further down, after other blocks,
+// which would shift everything after it (and as a block only moved, no new layout comes). Each
+// continuation goes straight back right after the block it continues.
+function keepOrder(view) {
+  const top = view.scrollTop;
+  let moved = false;
+  for (const w of view.querySelectorAll('.lp-cont')) {
+    if (w._lpAfter && w._lpAfter.isConnected && w.parentNode === w._lpAfter.parentNode && w.previousElementSibling !== w._lpAfter) { w._lpAfter.after(w); moved = true; }
+  }
+  // (putting it back changes nothing on the page; the browser must not scroll for it)
+  if (moved && view.scrollTop !== top) view.scrollTop = top;
+}
+
 // the first block at the top of the screen in a reading view (to keep it where it is)
 function screenAnchor(scroller) {
   const sizer = scroller.querySelector('.markdown-preview-sizer');
   if (!sizer) return null;
   const top = scroller.getBoundingClientRect().top;
   for (const b of sizer.children) {
-    if (b.matches('.markdown-preview-pusher, .mod-header, .lp-sheet, .lp-hdr')) continue;
+    if (b.matches('.markdown-preview-pusher, .mod-header, .lp-sheet, .lp-hdr, .lp-cont')) continue;   // (one of Obsidian's own blocks)
     const r = b.getBoundingClientRect();
     if (r.height && r.bottom > top) return b;
   }
@@ -945,6 +959,7 @@ module.exports = class LinedPaperPages extends Plugin {
           if (typeof this.lastScroll === 'number') this.lastScroll = el.scrollTop;
         }
         putSectionsBack(this);
+        keepOrder(el);   // (the rest of a continued block back after it, before measuring what moved)
         // nothing on screen moves
         if (anchor && anchor.isConnected) {
           const d = anchor.getBoundingClientRect().top - anchorTop;
@@ -966,7 +981,11 @@ module.exports = class LinedPaperPages extends Plugin {
         st = { undo: [], busy: false, timer: 0, scrollAt: 0 };
         // lay the pages out again only when the note really changed: not when Obsidian just moves
         // a block that is already there, takes one off and puts it straight back, etc.
-        st.obs = new MutationObserver((recs) => { if (!st.busy && changedNote(recs)) this.queue(view, st); });
+        st.obs = new MutationObserver((recs) => {
+          if (st.busy) return;
+          keepOrder(view);
+          if (changedNote(recs)) this.queue(view, st);
+        });
         // (and never while scrolling: see queue())
         st.onScroll = () => { st.scrollAt = performance.now(); };
         view.addEventListener('scroll', st.onScroll, { passive: true });
@@ -1327,6 +1346,8 @@ module.exports = class LinedPaperPages extends Plugin {
 
       const wrapper = block.cloneNode(false);
       wrapper.classList.add('lp-cont');                         // (the rest of a block, on the next sheet)
+      wrapper.classList.remove('lp-break-before');
+      wrapper._lpAfter = block;                                    // (kept right after it: keepOrder)
       wrapper.style.removeProperty('padding-top');                 // (a pushed block's padding is copied too)
       const g = v.cloneNode(false);
       g.style.removeProperty('margin-top');                        // starts right on the first body row
@@ -1490,6 +1511,8 @@ module.exports = class LinedPaperPages extends Plugin {
           if (c && c.kept) {
             const w = block.cloneNode(false);
             w.classList.add('lp-cont');
+            w.classList.remove('lp-break-before');
+            w._lpAfter = block;
             w.style.removeProperty('padding-top');
             w.append(c.first, ...c.after);
             block.after(w);

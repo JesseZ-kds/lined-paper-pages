@@ -252,3 +252,37 @@ for (const cssPaging of [false, true]) {
     }
   });
 }
+
+// Opening a long note whose `# Title`s start new pages, as Obsidian builds it (a piece at a time,
+// near the screen first): every page is there and laid out, each title at the top of its page,
+// exactly as when the whole note is on the page at once
+for (const start of [0, 3000]) {
+  for (const [margin, strict] of [['vh', false], ['fixed', false], ['vh', true], ['fixed', true]]) {
+    test(`a note with titles starting new pages is laid out in full when it opens (${margin}${strict ? ', re-attaches sections' : ''}, at ${start}px)`, async () => {
+      const measure = () => {
+        const sizer = document.querySelector('.markdown-preview-sizer');
+        const top = sizer.getBoundingClientRect().top;
+        const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--page-h)'; sizer.appendChild(d);
+        const P = d.getBoundingClientRect().height; d.remove();
+        return {
+          sheets: document.querySelectorAll('.lp-sheet').length,
+          titles: [...document.querySelectorAll('h1')].map((h) => { const y = h.getBoundingClientRect().top - top; return `${h.textContent.trim()} p${Math.floor((y + 1) / P) + 1} ${Math.round(y - Math.floor((y + 1) / P) * P)}`; }),
+        };
+      };
+      const full = await openReading(headedNote, { viewport: { width: 1000, height: 800 } });
+      let expected;
+      try { await full.page.waitForTimeout(500); expected = await full.page.evaluate(measure); } finally { await full.context.close(); }
+      const { page, context } = await openReading(headedNote, { viewport: { width: 1000, height: 800 } });
+      try {
+        await page.evaluate(virtualReadingView, { margin, strict, start });
+        await page.waitForTimeout(900);
+        const got = await page.evaluate(() => { const pv = document.querySelector('.markdown-preview-view'); pv.scrollTop = 0; return true; }).then(() => page.waitForTimeout(400)).then(() => page.evaluate(measure));
+        assert.deepEqual(got, expected);
+        assert.ok(expected.titles.slice(1).every((t) => / 0$| -?[0-9]$/.test(t)), 'each title at the top of its page: ' + expected.titles);
+        assert.deepEqual(page.errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+}

@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-10-29
+
+### Fixed
+- Reading view could lay a long note out wrongly when it was opened partway down (a `# Title` not at
+  the top of its page, everything after it shifted): as Obsidian built the note a piece at a time,
+  the rest of a group continued on the next page could end up after other blocks. It is now put
+  straight back after the block it continues (and keeping your place while scrolling no longer
+  follows such a block when Obsidian moves it).
+
+### Changed
+- An embed of any one block (`![[Note#^block-id]]`: a paragraph, a list, ...) has no embed frame,
+  like an embedded callout: no side bar, no title, no link icon, no padding; its text is written on
+  the ruled lines like your own. Reading view, editing view and the PDF.
+
 ## [1.13.2] - 2026-10-27
 
 ### Fixed
@@ -315,7 +329,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.13.2...HEAD
+[Unreleased]: ../../compare/1.13.3...HEAD
+[1.13.3]: ../../compare/1.13.2...1.13.3
 [1.13.2]: ../../compare/1.13.1...1.13.2
 [1.13.1]: ../../compare/1.13.0...1.13.1
 [1.13.0]: ../../compare/1.12.1...1.13.0

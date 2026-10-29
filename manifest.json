@@ -1,7 +1,7 @@
 {
   "id": "lined-paper-pages",
   "name": "Lined Paper Pages",
-  "version": "1.13.2",
+  "version": "1.13.3",
   "minAppVersion": "1.4.0",
   "description": "Lined paper and Cornell notes: real A4 pages in reading view that match the PDF export, with a settings page for every option.",
   "author": "JesseZ-kds",

@@ -9,7 +9,7 @@ after(closeBrowsers);
 
 const MODES = [['plugin pagination', false], ['CSS pagination', true]];
 const CASES = [
-  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }], ['autoBreak'], ['autoBreak', { fill: 13 }], ['autoBreak', { inGroup: true }], ['autoBreak', { fill: 13, inGroup: true }], ['autoBreakPlain'],
+  ['cornell'], ['short'], ['separate'], ['hello'], ['helloLong'], ['summaryInGroup'], ['whatIsUp'], ['nested'], ['blockEmbeds'], ['gaps'], ['gaps', { fill: 11 }], ['gaps', { fill: 13 }], ['pageTitle'], ['pageTitle', { question: false }], ['pageTitle', { question: false, wide: true }], ['pageTitlePlain'], ['midSummary'], ['midSummary', { fill: 11 }], ['midSummary', { fill: 13 }], ['midSummary', { fill: 15 }], ['autoBreak'], ['autoBreak', { fill: 13 }], ['autoBreak', { inGroup: true }], ['autoBreak', { fill: 13, inGroup: true }], ['autoBreakPlain'],
   ['plain'], ['plainLong', { fill: 0 }], ['plainLong', { fill: 12 }], ['plainLong', { fill: 27 }],
   ['cornellLong', { fill: 0 }], ['cornellLong', { fill: 15 }], ['cornellLong', { fill: 29 }],
   ['callouts'], ['nextPage'], ['nextPageCornell'], ['wide'], ['wide', { fill: 11 }], ['wideAtTop'],

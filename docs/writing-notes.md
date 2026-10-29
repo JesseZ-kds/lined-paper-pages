@@ -244,7 +244,9 @@ handwriting as its text. Inside a `[!wide]` block it takes only the lines it nee
 callout's text size. An embed that loads late (e.g. a big note) is picked up as soon as it
 appears.
 
-Embeds of anything else (a whole note, a heading, a paragraph) stay ordinary Obsidian embeds.
+An embed of any other single block (`![[Note#^block-id]]` of a paragraph, a list, ...) has no embed
+frame either: no side bar, title or link icon, and its text is written on the ruled lines like your
+own. Embeds of a whole note or a heading stay ordinary Obsidian embeds.
 
 ## Pen colours
 

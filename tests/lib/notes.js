@@ -362,6 +362,13 @@ const notes = {
       group('<p>c3</p>', '<p>n3</p>'),
     ];
   },
+  // embeds of one block that is not a callout (`![[Other#^id]]` of a paragraph, of a list)
+  blockEmbeds: () => [
+    title('Block embeds'),
+    group('<p>What is it?</p>', `<p>before</p>${embed('<p>EMBP Photosynthesis turns light into sugar.</p>')}<p>after</p>`),
+    group('<p>List</p>', embed('<ul><li>EMBL first point</li><li>second point</li></ul>')),
+    `<div class="el-p">${embed('<p>EMBTOP at the top level</p>')}</div>`,
+  ],
   // embedded callouts inside `> [!wide]`
   embedsInWide: ({ typed = false, variant = '' } = {}) => {
     const e = () => (typed ? IMMUNITY : embed(IMMUNITY, { variant }));
