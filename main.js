@@ -421,6 +421,22 @@ function anchorMidSummaries(root, undo) {
   }
 }
 
+// A [!summary] written inside a cue or the notes (`>> > [!summary]`) is laid out as one written in
+// the group after them: the plugin moves it there (reading view and the PDF), so it goes on the
+// bottom lines of the page like any other, and the notes don't hold the room it keeps.
+function liftSummaries(root, undo) {
+  for (const sum of root.querySelectorAll('.callout:is([data-callout="cue"], [data-callout="notes"]) > .callout-content .callout[data-callout="summary"]')) {
+    if (sum.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
+    const col = sum.parentElement.closest('.callout:is([data-callout="cue"], [data-callout="notes"])');
+    const bq = col && col.parentElement;
+    if (!bq || bq.tagName !== 'BLOCKQUOTE') continue;
+    const mark = document.createComment('lp-summary');
+    sum.replaceWith(mark);
+    bq.appendChild(sum);
+    if (undo) undo.push({ t: 'lift', sum, mark });
+  }
+}
+
 function unwrapCalloutEmbeds(root, undo) {
   for (const emb of root.querySelectorAll(SEL_EMBED)) {
     if (emb.closest('.lp-embed-unwrapped') || emb.parentElement.closest(SEL_EMBED)) continue;
@@ -815,7 +831,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -853,12 +869,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
+    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); liftSummaries(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -887,8 +903,10 @@ module.exports = class LinedPaperPages extends Plugin {
     this.addCommand({
       id: 'copy-layout-report',
       name: 'Copy layout report (to send when the pages look wrong)',
-      callback: () => {
-        const text = JSON.stringify(this.layoutReport(), null, 1);
+      callback: async () => {
+        const report = this.layoutReport();
+        try { report.snippets = await this.oldSnippets(); } catch (e) { /* the list without the check */ }
+        const text = JSON.stringify(report, null, 1);
         const done = () => new Notice('Lined Paper Pages: layout report copied. Paste it into your message.');
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => console.log(text));
         else console.log(text);
@@ -905,6 +923,24 @@ module.exports = class LinedPaperPages extends Plugin {
   // put every stored setting on <body> (and take off the ones that were reset)
   // The two CSS snippets are now part of the plugin (styles.css). Snippets left switched on from an
   // earlier install do no harm (every rule is just there twice), but they can go: say so, once.
+  // the switched-on CSS snippets, and which of them are old copies of the plugin's styles
+  async oldSnippets() {
+    const css = this.app.customCss;
+    const on = css && css.enabledSnippets;
+    const enabled = !on ? [] : on.has ? Array.from(on) : Array.isArray(on) ? on : [];
+    const adapter = this.app.vault && this.app.vault.adapter;
+    const dir = ((this.app.vault && this.app.vault.configDir) || '.obsidian') + '/snippets/';
+    const out = [];
+    for (const n of enabled) {
+      if (n === 'lined-paper' || n === 'cornell-notes') { out.push({ name: n, old: true }); continue; }
+      try {
+        const text = adapter && typeof adapter.read === 'function' ? await adapter.read(dir + n + '.css') : '';
+        out.push({ name: n, old: /\.lined-paper\b|\.cornell\b|data-callout="(?:cue|notes)"/.test(text), size: text.length });
+      } catch (e) { out.push({ name: n, old: false, error: String(e && e.message || e) }); }
+    }
+    return out;
+  }
+
   async hintOldSnippets() {
     // Old copies of the plugin's styles, kept as CSS snippets (the lined-paper / cornell-notes
     // snippets from before 1.9, under any name: "cornell", "lined-paper-print-a4", ...), load after the
@@ -914,17 +950,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const css = this.app.customCss;
     const on = css && css.enabledSnippets;
     if (!on) return;
-    const enabled = on.has ? Array.from(on) : Array.isArray(on) ? on : [];
-    const adapter = this.app.vault && this.app.vault.adapter;
-    const dir = ((this.app.vault && this.app.vault.configDir) || '.obsidian') + '/snippets/';
-    const names = [];
-    for (const n of enabled) {
-      if (n === 'lined-paper' || n === 'cornell-notes') { names.push(n); continue; }
-      try {
-        const text = adapter && typeof adapter.read === 'function' ? await adapter.read(dir + n + '.css') : '';
-        if (/\.lined-paper\b/.test(text)) names.push(n);
-      } catch (e) { /* not readable: leave it */ }
-    }
+    const names = (await this.oldSnippets()).filter((x) => x.old).map((x) => x.name);
     if (!names.length) return;
     const list = names.map((n) => `"${n}"`).join(', ');
     if (typeof css.setCssEnabledStatus === 'function') {
@@ -1115,6 +1141,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (document.body.classList.contains('lp-no-pages')) return;
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
+      liftSummaries(view, st.undo);
       autoBreaks(view, st.undo);
       unwrapCalloutEmbeds(view, st.undo);
       fitTitles(view, st.undo);
@@ -1182,6 +1209,7 @@ module.exports = class LinedPaperPages extends Plugin {
           case 'cls': u.el.classList.remove(u.name); break;
           case 'attr': u.el.removeAttribute(u.name); break;
           case 'unq': u.c.replaceWith(u.bq); u.bq.append(u.c); break;
+          case 'lift': if (u.mark.isConnected) u.mark.replaceWith(u.sum); break;
         }
       } catch (e) { /* node was re-rendered by Obsidian: nothing to undo */ }
     }
@@ -1213,7 +1241,17 @@ module.exports = class LinedPaperPages extends Plugin {
       sheets: view.querySelectorAll('.lp-sheet').length,
       sizerHeight: sizer && sizer.getBoundingClientRect().height,
       titles: Array.from(view.querySelectorAll('h1')).map((h) => ({ text: h.textContent.trim().slice(0, 30), block: h.parentElement.className, prev: h.parentElement.previousElementSibling && h.parentElement.previousElementSibling.className, ...at(h) })),
-      summaries: Array.from(view.querySelectorAll('.callout[data-callout="summary"]')).map((x) => ({ text: x.textContent.trim().slice(7, 37), mid: isMidSummary(x), inGroup: !!x.closest('blockquote'), style: x.getAttribute('style'), ...at(x) })),
+      summaries: Array.from(view.querySelectorAll('.callout[data-callout="summary"]')).map((x) => {
+        const brk = breakAfter(topBlock(x));
+        const above = brk ? partEnd(brk) : [];
+        return {
+          text: x.textContent.trim().slice(7, 37), mid: isMidSummary(x), inGroup: !!x.closest('blockquote'), style: x.getAttribute('style'), ...at(x),
+          // (where the content above it ends, and the shape of its block: tags and classes, no text)
+          above: above.map((a) => ({ cls: (a.getAttribute('data-callout') || a.className || a.tagName).slice(0, 30), bottomRow: +((a.getBoundingClientRect().bottom - top) / L).toFixed(2) })),
+          next: brk ? +(((nextPageBlock(brk) ? brk.nextElementSibling : brk).getBoundingClientRect().top - top) / L).toFixed(2) : null,
+          shape: (function shape(el, d) { return el.tagName.toLowerCase() + (el.getAttribute('data-callout') ? '[' + el.getAttribute('data-callout') + ']' : el.className ? '.' + String(el.className).split(' ')[0] : '') + (d < 5 && el.children.length ? '(' + Array.from(el.children).slice(0, 8).map((c) => shape(c, d + 1)).join(' ') + ')' : ''); })(topBlock(x), 0),
+        };
+      }),
       sections: sizer ? Array.from(sizer.children).map((c) => c.className.slice(0, 40)).slice(0, 200) : [],
     };
     return r;

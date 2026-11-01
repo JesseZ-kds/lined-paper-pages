@@ -115,3 +115,29 @@ test('editing view: <font color>[[link]]</font> shows coloured, its link opens, 
     await context.close();
   }
 });
+
+// An embedded block that is not a callout (`>> ![[Note#^id]]` of a paragraph), on a quote line in
+// a Cornell group, starts on that line too: not one line lower, under the `>>`
+test('editing view: an embedded block on a quote line starts on that line', async () => {
+  const b = await browser(false);
+  const context = await b.newContext({ viewport: { width: 900, height: 700 } });
+  try {
+    const page = await context.newPage();
+    const blockEmbed = `<div class="internal-embed markdown-embed inline-embed is-loaded" contenteditable="false" src="Other#^x"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section" style="padding-bottom: 0px; min-height: 60px;"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-p"><p>EMBEDDED line</p></div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></div>`;
+    await page.setContent(`<!doctype html><html><head><style>html,body{margin:0}</style><style>${SIM}</style><style>${CSS}</style></head><body class="theme-light">
+<div class="markdown-source-view cm-s-obsidian mod-cm6 is-live-preview lined-paper cornell"><div class="cm-editor"><div class="cm-scroller"><div class="cm-sizer"><div class="cm-contentContainer"><div class="cm-content">
+<div class="cm-line" id="a">before</div>
+<div class="cm-line HyperMD-quote HyperMD-quote-2"><span class="cm-formatting cm-formatting-quote">&gt;&gt; </span>${blockEmbed}</div>
+<div class="cm-line" id="b">after</div>
+</div></div></div></div></div></div></body></html>`);
+    const r = await page.evaluate(() => {
+      const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; document.querySelector('.lined-paper').appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+      const top = (el) => el.getBoundingClientRect().top;
+      const p = [...document.querySelectorAll('p')].find((x) => x.textContent === 'EMBEDDED line');
+      return [+((top(p) - top(document.getElementById('a'))) / L).toFixed(2), +((top(document.getElementById('b')) - top(document.getElementById('a'))) / L).toFixed(2)];
+    });
+    assert.deepEqual(r, [1, 2]);
+  } finally {
+    await context.close();
+  }
+});

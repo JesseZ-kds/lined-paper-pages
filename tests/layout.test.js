@@ -267,9 +267,10 @@ for (const [mode, cssPaging] of MODES) {
 // at the end), with the next part starting on the page after it
 for (const [mode, cssPaging] of MODES) {
   for (const [name, fill, inGroup] of [['midSummary', 0], ['midSummary', 11], ['midSummary', 13], ['midSummary', 15],
-    ['autoBreak', 0, true], ['autoBreak', 11, true], ['autoBreak', 13, true], ['autoBreak', 15, true]]) {
-    test(`a summary before a page break stays with its part (${name}, ${fill} groups${inGroup ? ', written inside the last group' : ''}, ${mode})`, async (t) => {
-      const r = await render(note(name, { fill, inGroup }), { cssPaging });
+    ['autoBreak', 0, true], ['autoBreak', 11, true], ['autoBreak', 13, true], ['autoBreak', 15, true],
+    ['autoBreak', 0, 'notes'], ['autoBreak', 13, 'notes']]) {
+    test(`a summary before a page break stays with its part (${name}, ${fill} groups${inGroup === 'notes' ? ', written inside the last notes' : inGroup ? ', written inside the last group' : ''}, ${mode})`, async (t) => {
+      const r = await render(note(name, { fill, inGroup: inGroup === true, inNotes: inGroup === 'notes' }), { cssPaging });
       if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
       const at = (w) => r.pdf.words.find((x) => x.w === w);
       const one = at('SUMONE'), two = at('SUMTWO'), last = at('nlast'), second = at('Second');

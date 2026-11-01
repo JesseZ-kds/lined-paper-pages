@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-11-01
+
+### Fixed
+- In editing view an embedded block (`>> ![[Note#^id]]` of a paragraph, a list, ...) on a quote line
+  started one line lower, under the `>>`; it starts on its own line now, as an embedded callout does.
+- A `[!summary]` written inside the notes (`>> > [!summary]`) is laid out like one written after
+  them: on the bottom lines of its part's page (before, it stayed among the notes, or pushed itself
+  into the footer).
+- The check for old copies of the plugin's styles also finds snippets that only style `.cornell` or
+  the cue / notes callouts.
+
+### Changed
+- *Copy layout report* also tells which snippets are old copies, and, for each summary, where the
+  content above it ends and the shape of its block (no text).
+
 ## [1.15.0] - 2026-11-01
 
 ### Changed
@@ -392,7 +407,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.15.0...HEAD
+[Unreleased]: ../../compare/1.15.1...HEAD
+[1.15.1]: ../../compare/1.15.0...1.15.1
 [1.15.0]: ../../compare/1.14.3...1.15.0
 [1.14.3]: ../../compare/1.14.2...1.14.3
 [1.14.2]: ../../compare/1.14.1...1.14.2

@@ -2964,9 +2964,10 @@ body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important
 .lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-embed-title, .markdown-embed-link, .embed-title) {
   display: none !important;
 }
-/* Editing: an embedded callout on a quote line (`>> ![[Note#^callout]]` in a Cornell group) starts
-   on that line, as a typed one would, instead of under an empty line holding the hidden `>>` */
-.lined-paper .cm-line:has(> :is(.internal-embed, .markdown-embed) .callout) > .cm-formatting {
+/* Editing: an embedded callout or block on a quote line (`>> ![[Note#^id]]` in a Cornell group)
+   starts on that line, as typed text would, instead of under an empty line holding the `>>` */
+.lined-paper .cm-line:has(> :is(.internal-embed, .markdown-embed) .callout) > .cm-formatting,
+.lined-paper .cm-line:has(> .internal-embed[src*="#^"]) > .cm-formatting {
   display: none;
 }
 /* (an embedded callout that is the last thing in its callout leaves no extra blank row either) */
