@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.14.3] - 2026-11-01
+
+### Fixed
+- Older copies of the plugin's styles kept as CSS snippets under other names (e.g. "cornell",
+  "lined-paper-print-a4") are switched off too, not only the ones called "lined-paper" and
+  "cornell-notes": any switched-on snippet whose CSS is for lined paper. They load after the plugin's
+  styles and overrode them (pages not laid out, a new page's title on top of the summary before it,
+  an empty row under the question). Their files are kept.
+- *Copy layout report* reports the note on screen (not a hidden one).
+
 ## [1.14.2] - 2026-11-01
 
 ### Fixed
@@ -370,7 +380,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.14.2...HEAD
+[Unreleased]: ../../compare/1.14.3...HEAD
+[1.14.3]: ../../compare/1.14.2...1.14.3
 [1.14.2]: ../../compare/1.14.1...1.14.2
 [1.14.1]: ../../compare/1.14.0...1.14.1
 [1.14.0]: ../../compare/1.13.4...1.14.0

@@ -163,7 +163,9 @@ test('old snippets still switched on: switched off, or a one-time hint', async (
       const run = async (enabled, canSwitch) => {
         if (enabled) { snippets.clear(); for (const n of enabled) snippets.add(n); }
         class Plugin {
-          constructor() { this.app = { workspace: { on: () => ({}), onLayoutReady: (f) => f(), getLeavesOfType: () => [] }, customCss: { enabledSnippets: snippets, ...(canSwitch ? { setCssEnabledStatus: (n, on) => { if (!on) snippets.delete(n); } } : {}) } }; }
+          constructor() { this.app = { workspace: { on: () => ({}), onLayoutReady: (f) => f(), getLeavesOfType: () => [] }, customCss: { enabledSnippets: snippets, ...(canSwitch ? { setCssEnabledStatus: (n, on) => { if (!on) snippets.delete(n); } } : {}) },
+            // (the snippet files: a renamed old copy of the plugin's styles, and someone's own snippet)
+            vault: { configDir: '.obsidian', adapter: { read: (path) => Promise.resolve({ '.obsidian/snippets/cornell.css': '.lined-paper.cornell .callout { color: red }', '.obsidian/snippets/other.css': '.theme-dark { --x: 1 }' }[path] || '') } } }; }
           loadData() { return Promise.resolve(JSON.parse(JSON.stringify(saved))); } saveData(d) { saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }
           addSettingTab() {} addCommand() {} registerEvent() {} register() {} registerDomEvent() {} registerInterval() {} registerMarkdownPostProcessor() {} registerEditorExtension() {}
         }
@@ -171,12 +173,12 @@ test('old snippets still switched on: switched off, or a one-time hint', async (
         new Function('require', 'module', src)(() => ({ Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class { constructor(m) { notices.push(m); } } }), module);
         const plugin = new module.exports();
         plugin.onload();
-        await new Promise((res) => setTimeout(res, 50));
+        await new Promise((res) => setTimeout(res, 80));
         plugin.onunload();
       };
       await run(['other'], true);                          // no old snippets: nothing
       const none = notices.length;
-      await run(['other', 'lined-paper', 'cornell-notes'], true);   // old snippets on: switched off
+      await run(['other', 'lined-paper', 'cornell-notes', 'cornell'], true);   // old snippets on (one renamed): switched off
       const left = [...snippets];
       await run(null, true);                                // ... so nothing the next time
       const switched = notices.splice(0);
@@ -187,9 +189,9 @@ test('old snippets still switched on: switched off, or a one-time hint', async (
     assert.equal(r.none, 0);
     assert.deepEqual(r.left, ['other']);
     assert.equal(r.switched.length, 1);
-    assert.match(r.switched[0], /switched off the old snippets "lined-paper" and "cornell-notes"/);
+    assert.match(r.switched[0], /switched off the CSS snippets "lined-paper", "cornell-notes", "cornell"/);
     assert.equal(r.notices.length, 1);
-    assert.match(r.notices[0], /Switch off the snippets "lined-paper" and "cornell-notes"/);
+    assert.match(r.notices[0], /Switch off the snippets "lined-paper", "cornell-notes"/);
   } finally {
     await context.close();
   }

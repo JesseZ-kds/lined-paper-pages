@@ -762,7 +762,7 @@ module.exports = class LinedPaperPages extends Plugin {
       this.settings = d || {};
       this.applySettings();
       const ws = this.app.workspace;
-      if (ws.onLayoutReady) ws.onLayoutReady(() => this.hintOldSnippets());
+      if (ws.onLayoutReady) ws.onLayoutReady(() => { this.hintOldSnippets().catch(() => {}); });
     });
     this.addSettingTab(new LinedPaperSettingTab(this.app, this));
 
@@ -870,26 +870,41 @@ module.exports = class LinedPaperPages extends Plugin {
   // put every stored setting on <body> (and take off the ones that were reset)
   // The two CSS snippets are now part of the plugin (styles.css). Snippets left switched on from an
   // earlier install do no harm (every rule is just there twice), but they can go: say so, once.
-  hintOldSnippets() {
-    // The lined-paper / cornell-notes snippets from before 1.9 load after the plugin's styles, so
-    // their older rules win (an empty row under the question, the title's old place, ...): switch
-    // them off, and say so. (Their files stay: switch them on again in Appearance → CSS snippets.)
+  async hintOldSnippets() {
+    // Old copies of the plugin's styles, kept as CSS snippets (the lined-paper / cornell-notes
+    // snippets from before 1.9, under any name: "cornell", "lined-paper-print-a4", ...), load after the
+    // plugin's styles, so their older rules win: an empty row under the question, the title's old
+    // place, pages not laid out at all. Every switched-on snippet whose CSS is for lined paper is
+    // switched off, and said so. (The files stay: switch them on again in Appearance → CSS snippets.)
     const css = this.app.customCss;
     const on = css && css.enabledSnippets;
     if (!on) return;
-    const names = ['lined-paper', 'cornell-notes'].filter((n) => (on.has ? on.has(n) : Array.isArray(on) && on.includes(n)));
+    const enabled = on.has ? Array.from(on) : Array.isArray(on) ? on : [];
+    const adapter = this.app.vault && this.app.vault.adapter;
+    const dir = ((this.app.vault && this.app.vault.configDir) || '.obsidian') + '/snippets/';
+    const names = [];
+    for (const n of enabled) {
+      if (n === 'lined-paper' || n === 'cornell-notes') { names.push(n); continue; }
+      try {
+        const text = adapter && typeof adapter.read === 'function' ? await adapter.read(dir + n + '.css') : '';
+        if (/\.lined-paper\b/.test(text)) names.push(n);
+      } catch (e) { /* not readable: leave it */ }
+    }
     if (!names.length) return;
+    const list = names.map((n) => `"${n}"`).join(', ');
     if (typeof css.setCssEnabledStatus === 'function') {
       for (const n of names) css.setCssEnabledStatus(n, false);
-      new Notice(`Lined Paper Pages: switched off the old snippet${names.length > 1 ? 's' : ''} ${names.map((n) => `"${n}"`).join(' and ')}. ` +
-        'The plugin has its own, newer styles; the old ones were overriding them.', 15000);
+      new Notice(`Lined Paper Pages: switched off the CSS snippet${names.length > 1 ? 's' : ''} ${list}: ${names.length > 1 ? 'they are' : 'it is'} an older copy of the plugin's own styles and ` +
+        `overrode them. (The file${names.length > 1 ? 's are' : ' is'} kept: Settings → Appearance → CSS snippets.)`, 15000);
+      this.scheduleScan(true);
     } else if (!this.settings.oldSnippetsHinted) {
       new Notice(`Lined Paper Pages now includes its own styles. Switch off the snippet${names.length > 1 ? 's' : ''} ` +
-        `${names.map((n) => `"${n}"`).join(' and ')} in Settings → Appearance → CSS snippets.`, 20000);
+        `${list} in Settings → Appearance → CSS snippets.`, 20000);
       this.settings.oldSnippetsHinted = true;
       this.saveData(this.settings);
     }
   }
+
 
 
   applySettings() {
@@ -1134,7 +1149,9 @@ module.exports = class LinedPaperPages extends Plugin {
   // newer Chromium can split the note into page-sized columns itself (column-height + column-wrap);
   // lined-paper.css then does the pagination and this plugin must not move anything
   layoutReport() {
-    const view = document.querySelector('.workspace-leaf.mod-active .markdown-reading-view .markdown-preview-view.lined-paper') || document.querySelector(SEL_VIEW);
+    // (the note on screen: the open tab's reading view)
+    const views = Array.from(document.querySelectorAll(SEL_VIEW));
+    const view = views.find((v) => v.offsetParent && v.closest('.workspace-leaf.mod-active')) || views.find((v) => v.offsetParent) || views[0];
     const r = {
       plugin: this.manifest && this.manifest.version,
       chrome: (typeof process !== 'undefined' && process.versions && process.versions.chrome) || navigator.userAgent,
