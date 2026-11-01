@@ -62,7 +62,12 @@ function virtualReadingView({ margin, strict, start }) {
       const lo = margin === 'fixed' ? scrollTop - 800 : scrollTop - vh;
       const hi = margin === 'fixed' ? scrollTop + vh + 800 : scrollTop + 2 * vh;
       let y = 0, pushed = -1;
-      const show = sections.filter((s) => { const h = s.computed ? s.height : 60; const on = y + h >= lo && y <= hi; if (on && pushed < 0) pushed = y; y += h; return on; });
+      // (folding, as Obsidian does it: the sections under a folded heading, down to the next heading
+      // as big or bigger, are not shown)
+      const level = (s) => { const m = /<h([1-6])/.exec(s.html); return m && s.html.trimStart().startsWith('<h') ? +m[1] : 0; };
+      let fold = 0;
+      const unfolded = sections.filter((s) => { const lv = level(s); if (fold && (!lv || lv > fold)) return false; fold = lv && s.folded ? lv : 0; return true; });
+      const show = unfolded.filter((s) => { const h = s.computed ? s.height : 60; const on = y + h >= lo && y <= hi; if (on && pushed < 0) pushed = y; y += h; return on; });
       for (const s of sections) if (!show.includes(s) && s.el.isConnected) s.el.remove();
       let prev = sizer.querySelector('.mod-header');
       for (const s of show) {
@@ -286,3 +291,38 @@ for (const start of [0, 3000]) {
     });
   }
 }
+
+// Folding a heading in reading view (its arrow in the margin): Obsidian takes the sections under it
+// away; they stay away (the plugin keeps every other section on the page), the pages are laid out
+// again for what is left, and unfolding brings it all back exactly as before
+test('folding a heading takes its part away and lays the pages out again; unfolding brings it back', async () => {
+  const { page, context } = await openReading(headedNote, { viewport: { width: 1000, height: 800 } });
+  try {
+    await page.evaluate(virtualReadingView, { margin: 'vh', strict: false, start: 0 });
+    await page.waitForTimeout(800);
+    const look = () => page.evaluate(() => ({
+      notes: document.querySelectorAll('.callout[data-callout="notes"]').length,
+      heading12: Math.round(document.querySelector('h2:not(.x)') && [...document.querySelectorAll('h2')].find((h) => h.textContent === 'Heading 12').getBoundingClientRect().top - document.querySelector('.markdown-preview-sizer').getBoundingClientRect().top),
+      sheets: document.querySelectorAll('.lp-sheet').length,
+    }));
+    const before = await look();
+    // fold "Heading 7" (its groups 7 to 11 go)
+    const fold = (on) => page.evaluate((on) => {
+      const s = window.renderer.sections.find((x) => x.html.includes('Heading 7</h2>'));
+      s.folded = on;
+      s.el.querySelector('h2').classList.toggle('is-collapsed', on);
+      window.renderer.updateVirtualDisplay();
+    }, on);
+    await fold(true);
+    await page.waitForTimeout(900);
+    const folded = await look();
+    assert.ok(folded.notes < before.notes, `the folded groups are gone (${folded.notes} of ${before.notes})`);
+    assert.ok(folded.heading12 < before.heading12, `what follows moved up (${folded.heading12} < ${before.heading12})`);
+    await fold(false);
+    await page.waitForTimeout(900);
+    assert.deepEqual(await look(), before, 'unfolded: as before');
+    assert.deepEqual(page.errors, []);
+  } finally {
+    await context.close();
+  }
+});

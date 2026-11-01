@@ -343,3 +343,31 @@ test('a changed note shows only the paper until it is laid out again', async () 
     await context.close();
   }
 });
+
+// A heading's fold arrow (Obsidian puts it inside the heading) shows in reading view, in the gap
+// between the red margin line and the text, when the pointer is on the heading; for the title bar,
+// left of the title
+test('headings can be folded: their arrow shows in the margin gap', async () => {
+  const { openReading } = require('./lib/harness');
+  const arrow = '<div class="heading-collapse-indicator collapse-indicator collapse-icon"><svg viewBox="0 0 10 10" width="10" height="10"><path d="M0 0L10 5L0 10z"/></svg></div>';
+  const { page, context } = await openReading({ name: 'fold', cornell: false, blocks: [`<div class="el-h1"><h1>${arrow}Topic</h1></div>`, `<div class="el-h2"><h2>${arrow}Part one</h2></div>`, '<div><p>text</p></div>'] });
+  try {
+    const check = (sel) => page.evaluate((sel) => {
+      const h = document.querySelector(sel), a = h.querySelector('.heading-collapse-indicator');
+      const r = a.getBoundingClientRect(), view = document.querySelector('.markdown-preview-view');
+      const d = document.createElement('div'); d.style.cssText = 'position:absolute;width:var(--margin-x)'; view.appendChild(d);
+      const sizerLeft = document.querySelector('.markdown-preview-sizer').getBoundingClientRect().left;
+      const redLine = sizerLeft + d.getBoundingClientRect().width; d.remove();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { shown: getComputedStyle(a).display !== 'none' && r.width > 0, rightOfRedLine: r.left >= redLine, leftOfText: r.right <= h.querySelector('svg').getBoundingClientRect().right + 1 && r.right <= h.getBoundingClientRect().left + parseFloat(getComputedStyle(h).paddingLeft) + 1, clickable: !!(hit && hit.closest('.heading-collapse-indicator')), opacity: getComputedStyle(a).opacity };
+    }, sel);
+    for (const sel of ['h2', 'h1']) {
+      await page.hover(sel);
+      await page.waitForTimeout(250);
+      const r = await check(sel);
+      assert.deepEqual({ shown: r.shown, rightOfRedLine: r.rightOfRedLine, clickable: r.clickable, opacity: r.opacity }, { shown: true, rightOfRedLine: true, clickable: true, opacity: '1' }, sel);
+    }
+  } finally {
+    await context.close();
+  }
+});

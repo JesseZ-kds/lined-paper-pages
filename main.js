@@ -327,96 +327,6 @@ function autoBreaks(root, undo) {
   }
 }
 
-// A cue is centred beside its notes: when it takes fewer lines than its notes (and they fit on a
-// page), it moves down by whole lines to the middle of them (on the ruled lines: with an odd number left over, half a line
-// higher than the exact middle). CSS can centre, but not on whole lines, so it is measured here and
-// handed to the CSS (--lp-cue-shift, in lines: cornell-notes.css). Measured at the A4 page's width,
-// also while an export is prepared in a window that is not A4 wide.
-// (the shifts reading view settled on, after laying out its pages: a cue whose group runs over two
-// pages is not moved. The PDF, prepared without pages, uses them; the same note, the same groups.)
-let cueShiftMemo = new Map();
-// (a group's words, without spaces: in reading view a group run over two pages has its words in two
-// blocks, which are given together)
-const textOf = (callout) => { const c = callout.querySelector(':scope > .callout-content'); return c ? c.textContent : ''; };
-const cueKey = (cueText, notesText) => (cueText + '\u0000' + notesText).replace(/\s+/g, '');
-function centreCues(root, undo, later) {
-  const view = root.closest ? (root.closest('.markdown-preview-view.lined-paper.cornell') || root.querySelector('.markdown-preview-view.lined-paper.cornell')) : null;
-  if (!view) return;
-  const groups = Array.from(view.querySelectorAll('blockquote')).filter((bq) => bq.querySelector(':scope > .callout[data-callout="cue"]') && bq.querySelector(':scope > .callout[data-callout="notes"]') && !bq.closest('.markdown-embed:not(.lp-embed-copy)'));
-  if (!groups.length) return;
-  // (preparing a PDF: the note is measured as reading view's A4 page lays it out, at its width)
-  const reading = !!view.closest('.markdown-reading-view');
-  const saved = reading ? null : view.getAttribute('style');
-  let wrap = null;
-  if (!reading) {
-    wrap = document.createElement('div');
-    wrap.className = 'markdown-reading-view';
-    view.before(wrap);
-    wrap.appendChild(view);
-    view.style.setProperty('width', '210mm', 'important');
-    view.style.setProperty('max-width', 'none', 'important');
-    view.style.setProperty('box-sizing', 'border-box', 'important');
-    view.style.setProperty('padding-left', 'var(--pad-x)', 'important');
-    view.style.setProperty('padding-right', 'var(--pad-r)', 'important');
-  }
-  try {
-    const L = px(view, 'var(--line)');
-    if (!L) return;
-    const bodyRows = Math.round(px(view, 'calc(var(--body-rows) * 1px)'));
-    for (const bq of groups) {
-      const cue = bq.querySelector(':scope > .callout[data-callout="cue"]');
-      const notes = bq.querySelector(':scope > .callout[data-callout="notes"]');
-      const had = cue.hasAttribute('data-lp-shift');
-      cue.removeAttribute('data-lp-shift');
-      cue.style.removeProperty('--lp-cue-shift');
-      const cc = cue.querySelector(':scope > .callout-content'), nc = notes.querySelector(':scope > .callout-content');
-      if (!cc || !nc || !cc.textContent.trim()) continue;
-      const rows = (el) => Math.round(el.getBoundingClientRect().height / L);
-      // (notes longer than a page: the cue stays at the top, next to where they begin)
-      if (rows(nc) > bodyRows) continue;
-      let shift = Math.max(0, Math.floor((rows(nc) - rows(cc)) / 2));
-      const key = cueKey(textOf(cue), textOf(notes));
-      if (!reading && cueShiftMemo.has(key)) shift = cueShiftMemo.get(key);
-      if (shift) {
-        cue.setAttribute('data-lp-shift', String(shift));
-        if (undo && !had) undo.push({ t: 'attr', el: cue, name: 'data-lp-shift' });
-      }
-    }
-  } finally {
-    if (wrap) { wrap.before(view); wrap.remove(); if (saved == null) view.removeAttribute('style'); else view.setAttribute('style', saved); }
-  }
-  if (!later) applyCueShifts(view, undo);
-}
-// the cues are drawn lower only now: the pages are laid out with every cue where it is written, as
-// the PDF breaks its pages (a cue moved with `top` keeps its place in the layout). A cue continued on
-// the next sheet keeps its shift, as in the PDF.
-function settleCueShifts(view, undo) {
-  for (const cue of view.querySelectorAll('blockquote > .callout[data-callout="cue"]')) {
-    const bq = cue.parentElement;
-    const notes = bq.querySelector(':scope > .callout[data-callout="notes"]');
-    if (!notes || bq.closest('.lp-cont') || bq.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
-    const block = topBlock(bq);
-    const next = block.nextElementSibling;
-    const split = (next && next.classList.contains('lp-cont') && next._lpAfter === block) || bq.getClientRects().length > 1;
-    if (split && cue.hasAttribute('data-lp-shift')) cue.removeAttribute('data-lp-shift');
-    // (the whole group: with the rest of it on the next sheets)
-    let cueText = textOf(cue), notesText = textOf(notes);
-    for (let n = next; n && n.classList.contains('lp-cont'); n = n.nextElementSibling) {
-      const c = n.querySelector('.callout[data-callout="cue"]'), t = n.querySelector('.callout[data-callout="notes"]');
-      if (c) { cueText += textOf(c); c.removeAttribute('data-lp-shift'); }   // (its rest: not moved either)
-      if (t) notesText += textOf(t);
-    }
-    cueShiftMemo.set(cueKey(cueText, notesText), +(cue.getAttribute('data-lp-shift') || 0));
-  }
-  applyCueShifts(view, undo);
-}
-function applyCueShifts(view, undo) {
-  for (const cue of view.querySelectorAll('.callout[data-callout="cue"][data-lp-shift]')) {
-    if (undo && cue.style.getPropertyValue('--lp-cue-shift') === '') undo.push({ t: 'prop', el: cue, name: '--lp-cue-shift' });
-    cue.style.setProperty('--lp-cue-shift', cue.getAttribute('data-lp-shift'));
-  }
-}
-
 // A [!summary] written before a [!nextpage] belongs to the part of the note above it: it goes on the
 // bottom rows of THAT page (not with the summary at the end of the note). The plugin's own pages place
 // it themselves (paginate); for the PDF and the browser's own pages it is tied, with anchors named for
@@ -710,9 +620,17 @@ function putSectionsBack(r) {
   let prev = (r.header && r.header.el && r.header.el.parentNode === sizer && r.header.el) ||
     (r.pusherEl && r.pusherEl.parentNode === sizer && r.pusherEl) || null;
   let all = true;
+  // (a folded heading: the sections under it, down to the next heading as big or bigger, are folded
+  // away by Obsidian, and stay away)
+  const level = (el) => { const h = el.querySelector(':scope > :is(h1, h2, h3, h4, h5, h6)'); return h ? +h.tagName[1] : 0; };
+  const folded = (el) => el.classList.contains('is-collapsed') || !!el.querySelector(':scope > :is(h1, h2, h3, h4, h5, h6).is-collapsed');
+  let fold = 0;
   for (const s of secs) {
     const el = s && s.el;
     if (!el) continue;
+    const lv = level(el);
+    if (fold && (!lv || lv > fold)) continue;
+    fold = lv && folded(el) ? lv : 0;
     if (el.parentNode === sizer) { prev = el; continue; }
     if (el.parentNode || !el.childNodes.length) { all = false; continue; }
     if (prev) prev.after(el); else sizer.prepend(el);
@@ -835,8 +753,6 @@ function addPaperCommands(plugin) {
 
 module.exports = class LinedPaperPages extends Plugin {
   onload() {
-    if (this.cueShifts instanceof Map) cueShiftMemo = this.cueShifts;   // (tests: as one plugin, reading view and the PDF)
-    this.cueShifts = cueShiftMemo;
     this.states = new WeakMap();
     this.patchedRenderers = [];
     this.scan = this.scan.bind(this);
@@ -864,7 +780,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); centreCues(v); anchorMidSummaries(v); } };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -888,18 +804,26 @@ module.exports = class LinedPaperPages extends Plugin {
       this.register(() => document.fonts.removeEventListener('loadingdone', fonts));
     }
     // a picture's size is only known once it has loaded: lay the pages out again then
+    // folding a heading in reading view (its arrow in the margin): the pages are laid out again for
+    // what is left (Obsidian takes the folded blocks away, or hides them)
+    this.registerDomEvent(document, 'click', (e) => {
+      const arrow = e.target && e.target.closest && e.target.closest('.heading-collapse-indicator');
+      const view = arrow && arrow.closest(SEL_VIEW);
+      const st = view && this.states.get(view);
+      if (st) window.setTimeout(() => this.queue(view, st), 30);
+    }, true);
     this.registerDomEvent(document, 'load', (e) => {
       const view = e.target && e.target.tagName === 'IMG' && e.target.closest(SEL_VIEW);
       const st = view && this.states.get(view);
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); centreCues(pr); anchorMidSummaries(pr); } });
+    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); centreCues(pr); anchorMidSummaries(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1127,7 +1051,6 @@ module.exports = class LinedPaperPages extends Plugin {
       unwrapCalloutEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
-      centreCues(view, st.undo, true);
       anchorMidSummaries(view, st.undo);
       if (this.cssPaged()) {
         // the browser paginates with CSS (lined-paper.css): only add the sheet shadows + labels
@@ -1139,7 +1062,6 @@ module.exports = class LinedPaperPages extends Plugin {
         view.classList.add('lp-paged');
         st.undo.push({ t: 'cls', el: view, name: 'lp-paged' });
       }
-      settleCueShifts(view, st.undo);
     } catch (e) {
       console.error('[lined-paper-pages]', e);
       if (!this.errorShown) {

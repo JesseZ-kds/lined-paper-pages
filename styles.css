@@ -637,6 +637,47 @@ settings:
 .lined-paper .cm-fold-indicator {
   display: none !important;
 }
+/* ...except a heading's fold arrow in reading view: fold a part of the page (a # title folds its
+   whole page) to see the rest. It sits in the gap left of the text, between the red margin line and
+   the heading, shown when the pointer is on the heading, and always while the heading is folded.
+   Never in the PDF. */
+@media screen {
+  .markdown-reading-view .markdown-preview-view.lined-paper :is(h2, h3, h4, h5, h6) {
+    position: relative;   /* (the title bar, h1, is positioned already) */
+  }
+  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6) > .heading-collapse-indicator {
+    display: flex !important;
+    position: absolute !important;
+    left: calc(var(--margin-gap) * -1 + 1px);
+    top: 0;
+    bottom: 0;
+    width: calc(var(--margin-gap) - 2px);
+    margin: 0 !important;
+    padding: 0 !important;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    color: var(--muted);
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  /* (the title bar: the arrow on the title's line, left of the text) */
+  .markdown-reading-view .markdown-preview-view.lined-paper h1 > .heading-collapse-indicator {
+    left: calc(var(--pad-x) - var(--margin-gap) + 1px);
+    top: auto;
+    bottom: calc(var(--line) * 0.25);
+    height: var(--line);
+  }
+  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6):hover > .heading-collapse-indicator,
+  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6).is-collapsed > .heading-collapse-indicator,
+  .markdown-reading-view .markdown-preview-view.lined-paper .is-collapsed > :is(h1, h2, h3, h4, h5, h6) > .heading-collapse-indicator {
+    opacity: 1;
+  }
+  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6) > .heading-collapse-indicator svg {
+    width: 12px;
+    height: 12px;
+  }
+}
 
 .markdown-preview-view.lined-paper .markdown-preview-section > div:where(:not(:has(> h1)):not(.metadata-container):not(.frontmatter-container)),
 .markdown-source-view.lined-paper .cm-content > :is(.cm-line, .cm-embed-block):not(.HyperMD-header-1) {
@@ -2657,7 +2698,8 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
      next sheet whole (as in the PDF, and as the plugin does when it makes the pages) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(.callout:not([data-callout="cue"], [data-callout="notes"]), pre, table, img, .image-embed) {
     break-inside: avoid;
-  }  /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
+  }
+  /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(h2, h3, h4, h5, h6),
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> :is(h2, h3, h4, h5, h6)) { break-after: avoid; }
 
@@ -4406,18 +4448,11 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 /* =====================================================================
    CUES: CENTRED
    =====================================================================
-   A cue's text is centred in the cue column. A cue shorter than its notes sits in the middle of the
-   lines the notes take, on the ruled lines (the plugin works out how many lines down:
-   --lp-cue-shift, main.js centreCues); a cue as long as its notes, or longer, starts at the top. */
+   A cue's text is centred in the cue column, starting on the same line as its notes. */
 .lined-paper.cornell .callout[data-callout="cue"] > .callout-content :is(p, h2, h3, h4, h5, h6, li) {
   text-align: center !important;
 }
 .lined-paper.cornell .callout[data-callout="cue"] > .callout-content > :is(ul, ol) {
   list-style-position: inside;
   padding-inline-start: 0 !important;
-}
-/* (drawn lower, not laid out lower: where the pages break stays the same as in the PDF) */
-.lined-paper.cornell .callout[data-callout="cue"] > .callout-content {
-  position: relative;
-  top: calc(var(--lp-cue-shift, 0) * var(--line));
 }

@@ -6,14 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-01
+
+### Changed
+- Cues start on the same line as their notes again (1.14.0 moved a short cue down to the middle of
+  its notes); their text stays centred in the cue column.
+
+### Added
+- Folding headings in reading view: the fold arrow shows in the margin gap left of a heading (and
+  of the title) when you point at it. Folding takes that part away and the pages are laid out again
+  for what is left; unfolding brings it back.
+
+### Fixed
+- Folding a heading (e.g. with "Toggle fold") did not work on lined paper: the plugin, which keeps
+  every part of a long note on the page, put the folded part straight back, which could leave the
+  page laid out wrongly (a summary cut off by the next page's title).
+
 ## [1.14.0] - 2026-11-01
 
 ### Changed
-- Cues are centred: their text is centred in the cue column, and a cue shorter than its notes sits
-  in the middle of the lines the notes take, on the ruled lines. A cue as long as its notes, or a
-  group that runs over two pages, keeps the cue at the top. Reading view and the PDF (the PDF uses
-  the places reading view worked out; a note exported without having been shown in reading view is
-  measured for it).
+- Cue text is centred in the cue column (and, in this version only, a short cue was moved down to
+  the middle of its notes).
 
 ## [1.13.4] - 2026-10-29
 
@@ -346,7 +359,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.14.0...HEAD
+[Unreleased]: ../../compare/1.14.1...HEAD
+[1.14.1]: ../../compare/1.14.0...1.14.1
 [1.14.0]: ../../compare/1.13.4...1.14.0
 [1.13.4]: ../../compare/1.13.3...1.13.4
 [1.13.3]: ../../compare/1.13.2...1.13.3

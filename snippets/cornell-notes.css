@@ -1375,18 +1375,11 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
 /* =====================================================================
    CUES: CENTRED
    =====================================================================
-   A cue's text is centred in the cue column. A cue shorter than its notes sits in the middle of the
-   lines the notes take, on the ruled lines (the plugin works out how many lines down:
-   --lp-cue-shift, main.js centreCues); a cue as long as its notes, or longer, starts at the top. */
+   A cue's text is centred in the cue column, starting on the same line as its notes. */
 .lined-paper.cornell .callout[data-callout="cue"] > .callout-content :is(p, h2, h3, h4, h5, h6, li) {
   text-align: center !important;
 }
 .lined-paper.cornell .callout[data-callout="cue"] > .callout-content > :is(ul, ol) {
   list-style-position: inside;
   padding-inline-start: 0 !important;
-}
-/* (drawn lower, not laid out lower: where the pages break stays the same as in the PDF) */
-.lined-paper.cornell .callout[data-callout="cue"] > .callout-content {
-  position: relative;
-  top: calc(var(--lp-cue-shift, 0) * var(--line));
 }
