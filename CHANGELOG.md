@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.15.3] - 2026-11-01
+
+### Fixed
+- In reading view and the PDF, the `![[Note#^id]]` line takes no room of its own: text written on the
+  line right after an embed (in the same paragraph) came a line too low, under an empty line left by
+  the line break after the embed. That break is left out now.
+
 ## [1.15.2] - 2026-11-01
 
 ### Fixed
@@ -415,7 +422,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.15.2...HEAD
+[Unreleased]: ../../compare/1.15.3...HEAD
+[1.15.3]: ../../compare/1.15.2...1.15.3
 [1.15.2]: ../../compare/1.15.1...1.15.2
 [1.15.1]: ../../compare/1.15.0...1.15.1
 [1.15.0]: ../../compare/1.14.3...1.15.0

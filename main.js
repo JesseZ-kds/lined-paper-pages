@@ -467,6 +467,26 @@ function alignEmbeds(root, undo) {
   });
 }
 
+// The `![[Note#^id]]` line itself takes no room: an embed is a block of its own, which already ends
+// its line, so the line break after it (a <br>, or the newline in the notes' Enter-is-a-new-line text)
+// would add an empty line under it. That break is left out (reading view and the PDF).
+function tidyEmbedLines(root, undo) {
+  for (const e of root.querySelectorAll('.internal-embed[src*="#^"], .lp-embed-copy')) {
+    if (e.closest('.markdown-embed:not(.lp-embed-copy) .markdown-embed')) continue;
+    let n = e.nextSibling;
+    while (n && n.nodeType === 3 && /^[ \t]*$/.test(n.data)) n = n.nextSibling;   // (spaces only)
+    if (!n) continue;
+    if (n.nodeType === 1 && n.tagName === 'BR' && n.style.display !== 'none') {
+      n.style.setProperty('display', 'none', 'important');
+      if (undo) undo.push({ t: 'prop', el: n, name: 'display' });
+    } else if (n.nodeType === 3 && /^[ \t]*\n/.test(n.data)) {
+      const was = n.data;
+      n.data = n.data.replace(/^[ \t]*\n/, '');
+      if (undo) undo.push({ t: 'text', node: n, data: was });
+    }
+  }
+}
+
 function unwrapCalloutEmbeds(root, undo) {
   for (const emb of root.querySelectorAll(SEL_EMBED)) {
     if (emb.closest('.lp-embed-unwrapped') || emb.parentElement.closest(SEL_EMBED)) continue;
@@ -861,7 +881,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -904,7 +924,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1174,6 +1194,7 @@ module.exports = class LinedPaperPages extends Plugin {
       liftSummaries(view, st.undo);
       autoBreaks(view, st.undo);
       unwrapCalloutEmbeds(view, st.undo);
+      tidyEmbedLines(view, st.undo);
       alignEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
@@ -1241,6 +1262,7 @@ module.exports = class LinedPaperPages extends Plugin {
           case 'attr': u.el.removeAttribute(u.name); break;
           case 'unq': u.c.replaceWith(u.bq); u.bq.append(u.c); break;
           case 'lift': if (u.mark.isConnected) u.mark.replaceWith(u.sum); break;
+          case 'text': u.node.data = u.data; break;
         }
       } catch (e) { /* node was re-rendered by Obsidian: nothing to undo */ }
     }

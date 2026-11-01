@@ -140,3 +140,26 @@ for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination'
     });
   }
 }
+
+// The `![[Note#^id]]` line takes no room of its own: text written on the lines right before and
+// after it (the same paragraph: a <br>, or a newline in the notes) is on the lines just above and
+// just below the embedded text, not a line further
+for (const [name, html] of [['line breaks', 'before<br>EMB<br>after'], ['newlines', 'before\nEMB\nafter']]) {
+  test(`text right after an embed is on the next line (${name})`, async () => {
+    const { openReading } = require('./lib/harness');
+    const { title, group } = require('./lib/notes');
+    const span = '<span class="internal-embed markdown-embed inline-embed is-loaded" src="Other#^x"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-p"><p>EMBEDDED line</p></div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></template></span>';
+    const { page, context } = await openReading({ name: 'br', cornell: true, blocks: [title('E'), group('<p>cue</p>', `<p>${html.replace('EMB', span)}</p>`)] });
+    try {
+      const rows = await page.evaluate(() => {
+        const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; document.querySelector('.markdown-preview-view').appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+        const outer = document.querySelector('.callout[data-callout="notes"] .callout-content > p');
+        const inner = [...document.querySelectorAll('p')].find((p) => p.textContent === 'EMBEDDED line');
+        return [+((inner.getBoundingClientRect().top - outer.getBoundingClientRect().top) / L).toFixed(2), +(outer.getBoundingClientRect().height / L).toFixed(2)];
+      });
+      assert.deepEqual(rows, [1, 3], 'the embed on the 2nd line, the paragraph 3 lines (before, embed, after)');
+    } finally {
+      await context.close();
+    }
+  });
+}
