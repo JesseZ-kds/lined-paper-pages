@@ -110,9 +110,12 @@ Or as two separate callouts:
 
 Cues are centred in the cue column and start on the same line as their notes.
 
-**Folding:** in reading view, point at a heading and click the small arrow in the margin gap left of
-it to fold that part of the page away (a `# Title` folds its whole page); the pages are laid out again
-for what is left. Click again to unfold.
+**Folding (editing view):** point at a heading line and click the small arrow in the margin gap left
+of it to fold that part away (a `# Title` folds its whole page); click it again to unfold. Or use
+the commands *Toggle fold on the current line*, *Fold all headings and lists* and *Unfold all
+headings and lists* (give them hotkeys in Settings → Hotkeys). Folding needs *Settings → Editor →
+Fold heading* on. Reading view shows the pages without fold arrows; a part folded while editing is
+left out of reading view too, and the pages are laid out for what is left.
 
 Long notes continue on the next page, in the notes column. A cue that is too long continues in
 the cue column.

@@ -127,13 +127,23 @@ function cssValue(def, v) {
 
 const SEL_VIEW = '.markdown-reading-view .markdown-preview-view.lined-paper';
 
+// a CSS length in px, worked out where the note's variables are. (A hidden element that stays in
+// the note, never laid out, and the length read from its style: measuring with an element that is
+// laid out made the browser lay the whole note out again for every value, seconds on a long note.)
 function px(view, expr) {
-  const d = document.createElement('div');
-  d.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;width:0;height:' + expr;
-  view.appendChild(d);
-  const h = d.getBoundingClientRect().height;
-  d.remove();
-  return h;
+  let p = view.__lpProbe;
+  if (!p || p.parentNode !== view) {
+    p = document.createElement('div');
+    p.className = 'lp-probe';
+    p.setAttribute('aria-hidden', 'true');
+    p.style.setProperty('display', 'none', 'important');
+    view.appendChild(p);
+    view.__lpProbe = p;
+  }
+  p.style.letterSpacing = '';
+  p.style.letterSpacing = expr;
+  const v = p.style.letterSpacing ? parseFloat(getComputedStyle(p).letterSpacing) : 0;
+  return Number.isFinite(v) ? Math.round(v * 64) / 64 : 0;   // (as the browser lays lengths out: in 1/64 px)
 }
 const rows = (view, name) => Math.round(px(view, 'calc(var(' + name + ') * 1px)'));
 
@@ -190,49 +200,67 @@ function titleWidth(h) {
   return right > left ? right - left : 0;
 }
 function fitTitles(root, undo) {
+  // (all titles are changed, then all measured, and so on: changing and measuring one title after
+  // another made the browser lay the whole note out again for each)
+  const all = [];
   for (const h of root.querySelectorAll('h1')) {
     const view = h.closest('.markdown-preview-view.lined-paper');
     if (!view || h.closest('.markdown-embed')) continue;
-    const had = h.classList.contains('lp-title-wrap'), hadFit = h.classList.contains('lp-title-fit');
-    const hadAdjust = h.style.getPropertyValue('--lp-title-adjust') !== '';
+    const t = { h, view, had: h.classList.contains('lp-title-wrap'), hadFit: h.classList.contains('lp-title-fit'), hadAdjust: h.style.getPropertyValue('--lp-title-adjust') !== '' };
     h.classList.remove('lp-title-wrap', 'lp-title-fit');         // (measured on one line, full size)
     h.style.removeProperty('--lp-title-fit');
     h.style.removeProperty('--lp-title-adjust');
+    all.push(t);
+  }
+  // 1. how wide each title is, against the room in the bar
+  for (const t of all) {
+    const { h, view } = t;
     const cs = getComputedStyle(h);
     const size = parseFloat(cs.fontSize);
     const textW = titleWidth(h);
-    if (!size || !textW) continue;
-    let ratio;
+    if (!size || !textW) { t.skip = true; continue; }
     if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
       // (no A4 pages: the bar is the pane's width)
-      ratio = (h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / textW;
+      t.ratio = (h.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) / textW;
     } else {
       const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)');
-      ratio = room / ((textW / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))'));
+      t.ratio = room / ((textW / size) * px(view, 'calc(var(--lp-title, 48px) * var(--print-scale))'));
     }
-    if (ratio >= 1) { /* fits */ }
-    else if (ratio >= TITLE_MIN) {
+    t.want = px(view, 'calc(var(--line) * (var(--bar-lines) - 0.8 + var(--lp-title-drop, 0.8)))') - 7;
+  }
+  // 2. smaller, or on two lines; and a mark at the end of each, held on one line, for its baseline.
+  // (Measured on the first line: an export is prepared in a window that is not A4 wide, so how it
+  // wraps there says nothing. A two-line title's last line is one line lower.)
+  for (const t of all) {
+    if (t.skip) continue;
+    const { h } = t;
+    if (t.ratio >= 1) { /* fits */ }
+    else if (t.ratio >= TITLE_MIN) {
       h.classList.add('lp-title-fit');
-      h.style.setProperty('--lp-title-fit', String(Math.floor(ratio * 100) / 100));
-      if (undo && !hadFit) undo.push({ t: 'cls', el: h, name: 'lp-title-fit' }, { t: 'prop', el: h, name: '--lp-title-fit' });
+      h.style.setProperty('--lp-title-fit', String(Math.floor(t.ratio * 100) / 100));
+      if (undo && !t.hadFit) undo.push({ t: 'cls', el: h, name: 'lp-title-fit' }, { t: 'prop', el: h, name: '--lp-title-fit' });
     } else {
       h.classList.add('lp-title-wrap');
-      if (undo && !had) undo.push({ t: 'cls', el: h, name: 'lp-title-wrap' });
+      if (undo && !t.had) undo.push({ t: 'cls', el: h, name: 'lp-title-wrap' });
     }
-    // onto the line: the (last line's) baseline on the top of the double line, 7px above the bar's end.
-    // (Measured on the first line, the title held on one line: an export is prepared in a window that
-    // is not A4 wide, so how it wraps there says nothing. A two-line title's last line is one line lower.)
-    const probe = document.createElement('span');
-    probe.style.cssText = 'display:inline-block;width:0;height:0;';
+    t.probe = document.createElement('span');
+    t.probe.style.cssText = 'display:inline-block;width:0;height:0;';
     h.style.setProperty('white-space', 'nowrap', 'important');
-    h.appendChild(probe);
-    let base = probe.getBoundingClientRect().bottom - h.getBoundingClientRect().top;
-    probe.remove();
-    h.style.removeProperty('white-space');
-    if (h.classList.contains('lp-title-wrap')) base += parseFloat(getComputedStyle(h).lineHeight);
-    const want = px(view, 'calc(var(--line) * (var(--bar-lines) - 0.8 + var(--lp-title-drop, 0.8)))') - 7;
-    h.style.setProperty('--lp-title-adjust', (Math.round((want - base) * 4) / 4) + 'px');
-    if (undo && !hadAdjust) undo.push({ t: 'prop', el: h, name: '--lp-title-adjust' });
+    h.appendChild(t.probe);
+  }
+  // 3. where each baseline is
+  for (const t of all) {
+    if (t.skip) continue;
+    t.base = t.probe.getBoundingClientRect().bottom - t.h.getBoundingClientRect().top;
+    if (t.h.classList.contains('lp-title-wrap')) t.base += parseFloat(getComputedStyle(t.h).lineHeight);
+  }
+  // 4. onto the line: the (last line's) baseline on the top of the double line, 7px above the bar's end
+  for (const t of all) {
+    if (t.skip) continue;
+    t.probe.remove();
+    t.h.style.removeProperty('white-space');
+    t.h.style.setProperty('--lp-title-adjust', (Math.round((t.want - t.base) * 4) / 4) + 'px');
+    if (undo && !t.hadAdjust) undo.push({ t: 'prop', el: t.h, name: '--lp-title-adjust' });
   }
   fitQuestions(root, undo);
 }
@@ -242,27 +270,34 @@ function fitTitles(root, undo) {
 // in units of the font size, at the A4 sizes, against an A4 line (an export is prepared in a window
 // that is not A4 wide); without A4 pages, against the line on screen.
 function fitQuestions(root, undo) {
+  // (all reset, then all measured, then all set: see fitTitles)
+  const all = [];
   for (const c of root.querySelectorAll('.lined-paper .callout[data-callout="question"] > .callout-content')) {
     const view = c.closest('.markdown-preview-view.lined-paper');
     if (!view || c.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
-    const had = c.style.getPropertyValue('--lp-q-fit') !== '';
+    all.push({ c, view, had: c.style.getPropertyValue('--lp-q-fit') !== '' });
     c.style.removeProperty('--lp-q-fit');
-    const width = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
-    let ratio = 1;
+  }
+  const width = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
+  for (const q of all) {
+    const { c, view } = q;
+    q.ratio = 1;
     for (const b of c.children) {
       const w = width(b);
       if (!w) continue;
       if (document.body.classList.contains('lp-no-pages') && view.closest('.markdown-reading-view')) {
-        ratio = Math.min(ratio, b.clientWidth / w);
+        q.ratio = Math.min(q.ratio, b.clientWidth / w);
       } else {
         const text = px(view, 'calc(var(--lp-text, 22px) * var(--print-scale) * var(--text-size, 1))');
         const room = px(view, '210mm') - px(view, 'var(--pad-x)') - px(view, 'var(--pad-r)');
-        ratio = Math.min(ratio, room / ((w / parseFloat(getComputedStyle(b).fontSize)) * text));
+        q.ratio = Math.min(q.ratio, room / ((w / parseFloat(getComputedStyle(b).fontSize)) * text));
       }
     }
-    if (ratio < 1) {
-      c.style.setProperty('--lp-q-fit', String(Math.floor(ratio * 100) / 100));
-      if (undo && !had) undo.push({ t: 'prop', el: c, name: '--lp-q-fit' });
+  }
+  for (const q of all) {
+    if (q.ratio < 1) {
+      q.c.style.setProperty('--lp-q-fit', String(Math.floor(q.ratio * 100) / 100));
+      if (undo && !q.had) undo.push({ t: 'prop', el: q.c, name: '--lp-q-fit' });
     }
   }
 }
@@ -582,7 +617,7 @@ function changedNote(recs) {
     for (const n of r.addedNodes) { if (removed.has(n)) removed.delete(n); else added.add(n); }
   }
   // what is left: nodes that really came or went (a node moved within the note shows up in both)
-  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr, .lp-auto-break'));
+  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr, .lp-auto-break, .lp-probe'));
   return [...added].some(real) || [...removed].some(real);
 }
 
@@ -957,7 +992,7 @@ module.exports = class LinedPaperPages extends Plugin {
 
   scheduleScan(force) {
     window.clearTimeout(this._t);
-    this._t = window.setTimeout(() => this.scan(force), 150);
+    this._t = window.setTimeout(() => this.scan(force), 30);
   }
 
   // Obsidian builds a long note in reading view "virtually": only the sections near the screen are
@@ -1058,6 +1093,13 @@ module.exports = class LinedPaperPages extends Plugin {
       if (performance.now() - st.scrollAt < 300) { st.timer = window.setTimeout(run, 150); return; }
       this.layout(view, st);
     };
+    // a note just opened or changed (only its paper shows meanwhile): laid out at once, on the next
+    // frame (the changes Obsidian makes together are in by then); anything else after a short pause
+    if (view.classList.contains('lp-pending') && performance.now() - st.scrollAt >= 300) {
+      window.cancelAnimationFrame(st.frame);
+      st.frame = window.requestAnimationFrame(() => { window.clearTimeout(st.timer); run(); });
+      return;
+    }
     st.timer = window.setTimeout(run, 120);
   }
 

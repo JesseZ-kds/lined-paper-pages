@@ -333,10 +333,20 @@ test('a changed note shows only the paper until it is laid out again', async () 
     });
     assert.deepEqual(await state(), { pending: false, titlesShown: [true, true] });
     // Obsidian renders a block again (an edit, or the note shown again in reading view)
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.markdown-preview-sizer > div')].find((d) => d.querySelector(':scope > h1') && d.textContent.includes('Second')); b.replaceWith(b.cloneNode(true)); });
-    await page.waitForTimeout(30);
-    assert.deepEqual(await state(), { pending: true, titlesShown: [false, false] });
-    await page.waitForTimeout(800);
+    // (looked at as soon as the change is noticed, before the next frame)
+    const during = await page.evaluate(() => new Promise((res) => {
+      const b = [...document.querySelectorAll('.markdown-preview-sizer > div')].find((d) => d.querySelector(':scope > h1') && d.textContent.includes('Second'));
+      b.replaceWith(b.cloneNode(true));
+      queueMicrotask(() => queueMicrotask(() => {
+        const view = document.querySelector('.markdown-preview-view');
+        res({ pending: view.classList.contains('lp-pending'), titlesShown: [...document.querySelectorAll('h1')].map((x) => getComputedStyle(x).visibility === 'visible') });
+      }));
+    }));
+    assert.deepEqual(during, { pending: true, titlesShown: [false, false] });
+    // laid out on the next frame, not after a pause
+    const t0 = Date.now();
+    await page.waitForFunction(() => !document.querySelector('.markdown-preview-view').classList.contains('lp-pending'), null, { timeout: 2000 });
+    assert.ok(Date.now() - t0 < 600, `laid out at once (${Date.now() - t0} ms)`);
     assert.deepEqual(await state(), { pending: false, titlesShown: [true, true] });
     assert.deepEqual(page.errors, []);
   } finally {
@@ -344,31 +354,46 @@ test('a changed note shows only the paper until it is laid out again', async () 
   }
 });
 
-// A heading's fold arrow (Obsidian puts it inside the heading) shows in reading view, in the gap
-// between the red margin line and the text, when the pointer is on the heading; for the title bar,
-// left of the title
-test('headings can be folded: their arrow shows in the margin gap', async () => {
-  const { openReading } = require('./lib/harness');
+// Headings fold while editing: a heading line's fold arrow shows in the gap between the red margin
+// line and the text when the pointer is on the line (for the title, left of the title). Reading view
+// shows the pages without arrows.
+test('headings fold in editing view (arrow in the margin gap), not in reading view', async () => {
+  const { openReading, browser, CSS, SIM } = require('./lib/harness');
   const arrow = '<div class="heading-collapse-indicator collapse-indicator collapse-icon"><svg viewBox="0 0 10 10" width="10" height="10"><path d="M0 0L10 5L0 10z"/></svg></div>';
-  const { page, context } = await openReading({ name: 'fold', cornell: false, blocks: [`<div class="el-h1"><h1>${arrow}Topic</h1></div>`, `<div class="el-h2"><h2>${arrow}Part one</h2></div>`, '<div><p>text</p></div>'] });
+  // reading view: no arrows
+  const rv = await openReading({ name: 'fold', cornell: false, blocks: [`<div class="el-h1"><h1>${arrow}Topic</h1></div>`, `<div class="el-h2"><h2>${arrow}Part one</h2></div>`, '<div><p>text</p></div>'] });
   try {
-    const check = (sel) => page.evaluate((sel) => {
-      const h = document.querySelector(sel), a = h.querySelector('.heading-collapse-indicator');
-      const r = a.getBoundingClientRect(), view = document.querySelector('.markdown-preview-view');
-      const d = document.createElement('div'); d.style.cssText = 'position:absolute;width:var(--margin-x)'; view.appendChild(d);
-      const sizerLeft = document.querySelector('.markdown-preview-sizer').getBoundingClientRect().left;
-      const redLine = sizerLeft + d.getBoundingClientRect().width; d.remove();
-      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return { shown: getComputedStyle(a).display !== 'none' && r.width > 0, rightOfRedLine: r.left >= redLine, leftOfText: r.right <= h.querySelector('svg').getBoundingClientRect().right + 1 && r.right <= h.getBoundingClientRect().left + parseFloat(getComputedStyle(h).paddingLeft) + 1, clickable: !!(hit && hit.closest('.heading-collapse-indicator')), opacity: getComputedStyle(a).opacity };
-    }, sel);
-    for (const sel of ['h2', 'h1']) {
-      await page.hover(sel);
+    await rv.page.hover('h2');
+    assert.deepEqual(await rv.page.evaluate(() => [...document.querySelectorAll('.heading-collapse-indicator')].map((a) => getComputedStyle(a).display)), ['none', 'none']);
+  } finally {
+    await rv.context.close();
+  }
+  // editing view (Live Preview): the arrow of each heading line
+  const ctx = await (await browser(false)).newContext({ viewport: { width: 900, height: 700 } });
+  try {
+    const page = await ctx.newPage();
+    const fold = '<div class="cm-fold-indicator" contenteditable="false"><div class="collapse-indicator collapse-icon"><svg viewBox="0 0 10 10" width="10" height="10"><path d="M0 0L10 5L0 10z"/></svg></div></div>';
+    await page.setContent(`<!doctype html><html><head><style>html,body{margin:0}</style><style>${SIM}</style><style>${CSS}</style></head><body class="theme-light">
+<div class="markdown-source-view cm-s-obsidian mod-cm6 is-live-preview lined-paper"><div class="cm-editor"><div class="cm-scroller"><div class="cm-sizer"><div class="cm-contentContainer"><div class="cm-content">
+<div class="cm-line HyperMD-header HyperMD-header-1" id="h1">${fold}Topic</div>
+<div class="cm-line">text</div>
+<div class="cm-line HyperMD-header HyperMD-header-2" id="h2">${fold}Part one</div>
+<div class="cm-line">more text</div>
+</div></div></div></div></div></div></body></html>`);
+    for (const id of ['h2', 'h1']) {
+      await page.hover('#' + id);
       await page.waitForTimeout(250);
-      const r = await check(sel);
-      assert.deepEqual({ shown: r.shown, rightOfRedLine: r.rightOfRedLine, clickable: r.clickable, opacity: r.opacity }, { shown: true, rightOfRedLine: true, clickable: true, opacity: '1' }, sel);
+      const r = await page.evaluate((id) => {
+        const line = document.getElementById(id), a = line.querySelector('.cm-fold-indicator'), b = a.getBoundingClientRect();
+        const d = document.createElement('div'); d.style.cssText = 'position:absolute;width:var(--margin-x)'; document.querySelector('.cm-sizer').appendChild(d);
+        const redLine = document.querySelector('.cm-sizer').getBoundingClientRect().left + d.getBoundingClientRect().width; d.remove();
+        const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        return { shown: getComputedStyle(a).display !== 'none' && b.width > 0, opacity: getComputedStyle(a).opacity, rightOfRedLine: b.left >= redLine - 0.5, clickable: !!(hit && hit.closest('.cm-fold-indicator')) };
+      }, id);
+      assert.deepEqual(r, { shown: true, opacity: '1', rightOfRedLine: true, clickable: true }, id);
     }
   } finally {
-    await context.close();
+    await ctx.close();
   }
 });
 

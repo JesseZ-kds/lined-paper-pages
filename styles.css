@@ -637,15 +637,15 @@ settings:
 .lined-paper .cm-fold-indicator {
   display: none !important;
 }
-/* ...except a heading's fold arrow in reading view: fold a part of the page (a # title folds its
-   whole page) to see the rest. It sits in the gap left of the text, between the red margin line and
-   the heading, shown when the pointer is on the heading, and always while the heading is folded.
-   Never in the PDF. */
+/* ...except a heading's fold arrow while editing: fold a part of the note away to see the rest (a
+   `# Title` folds its whole page). It sits in the gap left of the heading, between the red margin
+   line and the text, shown when the pointer is on the heading line, and always while it is folded.
+   (Reading view shows the note as its pages, without arrows; the PDF never has them.) */
 @media screen {
-  .markdown-reading-view .markdown-preview-view.lined-paper :is(h2, h3, h4, h5, h6) {
-    position: relative;   /* (the title bar, h1, is positioned already) */
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header:not(.HyperMD-header-1) {
+    position: relative;   /* (the title bar line, # Title, is positioned already) */
   }
-  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6) > .heading-collapse-indicator {
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header .cm-fold-indicator {
     display: flex !important;
     position: absolute !important;
     left: calc(var(--margin-gap) * -1 + 1px);
@@ -661,19 +661,22 @@ settings:
     cursor: pointer;
     transition: opacity 0.15s;
   }
-  /* (the title bar: the arrow on the title's line, left of the text) */
-  .markdown-reading-view .markdown-preview-view.lined-paper h1 > .heading-collapse-indicator {
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header-1 .cm-fold-indicator {
     left: calc(var(--pad-x) - var(--margin-gap) + 1px);
     top: auto;
     bottom: calc(var(--line) * 0.25);
     height: var(--line);
   }
-  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6):hover > .heading-collapse-indicator,
-  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6).is-collapsed > .heading-collapse-indicator,
-  .markdown-reading-view .markdown-preview-view.lined-paper .is-collapsed > :is(h1, h2, h3, h4, h5, h6) > .heading-collapse-indicator {
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header:hover .cm-fold-indicator,
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header .cm-fold-indicator:is(.is-collapsed, :has(.is-collapsed)) {
     opacity: 1;
   }
-  .markdown-reading-view .markdown-preview-view.lined-paper :is(h1, h2, h3, h4, h5, h6) > .heading-collapse-indicator svg {
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header .cm-fold-indicator :is(.collapse-indicator, .collapse-icon) {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .markdown-source-view.lined-paper .cm-line.HyperMD-header .cm-fold-indicator svg {
     width: 12px;
     height: 12px;
   }

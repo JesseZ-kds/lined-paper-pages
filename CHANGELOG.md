@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-11-01
+
+### Changed
+- Reading view is laid out much faster: a long note (28 pages) in about 0.2 s instead of 4 s with the
+  browser's own pages, 3 s instead of 7 s with the plugin's. Measuring the note's sizes made the
+  browser lay the whole note out again for every value; now they are read without a new layout,
+  and titles and questions are measured all together. A note that was just opened or changed is
+  laid out on the next frame instead of after a pause.
+- Folding headings is for editing view: the fold arrow shows in the margin gap left of a heading
+  line there. Reading view has no fold arrows any more (a part folded while editing stays folded
+  there).
+
 ## [1.14.3] - 2026-11-01
 
 ### Fixed
@@ -380,7 +392,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.14.3...HEAD
+[Unreleased]: ../../compare/1.15.0...HEAD
+[1.15.0]: ../../compare/1.14.3...1.15.0
 [1.14.3]: ../../compare/1.14.2...1.14.3
 [1.14.2]: ../../compare/1.14.1...1.14.2
 [1.14.1]: ../../compare/1.14.0...1.14.1
