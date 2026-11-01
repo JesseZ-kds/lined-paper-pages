@@ -812,6 +812,16 @@ settings:
   font-weight: 400;
   text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
 }
+/* (in the PDF a thin outline round the letters instead: a PDF export can leave text shadows out, and
+   the handwriting font has no bold of its own. It takes no room, so every line breaks as on screen.) */
+@media print {
+  .lined-paper strong {
+    text-shadow: none !important;
+    -webkit-text-stroke: 0.7px currentColor;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
 
 /* Italics: a real slant. (The old wavy underline sat exactly on the ruled line, so it got lost.) */
 .lined-paper em,

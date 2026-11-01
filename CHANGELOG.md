@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.14.2] - 2026-11-01
+
+### Fixed
+- **Bold** text is bold in the PDF too: the handwriting font has no bold of its own, and the PDF
+  export could leave out the way it is drawn on screen; in the PDF it is now a thin outline round the
+  letters (it takes no room, so every line still breaks as on screen).
+
+### Added
+- Command *Copy layout report*: copies how the open note is laid out (pages, titles, summaries, the
+  plugin version and settings) to paste into a message when the pages look wrong. Nothing is changed.
+
 ## [1.14.1] - 2026-11-01
 
 ### Changed
@@ -359,7 +370,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.14.1...HEAD
+[Unreleased]: ../../compare/1.14.2...HEAD
+[1.14.2]: ../../compare/1.14.1...1.14.2
 [1.14.1]: ../../compare/1.14.0...1.14.1
 [1.14.0]: ../../compare/1.13.4...1.14.0
 [1.13.4]: ../../compare/1.13.3...1.13.4

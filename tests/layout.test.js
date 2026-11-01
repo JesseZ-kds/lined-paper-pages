@@ -371,3 +371,19 @@ test('headings can be folded: their arrow shows in the margin gap', async () => 
     await context.close();
   }
 });
+
+// "Copy layout report": where the open note's titles and summaries are, the pages, the mode and
+// the settings (to send when something looks wrong)
+test('the layout report says where every title and summary is', async () => {
+  const { openReading } = require('./lib/harness');
+  const { page, context } = await openReading(note('autoBreak', { inGroup: true }));
+  try {
+    const r = await page.evaluate(() => window.plugin.layoutReport());
+    assert.equal(r.cssPages, false);
+    assert.equal(r.view.sheets, 2);
+    assert.deepEqual(r.view.titles.map((t) => [t.text, t.page, t.row]), [['First topic', 1, 0], ['Second topic', 2, 0]]);
+    assert.deepEqual(r.view.summaries.map((s) => [s.mid, s.page]), [[true, 1], [false, 2]]);
+  } finally {
+    await context.close();
+  }
+});

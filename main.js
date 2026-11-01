@@ -848,6 +848,17 @@ module.exports = class LinedPaperPages extends Plugin {
       name: 'Re-paginate reading view',
       callback: () => { this.scheduleScan(true); new Notice('Lined Paper Pages: re-paginating'); },
     });
+    // a report of how the open note is laid out, to send when something looks wrong (nothing is changed)
+    this.addCommand({
+      id: 'copy-layout-report',
+      name: 'Copy layout report (to send when the pages look wrong)',
+      callback: () => {
+        const text = JSON.stringify(this.layoutReport(), null, 1);
+        const done = () => new Notice('Lined Paper Pages: layout report copied. Paste it into your message.');
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => console.log(text));
+        else console.log(text);
+      },
+    });
     addPaperCommands(this);
     console.log('[lined-paper-pages] loaded, version ' + ((this.manifest && this.manifest.version) || '?'));
 
@@ -1122,6 +1133,33 @@ module.exports = class LinedPaperPages extends Plugin {
 
   // newer Chromium can split the note into page-sized columns itself (column-height + column-wrap);
   // lined-paper.css then does the pagination and this plugin must not move anything
+  layoutReport() {
+    const view = document.querySelector('.workspace-leaf.mod-active .markdown-reading-view .markdown-preview-view.lined-paper') || document.querySelector(SEL_VIEW);
+    const r = {
+      plugin: this.manifest && this.manifest.version,
+      chrome: (typeof process !== 'undefined' && process.versions && process.versions.chrome) || navigator.userAgent,
+      cssPages: this.cssPaged(),
+      body: Array.from(document.body.classList).filter((c) => /^(lp-|cn-|theme-)/.test(c)),
+      settings: this.settings,
+      snippets: (() => { try { return Array.from(this.app.customCss.enabledSnippets); } catch (e) { return null; } })(),
+      view: null,
+    };
+    if (!view) return r;
+    const sizer = view.querySelector('.markdown-preview-sizer');
+    const top = sizer ? sizer.getBoundingClientRect().top : 0;
+    const P = px(view, 'var(--page-h)'), L = px(view, 'var(--line)'), E = px(view, 'var(--body-end)');
+    const at = (el) => { const b = el.getBoundingClientRect(); const y = b.top - top; return { page: Math.floor(y / P) + 1, row: +((y - Math.floor(y / P) * P) / L).toFixed(2), rows: +(b.height / L).toFixed(2) }; };
+    r.view = {
+      classes: Array.from(view.classList), P, L, bodyEnd: E,
+      sheets: view.querySelectorAll('.lp-sheet').length,
+      sizerHeight: sizer && sizer.getBoundingClientRect().height,
+      titles: Array.from(view.querySelectorAll('h1')).map((h) => ({ text: h.textContent.trim().slice(0, 30), block: h.parentElement.className, prev: h.parentElement.previousElementSibling && h.parentElement.previousElementSibling.className, ...at(h) })),
+      summaries: Array.from(view.querySelectorAll('.callout[data-callout="summary"]')).map((x) => ({ text: x.textContent.trim().slice(7, 37), mid: isMidSummary(x), inGroup: !!x.closest('blockquote'), style: x.getAttribute('style'), ...at(x) })),
+      sections: sizer ? Array.from(sizer.children).map((c) => c.className.slice(0, 40)).slice(0, 200) : [],
+    };
+    return r;
+  }
+
   cssPaged() {
     if (this._css === undefined) {
       this._css = !!(window.CSS && CSS.supports('column-wrap', 'wrap') && CSS.supports('column-height', '1px'));
