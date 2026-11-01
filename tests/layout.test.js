@@ -413,3 +413,21 @@ test('the layout report says where every title and summary is', async () => {
     await context.close();
   }
 });
+
+// With the browser's own pages, a part's summary is placed from where the notes really are on the
+// pages, not from CSS anchors (which put it in the footer in some versions of Chrome): with the
+// anchors made useless, it is still on the bottom lines of its part's page
+test('a part\'s summary is on its page\'s bottom lines without the CSS anchors (CSS pagination)', async (t) => {
+  const { openReading } = require('./lib/harness');
+  const { page, context } = await openReading(note('autoBreak', { inGroup: true }), { cssPaging: true });
+  if (!page) return t.skip('CSS pagination is not available in this browser');
+  try {
+    await page.addStyleTag({ content: '.lined-paper.cornell { --lp-break-gap: -5000px !important; }' });
+    await page.evaluate(() => window.plugin.scheduleScan(true));
+    await page.waitForTimeout(600);
+    const r = await page.evaluate(() => window.plugin.layoutReport().view.summaries.map((x) => [x.mid, x.page, Math.round(x.row), Math.round(x.rows)]));
+    assert.deepEqual(r, [[true, 1, 30, 5], [false, 2, 30, 5]]);
+  } finally {
+    await context.close();
+  }
+});

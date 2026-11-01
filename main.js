@@ -1182,6 +1182,7 @@ module.exports = class LinedPaperPages extends Plugin {
   layout(view, st) {
     if (!view.isConnected || st.busy) return;
     st.busy = true;
+    const started = performance.now();   // (how often and how long: the layout report shows it)
     const sc = view.scrollTop;
     // (what is at the top of the screen stays exactly there)
     const anchor = sc > 0 ? screenAnchor(view) : null;
@@ -1224,6 +1225,8 @@ module.exports = class LinedPaperPages extends Plugin {
       }
       st.obs.takeRecords();
       st.busy = false;
+      st.layouts = (st.layouts || 0) + 1;
+      st.lastMs = Math.round(performance.now() - started);
       // laid out (or nothing to lay out): the note shows again (see lp-pending in lined-paper.css)
       if (view.offsetParent || document.body.classList.contains('lp-no-pages')) view.classList.remove('lp-pending');
     }
@@ -1289,8 +1292,10 @@ module.exports = class LinedPaperPages extends Plugin {
     const top = sizer ? sizer.getBoundingClientRect().top : 0;
     const P = px(view, 'var(--page-h)'), L = px(view, 'var(--line)'), E = px(view, 'var(--body-end)');
     const at = (el) => { const b = el.getBoundingClientRect(); const y = b.top - top; return { page: Math.floor(y / P) + 1, row: +((y - Math.floor(y / P) * P) / L).toFixed(2), rows: +(b.height / L).toFixed(2) }; };
+    const st = this.states.get(view);
     r.view = {
       classes: Array.from(view.classList), P, L, bodyEnd: E,
+      layouts: st && st.layouts, lastLayoutMs: st && st.lastMs,
       sheets: view.querySelectorAll('.lp-sheet').length,
       sizerHeight: sizer && sizer.getBoundingClientRect().height,
       titles: Array.from(view.querySelectorAll('h1')).map((h) => ({ text: h.textContent.trim().slice(0, 30), block: h.parentElement.className, prev: h.parentElement.previousElementSibling && h.parentElement.previousElementSibling.className, ...at(h) })),
@@ -1327,6 +1332,48 @@ module.exports = class LinedPaperPages extends Plugin {
     const B = rows(view, '--bar-lines');
     const P = px(view, 'var(--page-h)');
     this.markPageTops(view, sizer, st, P, B, L);
+    if (view.classList.contains('cornell')) this.placePartSummaries(view, sizer, st, P, L);
+  }
+
+  // The browser's own pages: a summary of a part (before a new # title or [!nextpage]) goes on the
+  // bottom lines of the page that part ends on, worked out from where its notes really are on the
+  // pages (as the plugin's own pages do it), not from CSS anchors: on screen, where the browser puts
+  // the pages, those landed the summary in the footer. (The PDF keeps its anchors: there they work.)
+  placePartSummaries(view, sizer, st, P, L) {
+    const E = px(view, 'var(--body-end)');
+    const sumRows = rows(view, '--summary-rows'), sumMin = rows(view, '--summary-min-rows');
+    const T = 2;
+    // (all measured, then all placed, then all checked: one layout of the note for each, not one per summary)
+    const t0 = sizer.getBoundingClientRect().top;
+    const plans = [];
+    for (const sum of view.querySelectorAll('.callout[data-callout="summary"]')) {
+      if (sum.closest('.markdown-embed:not(.lp-embed-copy)')) continue;
+      const brk = breakAfter(topBlock(sum));
+      if (!brk) continue;
+      // where the part's writing ends (its last group's cue and notes text, or its last block)
+      const above = partEnd(brk);
+      if (!above.length) continue;
+      const usedEnd = Math.max(...above.map((a) => {
+        const c = a.querySelector(':scope > .callout-content');
+        return (c || a).getBoundingClientRect().bottom - t0;
+      }));
+      const copy = topBlock(sum).querySelector('.cn-sum-sizer');
+      const need = Math.max(sumMin, copy ? Math.round(copy.getBoundingClientRect().height / L) : 0);
+      let j = Math.max(0, Math.floor((usedEnd - T) / P));
+      const used = usedEnd > j * P + T ? j * P + Math.ceil((usedEnd - j * P - T) / L) * L : 0;
+      if (used && j * P + E - (used + L) < need * L - 0.5) j++;     // + the blank line
+      const bodyEnd = j * P + E;
+      let top = bodyEnd - Math.max(sumRows, need) * L;
+      if (used > j * P) top = Math.min(Math.max(top, used + L), bodyEnd - need * L);
+      plans.push({ sum, top, height: bodyEnd - top });
+    }
+    const set = (sum, name, val) => { if (sum.style.getPropertyValue(name) === '') st.undo.push({ t: 'prop', el: sum, name }); sum.style.setProperty(name, val, 'important'); };
+    for (const p of plans) { set(p.sum, 'bottom', 'auto'); set(p.sum, 'min-height', '0px'); set(p.sum, 'height', p.height + 'px'); set(p.sum, 'top', p.top + 'px'); }
+    // (where the browser's pages put it may differ from the offset given: measured, and corrected)
+    if (!plans.length) return;
+    const t1 = sizer.getBoundingClientRect().top;
+    const offs = plans.map((p) => (p.sum.getBoundingClientRect().top - t1) - p.top);
+    plans.forEach((p, k) => { if (Math.abs(offs[k]) > 0.5) set(p.sum, 'top', p.top - offs[k] + 'px'); });
   }
 
   // a [!wide] block that starts the body of sheet 2, 3 ... has no red line above it

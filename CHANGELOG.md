@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.15.4] - 2026-11-01
+
+### Fixed
+- Reading view with the browser's own pages (newer Obsidian): the summary of a part (before a new
+  `# Title` or `[!nextpage]`) sits on the bottom lines of the page that part ends on, above the next
+  page's title, as in the PDF. It is placed from where the part's notes really are, not from CSS
+  anchors, which put it in the footer, under the next title, in some Chromium versions.
+
+### Changed
+- Faster reading view: the summaries are all measured first and then all placed (one layout of the
+  note instead of one per summary).
+- The layout report (Copy layout report) shows how many layouts the note has had and how long the
+  last one took.
+
 ## [1.15.3] - 2026-11-01
 
 ### Fixed
