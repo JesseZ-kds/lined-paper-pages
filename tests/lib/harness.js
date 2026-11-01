@@ -45,7 +45,7 @@ async function closeBrowsers() {
 // ---------- the plugin, in the page ----------
 // Loads main.js with a stand-in for the `obsidian` module. `options.export` collects the
 // markdown post-processors (the PDF export runs them) instead of starting the reading view.
-function installPlugin({ src, exportMode, extra }) {
+function installPlugin({ src, exportMode, extra, shared }) {
   const processors = [];
   const app = { workspace: { on: () => ({}), getLeavesOfType: () => [], openLinkText: () => {} } };
   class Plugin {
@@ -59,6 +59,8 @@ function installPlugin({ src, exportMode, extra }) {
   const module = { exports: {} };
   new Function('require', 'module', src)((name) => (name === 'obsidian' ? obsidian : (extra && extra[name]) || {}), module);
   const plugin = new module.exports();
+  // (what reading view settled on, handed to the export as Obsidian's one plugin would have it)
+  if (shared && shared.cueShifts) plugin.cueShifts = new Map(shared.cueShifts);
   if (exportMode) plugin.scheduleScan = () => {};
   plugin.onload();
   if (exportMode) for (const el of document.querySelectorAll('.markdown-preview-view > div')) for (const f of processors) f(el, {});
@@ -166,7 +168,8 @@ async function render(note, options = {}) {
     exportPage.on('pageerror', (e) => errors.push(e.message));
     await exportPage.setContent(pages(note, theme, fonts, plugin).print);
     if (fonts) await exportPage.evaluate(() => document.fonts.ready);
-    await exportPage.evaluate(installPlugin, { src: plugin && postProcess ? MAIN : NO_PLUGIN, exportMode: true });
+    const shared = { cueShifts: await page.evaluate(() => (window.plugin && window.plugin.cueShifts ? [...window.plugin.cueShifts] : null)) };
+    await exportPage.evaluate(installPlugin, { src: plugin && postProcess ? MAIN : NO_PLUGIN, exportMode: true, shared });
     await exportPage.waitForTimeout(50);
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-')), 'export.pdf');
     await exportPage.pdf({ path: file, preferCSSPageSize: true, printBackground: true });

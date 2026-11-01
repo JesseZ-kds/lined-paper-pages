@@ -2589,8 +2589,7 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
      next sheet whole (as in the PDF, and as the plugin does when it makes the pages) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(.callout:not([data-callout="cue"], [data-callout="notes"]), pre, table, img, .image-embed) {
     break-inside: avoid;
-  }
-  /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
+  }  /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(h2, h3, h4, h5, h6),
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> :is(h2, h3, h4, h5, h6)) { break-after: avoid; }
 

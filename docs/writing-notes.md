@@ -108,6 +108,11 @@ Or as two separate callouts:
 > X is ...
 ```
 
+Cues are centred in the cue column. A cue shorter than its notes sits in the middle of the lines the
+notes take, always on a ruled line (with an odd number of lines to spare, half a line above the exact
+middle); a cue as long as its notes or longer starts at the top. When a group runs over two pages,
+or its notes are longer than a page, the cue stays at the top, next to where the notes begin.
+
 Long notes continue on the next page, in the notes column. A cue that is too long continues in
 the cue column.
 

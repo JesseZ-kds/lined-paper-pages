@@ -2657,8 +2657,7 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none !important
      next sheet whole (as in the PDF, and as the plugin does when it makes the pages) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(.callout:not([data-callout="cue"], [data-callout="notes"]), pre, table, img, .image-embed) {
     break-inside: avoid;
-  }
-  /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
+  }  /* a heading is never left at the bottom of a sheet without its text (as in the PDF, section 9) */
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper :is(h2, h3, h4, h5, h6),
   html body:not(.lp-no-pages) .markdown-reading-view .markdown-preview-view.lined-paper .markdown-preview-section > div:has(> :is(h2, h3, h4, h5, h6)) { break-after: avoid; }
 
@@ -4402,4 +4401,23 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
   .lined-paper.cornell {
     --lp-break-gap: calc(var(--tail-print) + var(--head-h));
   }
+}
+
+/* =====================================================================
+   CUES: CENTRED
+   =====================================================================
+   A cue's text is centred in the cue column. A cue shorter than its notes sits in the middle of the
+   lines the notes take, on the ruled lines (the plugin works out how many lines down:
+   --lp-cue-shift, main.js centreCues); a cue as long as its notes, or longer, starts at the top. */
+.lined-paper.cornell .callout[data-callout="cue"] > .callout-content :is(p, h2, h3, h4, h5, h6, li) {
+  text-align: center !important;
+}
+.lined-paper.cornell .callout[data-callout="cue"] > .callout-content > :is(ul, ol) {
+  list-style-position: inside;
+  padding-inline-start: 0 !important;
+}
+/* (drawn lower, not laid out lower: where the pages break stays the same as in the PDF) */
+.lined-paper.cornell .callout[data-callout="cue"] > .callout-content {
+  position: relative;
+  top: calc(var(--lp-cue-shift, 0) * var(--line));
 }

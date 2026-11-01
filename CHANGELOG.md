@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-11-01
+
+### Changed
+- Cues are centred: their text is centred in the cue column, and a cue shorter than its notes sits
+  in the middle of the lines the notes take, on the ruled lines. A cue as long as its notes, or a
+  group that runs over two pages, keeps the cue at the top. Reading view and the PDF (the PDF uses
+  the places reading view worked out; a note exported without having been shown in reading view is
+  measured for it).
+
 ## [1.13.4] - 2026-10-29
 
 ### Fixed
@@ -337,7 +346,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.13.4...HEAD
+[Unreleased]: ../../compare/1.14.0...HEAD
+[1.14.0]: ../../compare/1.13.4...1.14.0
 [1.13.4]: ../../compare/1.13.3...1.13.4
 [1.13.3]: ../../compare/1.13.2...1.13.3
 [1.13.2]: ../../compare/1.13.1...1.13.2
