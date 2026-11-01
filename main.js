@@ -437,6 +437,36 @@ function liftSummaries(root, undo) {
   }
 }
 
+// An embedded block's text starts on the embed's own line. Should anything of Obsidian's still sit
+// above it inside the embed (a gap, an empty element where the hidden title was), the embed is pulled
+// up by that much (--lp-embed-pull: lined-paper.css). All measured first, then all set.
+function alignEmbeds(root, undo) {
+  const embeds = Array.from(root.querySelectorAll('.lined-paper .internal-embed[src*="#^"]')).filter((e) => !e.closest('.lp-embed-unwrapped') && e.offsetParent);
+  for (const e of embeds) e.style.removeProperty('--lp-embed-pull');
+  const pulls = embeds.map((e) => {
+    const top = e.getBoundingClientRect().top;
+    const tw = document.createTreeWalker(e, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.nodeType === 1 && n.matches('.markdown-embed-title, .embed-title, .markdown-embed-link, .mod-header, .markdown-preview-pusher') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      if (n.nodeType === 3 ? !n.data.trim() : !n.matches('img, table, tr, li')) continue;
+      const box = n.nodeType === 3 ? (() => { const r = document.createRange(); r.selectNodeContents(n); return r.getBoundingClientRect(); })() : n.getBoundingClientRect();
+      if (!box.height) continue;
+      // (a line of text sits in its row: its row starts at the line's top less the half leading)
+      const lh = n.nodeType === 3 ? parseFloat(getComputedStyle(n.parentElement).lineHeight) || box.height : box.height;
+      const rowTop = n.nodeType === 3 ? box.top - (lh - box.height) / 2 : box.top;
+      return Math.round(rowTop - top);
+    }
+    return 0;
+  });
+  embeds.forEach((e, i) => {
+    if (pulls[i] > 1) {
+      e.style.setProperty('--lp-embed-pull', -pulls[i] + 'px');
+      if (undo) undo.push({ t: 'prop', el: e, name: '--lp-embed-pull' });
+    }
+  });
+}
+
 function unwrapCalloutEmbeds(root, undo) {
   for (const emb of root.querySelectorAll(SEL_EMBED)) {
     if (emb.closest('.lp-embed-unwrapped') || emb.parentElement.closest(SEL_EMBED)) continue;
@@ -831,7 +861,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -874,7 +904,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1144,6 +1174,7 @@ module.exports = class LinedPaperPages extends Plugin {
       liftSummaries(view, st.undo);
       autoBreaks(view, st.undo);
       unwrapCalloutEmbeds(view, st.undo);
+      alignEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
       anchorMidSummaries(view, st.undo);

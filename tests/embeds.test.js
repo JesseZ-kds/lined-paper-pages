@@ -114,3 +114,29 @@ test('a block embed has no embed frame and its text is on the lines', async () =
     await context.close();
   }
 });
+
+// An embedded table (`![[Other#^table]]`) starts on the embed's own line, whatever Obsidian puts above
+// it inside the embed (spacing, an element where the hidden title is): nothing pushes it a line down
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  for (const extra of ['spacing', 'element']) {
+    test(`an embedded table starts on its own line (${extra} above it in the embed, ${mode})`, async (t) => {
+      const { openReading } = require('./lib/harness');
+      const { title, group } = require('./lib/notes');
+      const table = '<table><thead><tr><th>EMBHEAD</th><th>B</th></tr></thead><tbody><tr><td>EMBROW</td><td>x</td></tr></tbody></table>';
+      const filler = extra === 'element' ? '<div class="el-div"><div class="obsidian-thing" style="height:31px"><span></span></div></div>' : '';
+      const embed = `<p><span class="internal-embed markdown-embed inline-embed is-loaded" src="Other#^t"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section" style="padding-bottom: 0px;"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div>${filler}<div class="el-table"${extra === 'spacing' ? ' style="padding-top:31px;margin-top:31px"' : ''}>${table}</div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></template></span></p>`;
+      const { page, context } = await openReading({ name: 'tab', cornell: true, blocks: [title('T'), group('<p>cue</p>', `<p>before</p>${embed}<p>after</p>`)] }, { cssPaging });
+      if (!page) return t.skip(`${mode} is not available in this browser`);
+      try {
+        const rows = await page.evaluate(() => {
+          const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; document.querySelector('.markdown-preview-view').appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+          const at = (re) => [...document.querySelectorAll('p, th, td')].find((x) => re.test(x.textContent) && !x.querySelector('p, th, td')).getBoundingClientRect().top;
+          return [+((at(/^EMBHEAD/) - at(/^before$/)) / L).toFixed(1), +((at(/^EMBROW/) - at(/^before$/)) / L).toFixed(1)];
+        });
+        assert.deepEqual(rows, [1, 2], 'the table head on the line after "before", its row on the next');
+      } finally {
+        await context.close();
+      }
+    });
+  }
+}

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.15.2] - 2026-11-01
+
+### Fixed
+- An embedded table (or any embedded block, `![[Note#^id]]`) starts on the embed's own line: nothing
+  of Obsidian's inside the embed above it (spacing above the table, an element where the hidden
+  embed title was) pushes it a line down. Anything left there is measured and the embed pulled up
+  by it. Reading view and the PDF (the spacing in editing view too).
+
 ## [1.15.1] - 2026-11-01
 
 ### Fixed
@@ -407,7 +415,8 @@ All notable changes to this project are documented here. The format follows
 1.0 – 1.6: lined paper and Cornell snippets, A4 pagination in reading view, the summary at the
 bottom of the last page, callouts and pictures on the rows, reading view matching the PDF export.
 
-[Unreleased]: ../../compare/1.15.1...HEAD
+[Unreleased]: ../../compare/1.15.2...HEAD
+[1.15.2]: ../../compare/1.15.1...1.15.2
 [1.15.1]: ../../compare/1.15.0...1.15.1
 [1.15.0]: ../../compare/1.14.3...1.15.0
 [1.14.3]: ../../compare/1.14.2...1.14.3

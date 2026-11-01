@@ -2964,6 +2964,19 @@ body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important
 .lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-embed-title, .markdown-embed-link, .embed-title) {
   display: none !important;
 }
+/* An embedded block's text starts on the embed's first line: nothing of Obsidian's above it takes a
+   line (spacing above a table or its wrapper, an empty element where the hidden title was). Should
+   anything else still sit above it, the plugin measures it and pulls the text up (--lp-embed-pull). */
+.lined-paper .internal-embed[src*="#^"] :is(.markdown-preview-sizer, .markdown-embed-content) > :is(div, p):not(:has(*)):not(.lp-embed-copy):empty {
+  display: none !important;
+}
+.lined-paper .internal-embed[src*="#^"] :is(.markdown-preview-sizer > div, .markdown-embed-content > div, table, .table-wrapper, .el-table, p, ul, ol, pre, blockquote):not(.callout) {
+  margin-block-start: 0 !important;
+  padding-block-start: 0 !important;
+}
+.lined-paper .internal-embed.internal-embed.internal-embed[src*="#^"] {
+  margin-top: var(--lp-embed-pull, 0px) !important;   /* (over the frameless embed's margin: 0) */
+}
 /* Editing: an embedded callout or block on a quote line (`>> ![[Note#^id]]` in a Cornell group)
    starts on that line, as typed text would, instead of under an empty line holding the `>>` */
 .lined-paper .cm-line:has(> :is(.internal-embed, .markdown-embed) .callout) > .cm-formatting,
