@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -54,19 +54,46 @@ test('a block goes on lines of its own, the cursor where the writing goes', () =
   // a whole Cornell page in an empty note, titled after the note
   const h = editor('', 0, 0);
   insertBlock(h, TEMPLATES.cornell('Photosynthesis'));
-  assert.match(h.text(), /^# Photosynthesis <span class="paper-date">\d{1,2} [A-Z][a-z]{2} \d{4}<\/span>\n\n>> \[!question\] Question\n>> \n/);
+  assert.match(h.text(), /^# Photosynthesis\n\n>> \[!question\] Question\n>> \n/);
   assert.deepEqual(h.getCursor(), { line: 3, ch: 3 });
 });
 
-test('a title with today\'s date, the cursor on the line under it', () => {
+test('a title: just the title on its line, today\'s date in the date property, the cursor under it', () => {
+  const iso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  // no properties yet: they are added
   const e = editor('', 0, 0);
+  setDateProperty(e);
   insertBlock(e, TEMPLATES.title('Immunity'));
-  const d = new Date(), day = `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getFullYear()}`;
-  assert.equal(e.text(), `# Immunity <span class="paper-date">${day}</span>\n`);
-  assert.deepEqual(e.getCursor(), { line: 1, ch: 0 });
+  assert.equal(e.text(), `---\ndate: ${iso}\n---\n\n# Immunity\n`);
+  assert.deepEqual(e.getCursor(), { line: 5, ch: 0 });
+  // properties without a date: the date goes in with them
+  const f = editor('---\ncssclasses: [lined-paper]\n---\n', 3, 0);
+  setDateProperty(f);
+  assert.equal(f.text(), `---\ncssclasses: [lined-paper]\ndate: ${iso}\n---\n`);
+  assert.deepEqual(f.getCursor(), { line: 4, ch: 0 });
+  // a date already set is kept
+  const g = editor('---\nDate: 2026-10-26\n---\n', 3, 0);
+  setDateProperty(g);
+  assert.equal(g.text(), '---\nDate: 2026-10-26\n---\n');
+});
+
+test('the date property, written like "26 Oct 2026"', () => {
+  assert.equal(frontmatterDate({ Date: '2026-10-26' }), '26 Oct 2026');
+  assert.equal(frontmatterDate({ date: '2026-03-05T10:20' }), '5 Mar 2026');
+  assert.equal(frontmatterDate({ created: '2026-12-01' }), '1 Dec 2026');
+  assert.equal(frontmatterDate({ date: 'Term 4, week 2' }), 'Term 4, week 2');
+  assert.equal(frontmatterDate({ title: 'x' }), '');
+  assert.equal(frontmatterDate(null), '');
 });
 
 test('pen marks and coloured text are found in a line of source (editing view shows them)', () => {
   const runs = colourRuns('a <span class="pen-circle">word</span> b <font color="#1e4fbf">blue</font> <span style="color: red" class="pen-box">both</span> <span class="other">no</span>');
   assert.deepEqual(runs.map((r) => [r.inner, r.colour, r.mark]), [['word', '', 'pen-circle'], ['blue', '#1e4fbf', ''], ['both', 'red', 'pen-box']]);
+});
+
+test('a note\'s own light or dark paper: its cssclasses, the rest kept', () => {
+  assert.deepEqual(noteThemeClasses({ cssclasses: ['lined-paper', 'cornell'] }, 'dark'), ['lined-paper', 'cornell', 'dark-paper']);
+  assert.deepEqual(noteThemeClasses({ cssclasses: ['lined-paper', 'dark-paper'] }, 'light'), ['lined-paper', 'light-paper']);
+  assert.deepEqual(noteThemeClasses({ cssclass: 'lined-paper, cornell' }, 'dark'), ['lined-paper', 'cornell', 'dark-paper']);
+  assert.deepEqual(noteThemeClasses({}, 'light'), ['light-paper']);
 });

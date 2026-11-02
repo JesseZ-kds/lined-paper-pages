@@ -37,6 +37,9 @@ const SETTINGS = [
   { section: 'Pages and text' },
   { key: 'pages', type: 'toggle', cls: 'lp-no-pages', invert: true, def: true, name: 'A4 pages in reading view',
     desc: 'Show reading view as separate A4 sheets, exactly like the PDF export. Off: one long lined page.' },
+  { key: 'paper-theme', type: 'select', cls: 'lp-paper-theme-', def: 'auto', name: 'Light or dark paper',
+    options: { auto: 'Follow Obsidian\'s theme', light: 'Always light paper', dark: 'Always dark paper' },
+    desc: 'Light or dark pages, whatever Obsidian\'s theme is (the PDF too). A single note can have its own: the "Switch this note\'s paper" command, or cssclasses: dark-paper / light-paper.' },
   { key: 'lp-body-rows', type: 'slider', min: 20, max: 48, step: 1, def: 32, name: 'Lines per page',
     desc: 'Ruled lines on each A4 page (not counting the title bar and footer). Fewer lines = bigger writing.' },
   { key: 'lp-text', type: 'slider', min: 14, max: 40, step: 1, def: 22, unit: 'px', name: 'Text size' },
@@ -763,7 +766,7 @@ function changedNote(recs) {
     for (const n of r.addedNodes) { if (removed.has(n)) removed.delete(n); else added.add(n); }
   }
   // what is left: nodes that really came or went (a node moved within the note shows up in both)
-  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr, .lp-auto-break, .lp-probe'));
+  const real = (n) => !(n.nodeType === 3 && !n.textContent.trim()) && !(n.nodeType === 1 && n.matches('.lp-sheet, .lp-hdr, .lp-auto-break, .lp-probe, .lp-prop-date'));
   return [...added].some(real) || [...removed].some(real);
 }
 
@@ -839,6 +842,13 @@ function paperClasses(fm, kind) {
   return [...paper, ...rest];
 }
 
+// a note's cssclasses with dark-paper or light-paper (the other one taken away), the rest kept
+function noteThemeClasses(fm, theme) {
+  const raw = fm.cssclasses !== undefined ? fm.cssclasses : fm.cssclass;
+  const list = (Array.isArray(raw) ? raw : String(raw || '').split(/[\s,]+/)).map(String).filter(Boolean);
+  return [...list.filter((c) => c !== 'dark-paper' && c !== 'light-paper'), theme + '-paper'];
+}
+
 // today, written like "26 Oct 2026" (moment comes with Obsidian)
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const today = () => {
@@ -846,10 +856,65 @@ const today = () => {
   const d = new Date();
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 };
+// a date property, written like "26 Oct 2026" (a date as 2026-10-26, with or without a time;
+// anything else is shown as written)
+function formatDate(v) {
+  if (v === null || v === undefined) return '';
+  if (Array.isArray(v)) v = v[0];
+  const str = String(v).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(str);
+  if (m && +m[2] >= 1 && +m[2] <= 12) return `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}`;
+  return str.slice(0, 40);
+}
+// the date of a note: its `date` property (any capitals), else `created`
+function frontmatterDate(fm) {
+  if (!fm || typeof fm !== 'object') return '';
+  const keys = Object.keys(fm);
+  const k = keys.find((x) => /^date$/i.test(x)) || keys.find((x) => /^created([ _-]?(at|on))?$/i.test(x));
+  return k ? formatDate(fm[k]) : '';
+}
+// The date in the title bar's corner comes from the note's date property: it is put into the note's
+// title on the page (the first # title), never written into the note, so the title line stays just
+// `# Title`. A date written in the title (<span class="paper-date">) is used as it is. Idempotent.
+function showDate(root, date) {
+  const h = root.querySelector('h1');
+  for (const old of root.querySelectorAll('.lp-prop-date')) if (old.parentElement !== h || !date) old.remove();
+  if (!h || !date || h.querySelector('.paper-date:not(.lp-prop-date)')) {
+    if (h) for (const d of h.querySelectorAll('.lp-prop-date')) d.remove();
+    return;
+  }
+  let d = h.querySelector('.lp-prop-date');
+  if (!d) {
+    d = document.createElement('span');
+    d.className = 'paper-date lp-prop-date';
+    d.setAttribute('contenteditable', 'false');
+    h.appendChild(d);
+  }
+  if (d.textContent !== date) d.textContent = date;
+}
+// the note's date property, set to today (YYYY-MM-DD) if it has none, through the editor (the
+// cursor stays where it was)
+function setDateProperty(editor) {
+  const iso = globalThis.moment ? globalThis.moment().format('YYYY-MM-DD') : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const cur = editor.getCursor();
+  const n = editor.lineCount();
+  if (editor.getLine(0) === '---') {
+    let end = -1;
+    for (let i = 1; i < n; i++) if (/^(---|\.\.\.)\s*$/.test(editor.getLine(i))) { end = i; break; }
+    if (end > 0) {
+      for (let i = 1; i < end; i++) if (/^(date|created)\s*:/i.test(editor.getLine(i))) return;
+      editor.replaceRange(`date: ${iso}\n`, { line: end, ch: 0 });
+      editor.setCursor({ line: cur.line + (cur.line >= end ? 1 : 0), ch: cur.ch });
+      return;
+    }
+  }
+  editor.replaceRange(`---\ndate: ${iso}\n---\n`, { line: 0, ch: 0 });
+  editor.setCursor({ line: cur.line + 3, ch: cur.ch });
+}
 // (every block written in a quote of its own, `>> [!…]`, like the cue / notes groups)
 const TEMPLATES = {
-  title: (title) => `# ${title} <span class="paper-date">${today()}</span>\n|`,
-  cornell: (title) => `# ${title} <span class="paper-date">${today()}</span>\n\n>> [!question] Question\n>> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n>> [!summary] Summary\n>> \n`,
+  title: (title) => `# ${title}\n|`,
+  cornell: (title) => `# ${title}\n\n>> [!question] Question\n>> |\n\n>> [!cue]\n>> \n>\n>> [!notes]\n>> \n\n>> [!summary] Summary\n>> \n`,
   group: () => '>> [!cue]\n>> |\n>\n>> [!notes]\n>> \n',
   question: () => '>> [!question] Question\n>> |\n',
   summary: () => '>> [!summary] Summary\n>> |\n',
@@ -902,12 +967,49 @@ function addPaperCommands(plugin) {
   plugin.addCommand({ id: 'make-cornell', name: 'Make this note Cornell notes', checkCallback: setPaper('cornell', 'Cornell notes') });
   plugin.addCommand({ id: 'make-plain', name: 'Make this note a plain note again', checkCallback: setPaper('off', 'plain note') });
 
+  // light / dark paper: for every note (the setting), or for this note (its cssclasses)
+  const activePage = () => {
+    const leaf = app && app.workspace && app.workspace.activeLeaf;
+    const el = leaf && leaf.view && leaf.view.containerEl;
+    return el && el.querySelector('.lined-paper:not(.lined-paper .lined-paper)');
+  };
+  const isDark = () => { const el = activePage(); return el ? plugin.paperTheme(el) === 'dark' : document.body.classList.contains('theme-dark'); };
+  plugin.togglePaperTheme = async () => {
+    const set = plugin.settings['paper-theme'];
+    const dark = !(set === 'dark' || set === 'light' ? set === 'dark' : document.body.classList.contains('theme-dark'));
+    await plugin.setSetting('paper-theme', dark ? 'dark' : 'light');
+    new Notice('Lined Paper Pages: ' + (dark ? 'dark' : 'light') + ' paper');
+  };
+  plugin.addCommand({ id: 'toggle-paper-theme', name: 'Switch the paper between light and dark', callback: () => plugin.togglePaperTheme() });
+  plugin.addCommand({ id: 'paper-theme-auto', name: 'Paper follows Obsidian\'s light / dark theme again', callback: () => plugin.setSetting('paper-theme', undefined) });
+  plugin.addCommand({
+    id: 'toggle-note-paper-theme', name: 'Switch this note\'s paper between light and dark',
+    checkCallback: (checking) => {
+      const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
+      if (!file || file.extension !== 'md') return false;
+      if (!checking) {
+        const dark = !isDark();
+        app.fileManager.processFrontMatter(file, (fm) => {
+          const cls = noteThemeClasses(fm, dark ? 'dark' : 'light');
+          delete fm.cssclass;
+          if (cls.length) fm.cssclasses = cls; else delete fm.cssclasses;
+        }).then(() => new Notice('Lined Paper Pages: ' + (dark ? 'dark' : 'light') + ' paper for this note'));
+      }
+      return true;
+    },
+  });
+  if (plugin.addRibbonIcon) plugin.addRibbonIcon('sun-moon', 'Lined Paper: light / dark paper', () => plugin.togglePaperTheme());
+
   const insert = (id, name, key) => plugin.addCommand({
     id, name,
-    editorCallback: (editor, view) => insertBlock(editor, TEMPLATES[key]((view && view.file && view.file.basename) || 'Title')),
+    editorCallback: (editor, view) => {
+      // (a title's date goes in the note's date property, shown in the title bar's corner)
+      if (key === 'title' || key === 'cornell') setDateProperty(editor);
+      insertBlock(editor, TEMPLATES[key]((view && view.file && view.file.basename) || 'Title'));
+    },
   });
-  insert('insert-title', 'Insert title with today\'s date', 'title');
-  insert('insert-cornell-page', 'Insert Cornell page (title with date, question, cue + notes, summary)', 'cornell');
+  insert('insert-title', 'Insert title (and today\'s date as the date property)', 'title');
+  insert('insert-cornell-page', 'Insert Cornell page (title, question, cue + notes, summary; today\'s date as the date property)', 'cornell');
   insert('insert-cue-notes', 'Insert cue + notes', 'group');
   insert('insert-question', 'Insert essential question', 'question');
   insert('insert-summary', 'Insert summary', 'summary');
@@ -966,6 +1068,9 @@ module.exports = class LinedPaperPages extends Plugin {
     this.registerEvent(this.app.workspace.on('layout-change', again));
     this.registerEvent(this.app.workspace.on('active-leaf-change', again));
     this.registerEvent(this.app.workspace.on('file-open', again));
+    this.registerEvent(this.app.workspace.on('css-change', () => { this.applyPaperThemes(); again(); }));
+    // (the date property changed: the date in the title bar follows)
+    if (this.app.metadataCache && this.app.metadataCache.on) this.registerEvent(this.app.metadataCache.on('changed', again));
     // coloured text with links: editing view
     const colourExt = colourEditorExtension(this);
     if (colourExt && this.registerEditorExtension) this.registerEditorExtension(colourExt);
@@ -1014,12 +1119,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { unwrapQuotedBlocks(document.body); liftSummaries(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
+    this.registerDomEvent(window, 'beforeprint', () => { this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) showDate(pr, this.noteDate(pr)); unwrapQuotedBlocks(document.body); liftSummaries(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { showDate(pr, this.noteDate(pr)); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1137,7 +1242,33 @@ module.exports = class LinedPaperPages extends Plugin {
         b.style.setProperty('--' + def.key, cssValue(def, v));
       }
     }
+    this.applyPaperThemes();
     this.scheduleScan(true);
+  }
+
+  // light or dark paper, for one page (a reading view, an editor, the PDF): the note's own choice
+  // (cssclasses: dark-paper / light-paper), else the setting, else Obsidian's theme
+  paperTheme(el) {
+    if (el.classList.contains('dark-paper')) return 'dark';
+    if (el.classList.contains('light-paper')) return 'light';
+    const s = this.settings['paper-theme'];
+    if (s === 'dark' || s === 'light') return s;
+    return document.body.classList.contains('theme-dark') ? 'dark' : 'light';
+  }
+  // each page marked lp-dark or lp-light (lined-paper.css), and, when that differs from Obsidian's
+  // theme, given that theme's class too, so Obsidian's own colours inside it (callouts, tables,
+  // properties) match the paper
+  applyPaperThemes() {
+    const bodyDark = document.body.classList.contains('theme-dark');
+    for (const el of document.querySelectorAll('.lined-paper')) {
+      if (el.parentElement && el.parentElement.closest('.lined-paper')) continue;
+      const dark = this.paperTheme(el) === 'dark';
+      const set = (cls, on) => { if (el.classList.contains(cls) !== on) el.classList.toggle(cls, on); };
+      set('lp-dark', dark);
+      set('lp-light', !dark);
+      set('theme-dark', dark && !bodyDark);
+      set('theme-light', !dark && bodyDark);
+    }
   }
 
   async setSetting(key, v) {
@@ -1155,6 +1286,7 @@ module.exports = class LinedPaperPages extends Plugin {
       else document.body.style.removeProperty('--' + def.key);
     }
     document.body.style.removeProperty('--lp-dpr');
+    for (const el of document.querySelectorAll('.lp-dark, .lp-light')) el.classList.remove('lp-dark', 'lp-light', ...(el.classList.contains('lined-paper') && el.classList.contains('theme-dark') !== document.body.classList.contains('theme-dark') ? ['theme-dark', 'theme-light'] : []));
     if (this.headObs) this.headObs.disconnect();
     if (this.bodyObs) this.bodyObs.disconnect();
     for (const r of this.patchedRenderers || []) { r.updateVirtualDisplay = r._lpAll; delete r._lpAll; }
@@ -1234,6 +1366,7 @@ module.exports = class LinedPaperPages extends Plugin {
 
   scan(force) {
     try { this.keepAllSections(); } catch (e) { /* Obsidian internals changed: leave them */ }
+    this.applyPaperThemes();
     document.querySelectorAll(SEL_VIEW).forEach((view) => {
       let st = this.states.get(view);
       if (!st) {
@@ -1294,6 +1427,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const anchorTop = anchor && anchor.getBoundingClientRect().top;
     try {
       this.undoAll(st);
+      showDate(view, this.noteDate(view));
       if (document.body.classList.contains('lp-no-pages')) return;
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
@@ -1380,6 +1514,22 @@ module.exports = class LinedPaperPages extends Plugin {
 
   // newer Chromium can split the note into page-sized columns itself (column-height + column-wrap);
   // lined-paper.css then does the pagination and this plugin must not move anything
+  // the date property of the note shown in `el` (a reading view, or the PDF export: the open note)
+  noteDate(el) {
+    try {
+      const app = this.app, ws = app && app.workspace;
+      if (!ws || !app.metadataCache) return '';
+      let file = null;
+      if (el && !el.closest('.print') && ws.getLeavesOfType) {
+        const leaf = ws.getLeavesOfType('markdown').find((l) => l.view && l.view.containerEl && l.view.containerEl.contains(el));
+        file = leaf && leaf.view.file;
+      }
+      if (!file && ws.getActiveFile) file = ws.getActiveFile();
+      const cache = file && app.metadataCache.getFileCache(file);
+      return frontmatterDate(cache && cache.frontmatter);
+    } catch (e) { return ''; }
+  }
+
   layoutReport() {
     // (the note on screen: the open tab's reading view)
     const views = Array.from(document.querySelectorAll(SEL_VIEW));
@@ -1953,6 +2103,10 @@ module.exports.paperClasses = paperClasses;   // (for the tests)
 module.exports.insertBlock = insertBlock;
 module.exports.TEMPLATES = TEMPLATES;
 module.exports.colourRuns = colourRuns;
+module.exports.setDateProperty = setDateProperty;
+module.exports.formatDate = formatDate;
+module.exports.noteThemeClasses = noteThemeClasses;
+module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------
 class LinedPaperSettingTab extends PluginSettingTab {
   constructor(app, plugin) {

@@ -94,7 +94,7 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Make this note lined paper | Ctrl/Cmd + Alt + L |
 | Make this note a plain note again | — |
 | Insert Cornell page | Ctrl/Cmd + Alt + P |
-| Insert title with today's date | Ctrl/Cmd + Alt + T |
+| Insert title (today's date in the date property) | Ctrl/Cmd + Alt + T |
 | Insert cue + notes | Ctrl/Cmd + Alt + N |
 | Insert essential question | Ctrl/Cmd + Alt + Q |
 | Insert summary | Ctrl/Cmd + Alt + S |
@@ -106,6 +106,8 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Pen: circle / box / underline / wavy underline / scribble out | — (your choice) |
 | Pen: cross out | Ctrl/Cmd + Alt + X |
 | Insert checkbox (task) | Ctrl/Cmd + Alt + K |
+| Switch the paper between light and dark | Ctrl/Cmd + Alt + M |
+| Switch this note's paper between light and dark | — |
 | Re-paginate reading view | — |
 
 The *Insert* and *Pen* commands work in editing view (where there is a cursor); switch with

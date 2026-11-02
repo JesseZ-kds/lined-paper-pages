@@ -554,8 +554,10 @@ settings:
   --title-nudge: calc(-1 * (var(--shift) + 1px));
 }
 
-/* Colours (dark theme) */
-.theme-dark .lined-paper {
+/* Colours (dark paper). The paper is dark in Obsidian's dark theme, light in its light theme, unless
+   the note says otherwise (cssclasses: dark-paper, or light-paper) or, with the plugin, Settings →
+   Lined Paper Pages → Paper colour scheme (the plugin then marks the page lp-dark / lp-light). */
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) {
   --paper: var(--lp-paper, #1c2130);
   --rule: var(--lp-rule, #2c3650);
   --margin: var(--lp-margin, #7a4350);
@@ -702,7 +704,7 @@ settings:
 
 .lined-paper .metadata-properties-heading,
 .lined-paper .metadata-add-button,
-.lined-paper .metadata-property:not([data-property-key="date"]) {
+.lined-paper .metadata-property:not([data-property-key="date" i]) {
   display: none !important;
 }
 
@@ -1169,7 +1171,13 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
   padding-top: calc(var(--line) * 0.15 + var(--lp-title-adjust, 0px)) !important;   /* (the second line rests where a one-line title does) */
 }
 
-/* Date: top right corner */
+/* (the plugin shows the date property in the title, below: not a second time from the properties) */
+.markdown-preview-view.lined-paper:has(.lp-prop-date) .metadata-property[data-property-key="date" i] {
+  display: none !important;
+}
+
+/* Date: top right corner. Written in the title (<span class="paper-date">) or, with the plugin,
+   the note's date property (the plugin puts it in the title on the page: .lp-prop-date) */
 .lined-paper .paper-date {
   position: absolute;
   right: 28px;
@@ -1340,7 +1348,7 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
   --tail-h: calc(var(--page-h) - var(--body-end));   /* blank footer + leftover strip under the writing area */
   --desk: var(--lp-desk, #d9dde3);
 }
-.theme-dark .lined-paper { --desk: var(--lp-desk, #0f121a); }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --desk: var(--lp-desk, #0f121a); }
 
 @supports (width: round(up, 1px, 1px)) {
   .lined-paper { --page-h: calc(var(--line) * round(up, var(--page-rows), 1)); }
@@ -2948,7 +2956,7 @@ body {
   --pen-highlight-edge: rgba(255, 200, 0, 0.7);
   --pen-highlight-blend: multiply;
 }
-body.theme-dark {
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) {
   --pen-blue: #8ab4f8;
   --pen-red: #f28b82;
   --pen-green: #81c995;
@@ -2959,16 +2967,16 @@ body.theme-dark {
   --pen-highlight-edge: rgba(240, 195, 30, 0.95);
   --pen-highlight-blend: normal;
 }
-body.theme-dark .lined-paper :is(mark, .cm-highlight) { color: #1f2328 !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight) { color: #1f2328 !important; }
 /* The colours of Word / Office's palette, often used for notes (<font color="#4f81bd">), are a
    little lighter in dark theme too, so they stay as easy to read as the pens (as written on white
    paper). */
-body.theme-dark .lined-paper font[color="#4f81bd" i] { color: #7fa7dc !important; }
-body.theme-dark .lined-paper font[color="#c0504d" i] { color: #e58582 !important; }
-body.theme-dark .lined-paper font[color="#9bbb59" i] { color: #b5d47c !important; }
-body.theme-dark .lined-paper font[color="#8064a2" i] { color: #b49fd4 !important; }
-body.theme-dark .lined-paper font[color="#4bacc6" i] { color: #7ccbe0 !important; }
-body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) font[color="#4f81bd" i] { color: #7fa7dc !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) font[color="#c0504d" i] { color: #e58582 !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) font[color="#9bbb59" i] { color: #b5d47c !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) font[color="#8064a2" i] { color: #b49fd4 !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) font[color="#4bacc6" i] { color: #7ccbe0 !important; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) font[color="#f79646" i] { color: #f9b27a !important; }
 .lined-paper font[color="#1e4fbf" i] { color: var(--pen-blue) !important; }
 .lined-paper font[color="#c62828" i] { color: var(--pen-red) !important; }
 .lined-paper font[color="#2e7d32" i] { color: var(--pen-green) !important; }
@@ -3005,10 +3013,10 @@ body.lp-ink-ballpoint .lined-paper { --ink: var(--lp-ink, #1c3d8f); --title-ink:
 body.lp-ink-black .lined-paper { --ink: var(--lp-ink, #141414); --title-ink: var(--lp-title-ink, #000000); }
 body.lp-ink-fountain .lined-paper { --ink: var(--lp-ink, #1b2a4a); --title-ink: var(--lp-title-ink, #111d36); }
 body.lp-ink-pencil .lined-paper { --ink: var(--lp-ink, #4b4f56); --title-ink: var(--lp-title-ink, #3a3d43); }
-body.theme-dark.lp-ink-ballpoint .lined-paper { --ink: var(--lp-ink, #a3bcf3); --title-ink: var(--lp-title-ink, #c2d3f8); }
-body.theme-dark.lp-ink-black .lined-paper { --ink: var(--lp-ink, #ececec); --title-ink: var(--lp-title-ink, #ffffff); }
-body.theme-dark.lp-ink-fountain .lined-paper { --ink: var(--lp-ink, #b3c2e0); --title-ink: var(--lp-title-ink, #cdd8ee); }
-body.theme-dark.lp-ink-pencil .lined-paper { --ink: var(--lp-ink, #b9bdc5); --title-ink: var(--lp-title-ink, #d0d3d9); }
+body.lp-ink-ballpoint :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --ink: var(--lp-ink, #a3bcf3); --title-ink: var(--lp-title-ink, #c2d3f8); }
+body.lp-ink-black :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --ink: var(--lp-ink, #ececec); --title-ink: var(--lp-title-ink, #ffffff); }
+body.lp-ink-fountain :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --ink: var(--lp-ink, #b3c2e0); --title-ink: var(--lp-title-ink, #cdd8ee); }
+body.lp-ink-pencil :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --ink: var(--lp-ink, #b9bdc5); --title-ink: var(--lp-title-ink, #d0d3d9); }
 /* (a pencil leaves a soft, grainy line) */
 body.lp-ink-pencil .lined-paper {
   text-shadow: 0.35px 0.25px 0 color-mix(in srgb, currentColor 45%, transparent);
@@ -3044,10 +3052,10 @@ body.lp-wobble .lined-paper:not(.markdown-source-view) :is(p, li, h2, h3, h4, h5
 }
 
 /* The paper (light theme: dark paper stays dark) */
-body:not(.theme-dark).lp-paper-ivory .lined-paper { --paper: var(--lp-paper, #fffcf1); --bar: var(--lp-bar, #fffcf1); }
-body:not(.theme-dark).lp-paper-cream .lined-paper { --paper: var(--lp-paper, #fbf4e2); --bar: var(--lp-bar, #fbf4e2); --rule: var(--lp-rule, #c5d5e4); }
-body:not(.theme-dark).lp-paper-legal .lined-paper { --paper: var(--lp-paper, #fdf6c0); --bar: var(--lp-bar, #fdf6c0); --rule: var(--lp-rule, #9fc2dc); --margin: var(--lp-margin, #e2777c); }
-body:not(.theme-dark).lp-paper-recycled .lined-paper { --paper: var(--lp-paper, #f0eee8); --bar: var(--lp-bar, #f0eee8); --rule: var(--lp-rule, #bfcad6); }
+body.lp-paper-ivory :is(body:not(.theme-dark) .lined-paper:not(.dark-paper), .lined-paper.light-paper, .lined-paper.lp-light):not(.lp-dark) { --paper: var(--lp-paper, #fffcf1); --bar: var(--lp-bar, #fffcf1); }
+body.lp-paper-cream :is(body:not(.theme-dark) .lined-paper:not(.dark-paper), .lined-paper.light-paper, .lined-paper.lp-light):not(.lp-dark) { --paper: var(--lp-paper, #fbf4e2); --bar: var(--lp-bar, #fbf4e2); --rule: var(--lp-rule, #c5d5e4); }
+body.lp-paper-legal :is(body:not(.theme-dark) .lined-paper:not(.dark-paper), .lined-paper.light-paper, .lined-paper.lp-light):not(.lp-dark) { --paper: var(--lp-paper, #fdf6c0); --bar: var(--lp-bar, #fdf6c0); --rule: var(--lp-rule, #9fc2dc); --margin: var(--lp-margin, #e2777c); }
+body.lp-paper-recycled :is(body:not(.theme-dark) .lined-paper:not(.dark-paper), .lined-paper.light-paper, .lined-paper.lp-light):not(.lp-dark) { --paper: var(--lp-paper, #f0eee8); --bar: var(--lp-bar, #f0eee8); --rule: var(--lp-rule, #bfcad6); }
 
 /* Sub-heading underline (## … ######) */
 body.lp-head-wavy .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6) {
@@ -3163,10 +3171,10 @@ body.lp-hl-green { --pen-highlight: rgba(120, 220, 90, 0.45); --pen-highlight-ed
 body.lp-hl-pink { --pen-highlight: rgba(255, 120, 190, 0.38); --pen-highlight-edge: rgba(245, 90, 170, 0.58); }
 body.lp-hl-blue { --pen-highlight: rgba(90, 190, 255, 0.4); --pen-highlight-edge: rgba(60, 165, 245, 0.6); }
 body.lp-hl-orange { --pen-highlight: rgba(255, 170, 60, 0.45); --pen-highlight-edge: rgba(250, 145, 30, 0.65); }
-body.theme-dark.lp-hl-green { --pen-highlight: rgba(150, 225, 120, 0.86); --pen-highlight-edge: rgba(120, 205, 90, 0.95); }
-body.theme-dark.lp-hl-pink { --pen-highlight: rgba(250, 160, 205, 0.86); --pen-highlight-edge: rgba(240, 130, 190, 0.95); }
-body.theme-dark.lp-hl-blue { --pen-highlight: rgba(140, 205, 250, 0.86); --pen-highlight-edge: rgba(110, 185, 245, 0.95); }
-body.theme-dark.lp-hl-orange { --pen-highlight: rgba(250, 190, 110, 0.86); --pen-highlight-edge: rgba(245, 165, 70, 0.95); }
+body.lp-hl-green :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(150, 225, 120, 0.86); --pen-highlight-edge: rgba(120, 205, 90, 0.95); }
+body.lp-hl-pink :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(250, 160, 205, 0.86); --pen-highlight-edge: rgba(240, 130, 190, 0.95); }
+body.lp-hl-blue :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(140, 205, 250, 0.86); --pen-highlight-edge: rgba(110, 185, 245, 0.95); }
+body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(250, 190, 110, 0.86); --pen-highlight-edge: rgba(245, 165, 70, 0.95); }
 
 /* Pen marks (the "Pen: circle / box / underline / wavy underline / scribble out" commands):
    <span class="pen-circle">word</span> and so on. Drawn over the writing with the marking pen

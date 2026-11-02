@@ -49,8 +49,11 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Make this note lined paper | Sets `cssclasses: [lined-paper]` (other classes are kept) |
 | Make this note Cornell notes | Sets `cssclasses: [lined-paper, cornell]` |
 | Make this note a plain note again | Takes the two classes off |
-| Insert title with today's date | `# Note name <span class="paper-date">26 Oct 2026</span>`: the date in the title bar's corner |
-| Insert Cornell page | Title with today's date, question, one cue + notes group, summary |
+| Insert title (and today's date) | `# Note name`, and today's date in the note's `date` property (if it has none): shown in the title bar's corner as "26 Oct 2026" |
+| Insert Cornell page | Title, question, one cue + notes group, summary; today's date in the `date` property |
+| Switch the paper between light and dark | Light or dark pages for every note, whatever Obsidian's theme (also the ☀/☾ button in the left ribbon) |
+| Switch this note's paper between light and dark | This note only: adds `dark-paper` or `light-paper` to its `cssclasses` |
+| Paper follows Obsidian's light / dark theme again | Undoes *Switch the paper* |
 | Insert cue + notes | A `[!cue]` / `[!notes]` group, the cursor in the cue |
 | Insert essential question | `[!question]` |
 | Insert summary | `[!summary]` |
@@ -284,6 +287,24 @@ highlighter is a solid yellow stroke with dark text, so they stay easy to read o
 `#9bbb59`, `#8064a2`, `#4bacc6`, `#f79646`) are a little lighter there too. For printing, export from the light theme: white paper with
 the pen colours above. Any other colour (`<font color="#4f81bd">`) still works and is shown as
 written.
+
+## The date
+
+The date in the title bar's corner is the note's **`date` property** (`date: 2026-10-26`, shown as
+26 Oct 2026; `Date` or `created` work too). It is not written into the title, so the title line is
+just `# Title`. *Insert title* and *Insert Cornell page* set it to today when the note has none.
+A date written into the title the old way (`<span class="paper-date">…</span>`) still works.
+
+## Light or dark paper
+
+The paper follows Obsidian's light or dark theme, unless you choose otherwise:
+
+- for every note: **Settings → Lined Paper Pages → Light or dark paper**, or the *Switch the paper
+  between light and dark* command (and the ☀/☾ button in the left ribbon);
+- for one note: the *Switch this note's paper* command, or add `dark-paper` / `light-paper` to its
+  `cssclasses`.
+
+The PDF export uses the same paper. For printing, light paper uses far less ink.
 
 ## Pen marks
 

@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-11-02
+
+### Added
+- **Light or dark paper, whatever Obsidian's theme:**
+  - for every note: *Settings → Light or dark paper* (follow Obsidian, always light, always dark),
+    the *Switch the paper between light and dark* command, or the ☀/☾ button in the left ribbon;
+  - for one note: the *Switch this note's paper* command, or `cssclasses: dark-paper` /
+    `light-paper`.
+
+  Obsidian's own colours on the page (callouts, tables, properties) follow the paper, and the PDF
+  export uses it too.
+
+### Changed
+- **The date is no longer written into the title.** The title bar's corner shows the note's `date`
+  property (`date: 2026-10-26` shows as "26 Oct 2026"; `Date` or `created` work too), in reading
+  view and the PDF.
+  - *Insert title* and *Insert Cornell page* write just `# Title` and set the date property to
+    today if the note has none.
+  - Titles that still have `<span class="paper-date">` keep working.
+
 ## [1.16.1] - 2026-11-02
 
 ### Fixed
