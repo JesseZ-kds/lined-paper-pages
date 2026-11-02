@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-11-02
+
+### Added
+- **Pen and paper** settings, for notes that feel written by hand:
+  - **Pen:** blue ballpoint, black gel pen, blue-black fountain pen or pencil (lighter versions on
+    dark paper).
+  - **Pen thickness**, **ink that soaks into the paper** (soft letter edges) and **uneven
+    handwriting** (each line sits a touch differently). None of these moves anything to another
+    line.
+  - **Paper:** ivory, cream, a yellow legal pad or recycled grey.
+  - **Sub-headings:** the underline can be wavy, two lines, dashed or none, and the headings can be
+    written in the heading pen.
+  - **Bullets:** dash, arrow, small circle or star, in a colour of your choice.
+  - **Checkboxes:** hand-drawn, ticked in green (on by default).
+  - **Crossed-out text:** scribbled out, two lines or a red line.
+  - **Highlighter:** yellow, green, pink, blue or orange.
+- **Pen marks:** circle, box, underline, wavy underline and scribble out
+  (`<span class="pen-circle">…</span>` and so on). They are drawn over the writing in a marking pen
+  colour you choose, take no room, and show while editing, in reading view and in the PDF. Each has
+  a command, as do *Pen: cross out* (`~~`) and *Insert checkbox (task)*.
+
+### Fixed
+- A table written with an empty header row (`| | |` over `|---|---|`, the way to write a table
+  without a header) no longer leaves an empty line above its first row. This also fixes an embedded
+  table (`![[Note#^table]]`) starting a line low in the notes.
+
 ## [1.15.4] - 2026-11-01
 
 ### Fixed

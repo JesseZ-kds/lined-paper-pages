@@ -163,3 +163,39 @@ for (const [name, html] of [['line breaks', 'before<br>EMB<br>after'], ['newline
     }
   });
 }
+
+// A table with an empty header row (`| | |` over `|---|---|`, the way a table without a header is
+// written) has no header on the page: its first row is on the line the table starts on, embedded
+// (`![[Other#^table]]` at the top of the notes) or typed, in reading view and the PDF
+for (const [mode, cssPaging] of MODES) {
+  for (const head of ['<th></th><th></th><th></th>', '<th> </th><th><br></th><th>\n</th>']) {
+    test(`a table with an empty header row has no header line (${head.includes('br') ? 'spaces' : 'empty'}, ${mode})`, async (t) => {
+      const { title, group } = require('./lib/notes');
+      const table = `<table><thead><tr>${head}</tr></thead><tbody><tr><td></td><td><strong>EMBHEAD</strong></td><td>B</td></tr><tr><td>ACT</td><td>EMBROW</td><td>x</td></tr></tbody></table>`;
+      const embed = `<p><span class="internal-embed markdown-embed inline-embed is-loaded" src="Other#^t"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-table">${table}</div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></template></span></p>`;
+      const { page, context } = await openReading({ name: 'thead', cornell: true, blocks: [title('T'), group('<p>cue one</p>', '<p>first</p>'), group('<p>CUEX</p>', embed)] }, { cssPaging });
+      if (!page) return t.skip(`${mode} is not available in this browser`);
+      try {
+        const rows = await page.evaluate(() => {
+          const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; document.querySelector('.markdown-preview-view').appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+          const at = (re) => [...document.querySelectorAll('p, td')].find((x) => re.test(x.textContent) && !x.querySelector('p, td')).getBoundingClientRect().top;
+          return [+((at(/^EMBHEAD/) - at(/^CUEX/)) / L).toFixed(2), +((at(/^EMBROW/) - at(/^CUEX/)) / L).toFixed(2)];
+        });
+        assert.deepEqual(rows, [0, 1], 'the first row on the cue\'s line, the next row under it');
+      } finally {
+        await context.close();
+      }
+    });
+  }
+  test(`a typed table with an empty header row: reading view = PDF (${mode})`, async (t) => {
+    const { title, group, block } = require('./lib/notes');
+    const table = '<table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Tfirst</td><td>Tsecond</td></tr><tr><td>Tthird</td><td>Tfourth</td></tr></tbody></table>';
+    const r = await render({ name: 'thead-typed', cornell: true, blocks: [title('T'), group('<p>cue</p>', `<p>above</p>${table}<p>below</p>`), block('<p>after the group</p>'), block(table)] }, { cssPaging });
+    if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+    const c = compare(r.reading, r.pdf);
+    assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
+    const y = (w) => r.reading.words.find((x) => x.w === w).y;
+    const L = r.reading.geometry.line;
+    assert.equal(Math.round((y('Tfirst') - y('above')) / L), 1, 'the table\'s first row on the line under "above"');
+  });
+}

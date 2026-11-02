@@ -97,16 +97,26 @@ test('settings page: options, live changes, saving and Reset all', async () => {
       out.font = getComputedStyle(view.querySelector('p')).fontFamily.split(',')[0];
       await find('Underline links').controls[0].cb(true);
       out.underlineClass = document.body.classList.contains('lp-link-underline');
+      // a list of choices (Pen and paper): one class on <body> for the choice, none at the default
+      const pen = find('Pen');
+      out.penOptions = pen.controls[0].options;
+      await pen.controls[0].cb('pencil');
+      out.pencil = [document.body.classList.contains('lp-ink-pencil'), getComputedStyle(view).getPropertyValue('--ink').trim()];
+      await pen.controls[0].cb('fountain');
+      out.fountain = [...document.body.classList].filter((c) => c.startsWith('lp-ink-'));
+      await pen.controls[0].cb('default');
+      out.penDefault = [...document.body.classList].filter((c) => c.startsWith('lp-ink-'));
+      await find('Paper').controls[0].cb('legal');
       Setting.all = [];
       plugin.tab.showAdvanced = true;
       plugin.tab.display();
       out.withAdvanced = Setting.all.length;
       await Setting.all.find((s) => s.nameEl.textContent === 'Reset everything').controls[0].cb();
-      out.afterReset = { saved: JSON.stringify(window.ui.saved()), noPages: document.body.classList.contains('lp-no-pages'), underline: document.body.classList.contains('lp-link-underline'), cue: cue() };
+      out.afterReset = { saved: JSON.stringify(window.ui.saved()), paper: document.body.classList.contains('lp-paper-legal'), noPages: document.body.classList.contains('lp-no-pages'), underline: document.body.classList.contains('lp-link-underline'), cue: cue() };
       return out;
     });
     assert.match(r.intro, /^Lined Paper Pages test\./);
-    assert.deepEqual(r.sections, ['Pages and text', 'Cornell notes', 'Callouts', 'Colours', 'Advanced']);
+    assert.deepEqual(r.sections, ['Pages and text', 'Pen and paper', 'Cornell notes', 'Callouts', 'Colours', 'Advanced']);
     assert.ok(r.shown >= 30, `${r.shown} settings shown`);
     assert.equal(r.cueAfter, '0.4', 'a change shows straight away');
     assert.equal(r.savedCue, 0.4, 'and is saved');
@@ -115,7 +125,11 @@ test('settings page: options, live changes, saving and Reset all', async () => {
     assert.equal(r.font, '"Indie Flower"', 'a font is applied');
     assert.ok(r.underlineClass);
     assert.ok(r.withAdvanced > r.shown, 'Advanced shows more settings');
-    assert.deepEqual(r.afterReset, { saved: '{}', noPages: false, underline: false, cue: r.cueBefore });
+    assert.deepEqual(r.penOptions, ['default', 'ballpoint', 'black', 'fountain', 'pencil']);
+    assert.deepEqual(r.pencil, [true, '#4b4f56'], 'a choice shows straight away');
+    assert.deepEqual(r.fountain, ['lp-ink-fountain'], 'one class at a time');
+    assert.deepEqual(r.penDefault, [], 'none at the default');
+    assert.deepEqual(r.afterReset, { saved: '{}', paper: false, noPages: false, underline: false, cue: r.cueBefore });
     assert.deepEqual(errors, []);
   } finally {
     await context.close();

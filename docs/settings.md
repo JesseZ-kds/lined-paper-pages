@@ -6,6 +6,7 @@ button to put it back to its default, and **Reset all** resets everything.
 | Section | Settings |
 |---|---|
 | **Pages and text** | A4 pages in reading view (on/off) · Lines per page · Text size · Title size · Title position · Handwriting font · Title font · Start a new page at every # title (on) · Underline links |
+| **Pen and paper** | Pen (theme ink, blue ballpoint, black gel pen, blue-black fountain pen, pencil) · Pen thickness · Ink soaks into the paper · Uneven handwriting · Paper (white, ivory, cream, yellow legal pad, recycled grey) · Sub-heading underline (straight, wavy, two lines, dashed, none) · Sub-headings in the heading pen · Bullets (dot, dash, arrow, small circle, star) · Bullet colour · Hand-drawn checkboxes (on) · Crossed-out text (one line, scribbled out, two lines, red line) · Highlighter colour (yellow, green, pink, blue, orange) · Marking pen colour |
 | **Cornell notes** | Cue column width · Centre the question across the page (off) · Centre full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
 | **Callouts** | Callout box height (80 %) · Callout text size |
 | **Colours** | Paper · Ruled lines · Red margin line & divider · Text · Title · Labels · Heading underline · Desk |

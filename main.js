@@ -51,6 +51,36 @@ const SETTINGS = [
   { key: 'links', type: 'toggle', cls: 'lp-link-underline', def: false, name: 'Underline links',
     desc: 'Links are shown in their colour only, like writing. Switch this on to underline them.' },
 
+  { section: 'Pen and paper', desc: 'Make the page feel like writing by hand. Everything here shows in reading view, while editing and in the PDF.' },
+  { key: 'pen', type: 'select', cls: 'lp-ink-', def: 'default', name: 'Pen',
+    options: { default: 'Theme ink (Colours → Text)', ballpoint: 'Blue ballpoint', black: 'Black gel pen', fountain: 'Blue-black fountain pen', pencil: 'Pencil' },
+    desc: 'The colour of all your writing. A colour set under Colours → Text wins.' },
+  { key: 'lp-pen-weight', type: 'slider', min: 0, max: 1, step: 0.05, def: 0, unit: 'px', name: 'Pen thickness',
+    desc: 'Thicker letters, as with a broader pen. It takes no room: every line breaks the same.' },
+  { key: 'ink-soft', type: 'toggle', cls: 'lp-ink-soft', def: false, name: 'Ink soaks into the paper',
+    desc: 'Soft letter edges, as with a fountain or gel pen.' },
+  { key: 'wobble', type: 'toggle', cls: 'lp-wobble', def: false, name: 'Uneven handwriting',
+    desc: 'Each line of writing sits a touch differently, as no hand writes two lines the same. Nothing moves to another line.' },
+  { key: 'paper', type: 'select', cls: 'lp-paper-', def: 'white', name: 'Paper',
+    options: { white: 'White', ivory: 'Ivory', cream: 'Cream', legal: 'Yellow legal pad', recycled: 'Recycled grey' },
+    desc: 'The paper you write on (light theme; the PDF is printed on it too). A colour set under Colours → Paper wins.' },
+  { key: 'heading', type: 'select', cls: 'lp-head-', def: 'line', name: 'Sub-heading underline',
+    options: { line: 'A straight line', wavy: 'A wavy line', double: 'Two lines', dashed: 'A dashed line', none: 'None' },
+    desc: 'How ## … ###### headings are underlined (in the heading pen colour: Colours → Heading underline).' },
+  { key: 'heading-ink', type: 'toggle', cls: 'lp-head-ink', def: false, name: 'Sub-headings in the heading pen',
+    desc: 'Write the headings themselves in the heading underline colour, not only their underline.' },
+  { key: 'bullet', type: 'select', cls: 'lp-bullet-', def: 'dot', name: 'Bullets',
+    options: { dot: '• Dot', dash: '– Dash', arrow: '→ Arrow', circle: '∘ Small circle', star: '✱ Star' } },
+  { key: 'lp-bullet-ink', type: 'color', def: '#1f2937', name: 'Bullet colour', desc: 'Default: the colour of the writing.' },
+  { key: 'checkbox', type: 'toggle', cls: 'lp-plain-checkbox', invert: true, def: true, name: 'Hand-drawn checkboxes',
+    desc: 'Tasks (- [ ] and - [x]) get a box drawn with the pen, ticked in green.' },
+  { key: 'strike', type: 'select', cls: 'lp-strike-', def: 'line', name: 'Crossed-out text (~~text~~)',
+    options: { line: 'One line', scribble: 'Scribbled out', double: 'Two lines', red: 'A red line' } },
+  { key: 'highlighter', type: 'select', cls: 'lp-hl-', def: 'yellow', name: 'Highlighter (==text==)',
+    options: { yellow: 'Yellow', green: 'Green', pink: 'Pink', blue: 'Blue', orange: 'Orange' } },
+  { key: 'lp-mark', type: 'color', def: '#c0392b', name: 'Marking pen colour',
+    desc: 'For the circles, boxes, underlines and scribbles of the "Pen: circle / box / underline …" commands. Default: the heading underline colour.' },
+
   { section: 'Cornell notes' },
   { key: 'cn-cue', type: 'slider', min: 0.15, max: 0.5, step: 0.01, def: 0.3, pct: true, name: 'Cue column width',
     desc: 'Share of the page for the cue column (left of the divider).' },
@@ -467,6 +497,20 @@ function alignEmbeds(root, undo) {
   });
 }
 
+// A table written with an empty header row (Markdown needs one, so `| | |` over `|---|---|` is how
+// a table without a header is written) has no header on the page: that row takes no line, and the
+// table's first row is on the line the table starts on (reading view and the PDF; lined-paper.css:
+// thead.lp-empty-head). An empty <th></th> is caught by the CSS alone; this also catches a header
+// holding only spaces or a <br>.
+function markEmptyHeads(root, undo) {
+  for (const head of root.querySelectorAll('thead')) {
+    if (head.classList.contains('lp-empty-head')) continue;
+    if (head.textContent.trim() || head.querySelector('img, svg, input, .internal-embed, .math, mjx-container')) continue;
+    head.classList.add('lp-empty-head');
+    if (undo) undo.push({ t: 'cls', el: head, name: 'lp-empty-head' });
+  }
+}
+
 // The `![[Note#^id]]` line itself takes no room: an embed is a block of its own, which already ends
 // its line, so the line break after it (a <br>, or the newline in the notes' Enter-is-a-new-line text)
 // would add an empty line under it. That break is left out (reading view and the PDF).
@@ -535,23 +579,29 @@ function unwrapCalloutEmbeds(root, undo) {
 // Obsidian does not turn a [[link]] inside such a tag into a link everywhere (it can come out as
 // plain text, or not at all). The plugin shows the text in its colour with the link working: in
 // editing view through an editor extension, in reading view and the PDF by rebuilding the tag.
-const COLOUR_RE = /<font\b[^>]*?\bcolor\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>(.*?)<\/font\s*>|<span\b[^>]*?\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>(.*?)<\/span\s*>/gi;
+const COLOUR_RE = /<font\b[^>]*?\bcolor\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>(.*?)<\/font\s*>|<span\b([^>]*)>(.*?)<\/span\s*>/gi;
+// a pen mark: <span class="pen-circle"> (box, underline, wavy, scribble)
+const PEN_CLASS_RE = /\bclass\s*=\s*(?:"[^"]*?\b(pen-(?:circle|box|underline|wavy|scribble))\b[^"]*"|'[^']*?\b(pen-(?:circle|box|underline|wavy|scribble))\b[^']*')/i;
 const SAFE_COLOUR = /^[#\w(),.%\s-]+$/;
 // every coloured run in one line of source: where it is, where its text is, its colour
 function colourRuns(text) {
   const out = [];
   COLOUR_RE.lastIndex = 0;
   for (let m; (m = COLOUR_RE.exec(text));) {
-    let colour, inner;
+    let colour = '', inner, mark = '';
     if (m[4] !== undefined) { colour = m[1] ?? m[2] ?? m[3]; inner = m[4]; }
     else {
-      const c = /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(m[5] ?? m[6] ?? '');
-      if (!c) continue;
-      colour = c[1].trim(); inner = m[7];
+      const st = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(m[5]);
+      const c = st && /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(st[1] ?? st[2] ?? '');
+      const p = PEN_CLASS_RE.exec(m[5]);
+      if (!c && !p) continue;
+      if (c) colour = c[1].trim();
+      if (p) mark = (p[1] || p[2]).toLowerCase();
+      inner = m[6];
     }
-    if (!SAFE_COLOUR.test(colour)) continue;
+    if (colour && !SAFE_COLOUR.test(colour)) continue;
     const innerFrom = m.index + m[0].indexOf('>') + 1;
-    out.push({ from: m.index, to: m.index + m[0].length, innerFrom, innerTo: innerFrom + inner.length, colour, inner });
+    out.push({ from: m.index, to: m.index + m[0].length, innerFrom, innerTo: innerFrom + inner.length, colour, inner, mark });
   }
   return out;
 }
@@ -602,7 +652,7 @@ function fixColouredLinks(el, ctx, open) {
   let runs = [];
   try {
     const info = ctx && ctx.getSectionInfo && ctx.getSectionInfo(el);
-    if (info) runs = colourRuns(info.text.split('\n').slice(info.lineStart, info.lineEnd + 1).join('\n'));
+    if (info) runs = colourRuns(info.text.split('\n').slice(info.lineStart, info.lineEnd + 1).join('\n')).filter((r) => r.colour);
   } catch (e) { /* no source: use the tag's own text */ }
   tags.forEach((tag, i) => {
     if (tag._lpFixed || tag.querySelector('a, .internal-embed')) return;
@@ -630,11 +680,11 @@ function colourEditorExtension(plugin) {
   };
   class ColourWidget extends V.WidgetType {
     constructor(run, opener) { super(); this.run = run; this.opener = opener; }
-    eq(o) { return o.run.colour === this.run.colour && o.run.inner === this.run.inner; }
+    eq(o) { return o.run.colour === this.run.colour && o.run.inner === this.run.inner && o.run.mark === this.run.mark; }
     toDOM() {
       const s = document.createElement('span');
-      s.className = 'lp-colour';
-      s.style.color = PEN_VAR[this.run.colour.toLowerCase()] || this.run.colour;
+      s.className = 'lp-colour' + (this.run.mark ? ' ' + this.run.mark : '');
+      if (this.run.colour) s.style.color = PEN_VAR[this.run.colour.toLowerCase()] || this.run.colour;
       fillColoured(s, this.run.inner, this.opener);
       return s;
     }
@@ -658,7 +708,7 @@ function colourEditorExtension(plugin) {
           if (live && !sel.some((s) => s.from <= z && s.to >= a)) {
             b.add(a, z, V.Decoration.replace({ widget: new ColourWidget(r, opener) }));
           } else if (r.innerTo > r.innerFrom) {
-            b.add(line.from + r.innerFrom, line.from + r.innerTo, V.Decoration.mark({ class: 'lp-colour', attributes: { style: 'color: ' + r.colour } }));
+            b.add(line.from + r.innerFrom, line.from + r.innerTo, V.Decoration.mark({ class: 'lp-colour' + (r.mark ? ' ' + r.mark : ''), attributes: r.colour ? { style: 'color: ' + r.colour } : {} }));
           }
         }
       }
@@ -779,6 +829,8 @@ const TEMPLATES = {
 };
 // the pens (lined-paper.css "PEN COLOURS": each shown as var(--pen-…), lighter in dark theme)
 const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], ['purple', '#6a1b9a'], ['orange', '#d84315']];
+// the marks of the "Pen: …" commands, <span class="pen-…">
+const PEN_MARKS = [['circle', 'circle'], ['box', 'box'], ['underline', 'underline'], ['wavy', 'wavy underline'], ['scribble', 'scribble out']];
 const PEN_VAR = Object.fromEntries(COLOURS.map(([name, hex]) => [hex, `var(--pen-${name}, ${hex})`]));
 
 // type a block on lines of its own at the cursor (a blank line before it where needed; every template
@@ -850,6 +902,19 @@ function addPaperCommands(plugin) {
     });
   }
   plugin.addCommand({ id: 'highlighter', name: 'Pen: highlighter', editorCallback: (editor) => wrap(editor, '==', '==') });
+  // marks drawn over the writing with the marking pen (lined-paper.css "PEN AND PAPER")
+  for (const [id, name] of PEN_MARKS) {
+    plugin.addCommand({ id: 'pen-' + id, name: 'Pen: ' + name, editorCallback: (editor) => wrap(editor, `<span class="pen-${id}">`, '</span>') });
+  }
+  plugin.addCommand({ id: 'cross-out', name: 'Pen: cross out', editorCallback: (editor) => wrap(editor, '~~', '~~') });
+  plugin.addCommand({ id: 'insert-task', name: 'Insert checkbox (task)', editorCallback: (editor) => {
+    const cur = editor.getCursor();
+    const line = editor.getLine(cur.line);
+    if (/^\s*[-*+] \[.\] /.test(line)) return;
+    const m = /^(\s*(?:>+\s*)*)(?:[-*+] )?/.exec(line);
+    editor.replaceRange(m[1] + '- [ ] ', { line: cur.line, ch: 0 }, { line: cur.line, ch: m[0].length });
+    editor.setCursor({ line: cur.line, ch: editor.getLine(cur.line).length });
+  } });
 }
 
 module.exports = class LinedPaperPages extends Plugin {
@@ -881,7 +946,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -924,7 +989,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      for (const pr of document.querySelectorAll('.print')) { unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1023,7 +1088,16 @@ module.exports = class LinedPaperPages extends Plugin {
     for (const def of SETTINGS) {
       if (!def.key) continue;
       const v = this.settings[def.key];
-      if (def.type === 'toggle') {
+      if (def.type === 'select') {
+        // one class per choice (lp-ink-pencil, ...); none at the default (and, as for a toggle, a
+        // class it did not add itself is left alone)
+        const want = v !== undefined && v !== def.def && def.options[v] ? def.cls + v : null;
+        for (const o of Object.keys(def.options)) {
+          const c = def.cls + o;
+          if (c !== want && this.ownClasses.has(c)) { b.classList.remove(c); this.ownClasses.delete(c); }
+        }
+        if (want) { b.classList.add(want); this.ownClasses.add(want); }
+      } else if (def.type === 'toggle') {
         // (at its default it leaves the class alone, so a Style Settings toggle still works)
         if (v !== undefined) { b.classList.toggle(def.cls, def.invert ? !v : v); this.ownClasses.add(def.cls); }
         else if (this.ownClasses.has(def.cls)) { b.classList.remove(def.cls); this.ownClasses.delete(def.cls); }
@@ -1047,6 +1121,7 @@ module.exports = class LinedPaperPages extends Plugin {
     for (const def of SETTINGS) {
       if (!def.key || this.settings[def.key] === undefined) continue;
       if (def.type === 'toggle') { if (this.ownClasses.has(def.cls)) document.body.classList.remove(def.cls); }
+      else if (def.type === 'select') { for (const o of Object.keys(def.options)) if (this.ownClasses.has(def.cls + o)) document.body.classList.remove(def.cls + o); }
       else document.body.style.removeProperty('--' + def.key);
     }
     document.body.style.removeProperty('--lp-dpr');
@@ -1196,6 +1271,7 @@ module.exports = class LinedPaperPages extends Plugin {
       autoBreaks(view, st.undo);
       unwrapCalloutEmbeds(view, st.undo);
       tidyEmbedLines(view, st.undo);
+      markEmptyHeads(view, st.undo);
       alignEmbeds(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
@@ -1838,6 +1914,7 @@ module.exports = class LinedPaperPages extends Plugin {
 module.exports.paperClasses = paperClasses;   // (for the tests)
 module.exports.insertBlock = insertBlock;
 module.exports.TEMPLATES = TEMPLATES;
+module.exports.colourRuns = colourRuns;
 // ---------- the settings page: Settings → Lined Paper Pages ----------
 class LinedPaperSettingTab extends PluginSettingTab {
   constructor(app, plugin) {
@@ -1898,6 +1975,12 @@ class LinedPaperSettingTab extends PluginSettingTab {
       } else if (def.type === 'color') {
         row.addColorPicker((c) => c.setValue(value).onChange((v) => pl.setSetting(def.key, v)));
         if (stored === undefined) row.descEl.createDiv({ text: 'Default (follows the theme)', cls: 'lp-setting-default' });
+      } else if (def.type === 'select') {
+        row.addDropdown((d) => {
+          for (const [o, label] of Object.entries(def.options)) d.addOption(o, label);
+          d.setValue(def.options[value] ? value : def.def);
+          d.onChange((v) => pl.setSetting(def.key, v === def.def ? undefined : v));
+        });
       } else if (def.type === 'font') {
         // a list of fonts, plus any other font installed on the computer
         const other = stored !== undefined && !FONTS.includes(stored);

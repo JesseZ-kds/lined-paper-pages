@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -64,4 +64,9 @@ test('a title with today\'s date, the cursor on the line under it', () => {
   const d = new Date(), day = `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getFullYear()}`;
   assert.equal(e.text(), `# Immunity <span class="paper-date">${day}</span>\n`);
   assert.deepEqual(e.getCursor(), { line: 1, ch: 0 });
+});
+
+test('pen marks and coloured text are found in a line of source (editing view shows them)', () => {
+  const runs = colourRuns('a <span class="pen-circle">word</span> b <font color="#1e4fbf">blue</font> <span style="color: red" class="pen-box">both</span> <span class="other">no</span>');
+  assert.deepEqual(runs.map((r) => [r.inner, r.colour, r.mark]), [['word', '', 'pen-circle'], ['blue', '#1e4fbf', ''], ['both', 'red', 'pen-box']]);
 });

@@ -59,6 +59,11 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Insert page break | `[!nextpage]` |
 | Pen: blue / red / green / purple / orange | Writes the selected text (or what you type next) in that pen: `<font color="…">` (see [Pen colours](#pen-colours)) |
 | Pen: highlighter | Marks the selected text with a yellow highlighter: `==text==` |
+| Pen: circle / box | Draws a circle / a box round the selected words with the marking pen: `<span class="pen-circle">…</span>` (see [Pen marks](#pen-marks)) |
+| Pen: underline / wavy underline | Underlines the selected words with the marking pen |
+| Pen: scribble out | Scribbles over the selected words, like a mistake crossed out by hand |
+| Pen: cross out | Crosses the selected text out: `~~text~~` |
+| Insert checkbox (task) | Turns the line into a task, `- [ ] `, with a hand-drawn box |
 
 Blocks go on lines of their own, with the blank lines around them that Markdown needs, and the
 cursor ends up where you write next. Every block is written in a quote of its own (`>> [!question]`,
@@ -279,6 +284,34 @@ highlighter is a solid yellow stroke with dark text, so they stay easy to read o
 `#9bbb59`, `#8064a2`, `#4bacc6`, `#f79646`) are a little lighter there too. For printing, export from the light theme: white paper with
 the pen colours above. Any other colour (`<font color="#4f81bd">`) still works and is shown as
 written.
+
+## Pen marks
+
+Mark words the way you would on paper. Select them and run a *Pen* command (or type the tag):
+
+| Mark | Write |
+| --- | --- |
+| Circle | `<span class="pen-circle">word</span>` |
+| Box | `<span class="pen-box">word</span>` |
+| Underline | `<span class="pen-underline">words</span>` |
+| Wavy underline | `<span class="pen-wavy">words</span>` |
+| Scribbled out | `<span class="pen-scribble">mistake</span>` |
+
+The marks are drawn over the writing in the marking pen (red by default: *Settings → Pen and
+paper → Marking pen colour*). They take no room, so nothing on the page moves, and they show while
+editing, in reading view and in the PDF.
+
+**Settings → Pen and paper** sets up the rest of the pen-on-paper feel: the pen (blue ballpoint,
+black gel, blue-black fountain pen, pencil), its thickness, ink that soaks into the paper a
+little, slightly uneven handwriting, the paper (ivory, cream, a yellow legal pad, recycled grey),
+how sub-headings are underlined, drawn bullets (dash, arrow, circle, star) and their colour,
+hand-drawn checkboxes ticked in green, how crossed-out text looks, and the highlighter's colour.
+
+## Tables without a header
+
+Markdown needs a header row on a table, so a table without one is written with an empty header
+(`| | |` over `|---|---|`). That empty row takes no line on the page: the table's first row is on
+the line the table starts on (typed or embedded with `![[Note#^table]]`).
 
 ## Coloured links and embeds
 

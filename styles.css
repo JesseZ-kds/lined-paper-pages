@@ -894,6 +894,14 @@ settings:
   margin: 0;
 }
 
+/* A table with an empty header row (`| | |` over `|---|---|`: Markdown needs a header, so this is
+   how a table without one is written) has no header: the row takes no line, and the table's first
+   row is on the line the table starts on. (The plugin also marks a header holding only spaces.) */
+.lined-paper thead:not(:has(th:not(:empty))),
+.lined-paper thead.lp-empty-head {
+  display: none !important;
+}
+
 .lined-paper th,
 .lined-paper td {
   height: var(--line);
@@ -2985,6 +2993,223 @@ body.theme-dark .lined-paper font[color="#f79646" i] { color: #f9b27a !important
   mix-blend-mode: var(--pen-highlight-blend);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+/* ---------- PEN AND PAPER ----------
+   Settings → Lined Paper Pages → Pen and paper. Each choice is a class on <body> (the plugin sets
+   it; without the plugin, add the class with a snippet). The defaults are the plain look above.
+   A colour set under Colours (Paper, Text, ...) always wins over the pen or paper picked here. */
+
+/* The pen: the colour of all your writing (light paper / dark paper) */
+body.lp-ink-ballpoint .lined-paper { --ink: var(--lp-ink, #1c3d8f); --title-ink: var(--lp-title-ink, #16337a); }
+body.lp-ink-black .lined-paper { --ink: var(--lp-ink, #141414); --title-ink: var(--lp-title-ink, #000000); }
+body.lp-ink-fountain .lined-paper { --ink: var(--lp-ink, #1b2a4a); --title-ink: var(--lp-title-ink, #111d36); }
+body.lp-ink-pencil .lined-paper { --ink: var(--lp-ink, #4b4f56); --title-ink: var(--lp-title-ink, #3a3d43); }
+body.theme-dark.lp-ink-ballpoint .lined-paper { --ink: var(--lp-ink, #a3bcf3); --title-ink: var(--lp-title-ink, #c2d3f8); }
+body.theme-dark.lp-ink-black .lined-paper { --ink: var(--lp-ink, #ececec); --title-ink: var(--lp-title-ink, #ffffff); }
+body.theme-dark.lp-ink-fountain .lined-paper { --ink: var(--lp-ink, #b3c2e0); --title-ink: var(--lp-title-ink, #cdd8ee); }
+body.theme-dark.lp-ink-pencil .lined-paper { --ink: var(--lp-ink, #b9bdc5); --title-ink: var(--lp-title-ink, #d0d3d9); }
+/* (a pencil leaves a soft, grainy line) */
+body.lp-ink-pencil .lined-paper {
+  text-shadow: 0.35px 0.25px 0 color-mix(in srgb, currentColor 45%, transparent);
+}
+
+/* The pen's thickness: a fine line round every letter (it takes no room: lines break the same) */
+.lined-paper {
+  -webkit-text-stroke-width: var(--lp-pen-weight, 0px);
+}
+/* Ink that soaks into the paper a little: soft letter edges, as with a fountain or gel pen */
+body.lp-ink-soft .lined-paper {
+  text-shadow: 0 0 0.7px currentColor, 0 0 0.2px currentColor;
+}
+.lined-paper .metadata-container {
+  -webkit-text-stroke-width: 0;
+  text-shadow: none;
+}
+
+/* Uneven handwriting: each line of writing sits a touch differently, as no hand writes two lines the
+   same. (Only turned and nudged by a fraction of a pixel: nothing moves to another line, reading view
+   and the PDF stay the same.) */
+body.lp-wobble .lined-paper:not(.markdown-source-view) :is(p, li, h2, h3, h4, h5, h6, td):nth-child(3n+1) {
+  rotate: -0.25deg;
+  translate: 0.3px 0.4px;
+}
+body.lp-wobble .lined-paper:not(.markdown-source-view) :is(p, li, h2, h3, h4, h5, h6, td):nth-child(3n+2) {
+  rotate: 0.18deg;
+  translate: -0.4px -0.3px;
+}
+body.lp-wobble .lined-paper:not(.markdown-source-view) :is(p, li, h2, h3, h4, h5, h6, td):nth-child(3n) {
+  rotate: -0.1deg;
+  translate: 0.5px 0.2px;
+}
+
+/* The paper (light theme: dark paper stays dark) */
+body:not(.theme-dark).lp-paper-ivory .lined-paper { --paper: var(--lp-paper, #fffcf1); --bar: var(--lp-bar, #fffcf1); }
+body:not(.theme-dark).lp-paper-cream .lined-paper { --paper: var(--lp-paper, #fbf4e2); --bar: var(--lp-bar, #fbf4e2); --rule: var(--lp-rule, #c5d5e4); }
+body:not(.theme-dark).lp-paper-legal .lined-paper { --paper: var(--lp-paper, #fdf6c0); --bar: var(--lp-bar, #fdf6c0); --rule: var(--lp-rule, #9fc2dc); --margin: var(--lp-margin, #e2777c); }
+body:not(.theme-dark).lp-paper-recycled .lined-paper { --paper: var(--lp-paper, #f0eee8); --bar: var(--lp-bar, #f0eee8); --rule: var(--lp-rule, #bfcad6); }
+
+/* Sub-heading underline (## … ######) */
+body.lp-head-wavy .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6) {
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.2px;
+}
+body.lp-head-double .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6) {
+  text-decoration-style: double;
+  text-decoration-thickness: 1.2px;
+  text-underline-offset: 3px;
+}
+body.lp-head-dashed .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6) {
+  text-decoration-style: dashed;
+}
+body.lp-head-none .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6) {
+  text-decoration: none;
+}
+/* (sub-headings written in the heading pen's colour) */
+body.lp-head-ink .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6) {
+  color: var(--pen-red);
+}
+
+/* Bullets: drawn with the pen (reading view and the PDF; the bullet's colour: Pen and paper → Bullet colour) */
+.lined-paper ul > li::marker {
+  color: var(--lp-bullet-ink, currentColor);
+}
+body.lp-bullet-dash .lined-paper ul > li { list-style-type: "–  "; }
+body.lp-bullet-arrow .lined-paper ul > li { list-style-type: "→  "; }
+body.lp-bullet-circle .lined-paper ul > li { list-style-type: "∘  "; }
+body.lp-bullet-star .lined-paper ul > li { list-style-type: "✱  "; }
+/* (while editing: the bullet Obsidian draws) */
+body:is(.lp-bullet-dash, .lp-bullet-arrow, .lp-bullet-circle, .lp-bullet-star) .lined-paper .list-bullet::after {
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: var(--lp-bullet-ink, var(--ink));
+  font-size: inherit;
+  line-height: inherit;
+}
+body.lp-bullet-dash .lined-paper .list-bullet::after { content: "–" !important; }
+body.lp-bullet-arrow .lined-paper .list-bullet::after { content: "→" !important; }
+body.lp-bullet-circle .lined-paper .list-bullet::after { content: "∘" !important; }
+body.lp-bullet-star .lined-paper .list-bullet::after { content: "✱" !important; }
+body.lp-bullet-dash .lined-paper ul > li.task-list-item,
+body.lp-bullet-arrow .lined-paper ul > li.task-list-item,
+body.lp-bullet-circle .lined-paper ul > li.task-list-item,
+body.lp-bullet-star .lined-paper ul > li.task-list-item { list-style-type: none; }
+
+/* Checkboxes (- [ ] and - [x]): a box drawn with the pen, ticked with the green pen */
+body:not(.lp-plain-checkbox) .lined-paper input[type="checkbox"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  position: relative;
+  width: 0.72em !important;
+  height: 0.72em !important;
+  margin: 0 0.4em 0 0 !important;
+  padding: 0 !important;
+  border: 1.6px solid currentColor !important;
+  border-radius: 2px 4px 2px 3px / 3px 2px 4px 2px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ink);
+  vertical-align: -0.04em;
+  rotate: -2deg;
+  cursor: pointer;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+body:not(.lp-plain-checkbox) .lined-paper input[type="checkbox"]::after {
+  display: none !important;
+}
+body:not(.lp-plain-checkbox) .lined-paper input[type="checkbox"]:checked::after {
+  content: "✓" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: auto !important;
+  left: -0.02em !important;
+  bottom: -0.12em !important;
+  width: auto !important;
+  height: auto !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+  background: none !important;
+  color: var(--pen-green);
+  font-family: var(--hand);
+  font-size: 1.35em;
+  font-weight: 700;
+  line-height: 1;
+  rotate: 6deg;
+}
+
+/* Crossed-out text (~~text~~) */
+body.lp-strike-scribble .lined-paper :is(del, s, .cm-strikethrough) {
+  text-decoration-line: line-through;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 2px;
+  text-decoration-color: currentColor;
+}
+body.lp-strike-double .lined-paper :is(del, s, .cm-strikethrough) {
+  text-decoration-line: line-through;
+  text-decoration-style: double;
+  text-decoration-thickness: 1.5px;
+}
+body.lp-strike-red .lined-paper :is(del, s, .cm-strikethrough) {
+  text-decoration-line: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--pen-red);
+}
+
+/* The highlighter's colour (==text==) */
+body.lp-hl-green { --pen-highlight: rgba(120, 220, 90, 0.45); --pen-highlight-edge: rgba(95, 200, 70, 0.65); }
+body.lp-hl-pink { --pen-highlight: rgba(255, 120, 190, 0.38); --pen-highlight-edge: rgba(245, 90, 170, 0.58); }
+body.lp-hl-blue { --pen-highlight: rgba(90, 190, 255, 0.4); --pen-highlight-edge: rgba(60, 165, 245, 0.6); }
+body.lp-hl-orange { --pen-highlight: rgba(255, 170, 60, 0.45); --pen-highlight-edge: rgba(250, 145, 30, 0.65); }
+body.theme-dark.lp-hl-green { --pen-highlight: rgba(150, 225, 120, 0.86); --pen-highlight-edge: rgba(120, 205, 90, 0.95); }
+body.theme-dark.lp-hl-pink { --pen-highlight: rgba(250, 160, 205, 0.86); --pen-highlight-edge: rgba(240, 130, 190, 0.95); }
+body.theme-dark.lp-hl-blue { --pen-highlight: rgba(140, 205, 250, 0.86); --pen-highlight-edge: rgba(110, 185, 245, 0.95); }
+body.theme-dark.lp-hl-orange { --pen-highlight: rgba(250, 190, 110, 0.86); --pen-highlight-edge: rgba(245, 165, 70, 0.95); }
+
+/* Pen marks (the "Pen: circle / box / underline / wavy underline / scribble out" commands):
+   <span class="pen-circle">word</span> and so on. Drawn over the writing with the marking pen
+   (Pen and paper → Marking pen colour); they take no room, so nothing on the page moves. */
+.lined-paper {
+  --pen-mark: var(--lp-mark, var(--pen-red));
+}
+.lined-paper :is(.pen-circle, .pen-box) {
+  position: relative;
+}
+.lined-paper :is(.pen-circle, .pen-box)::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border: 1.6px solid var(--pen-mark);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.lined-paper .pen-circle::before {
+  inset: -0.08em -0.42em -0.1em -0.38em;
+  border-radius: 50% 46% 54% 48% / 56% 50% 46% 52%;
+  rotate: -3deg;
+}
+.lined-paper .pen-box::before {
+  inset: 0 -0.22em -0.04em -0.2em;
+  border-radius: 2px 4px 3px 2px / 3px 2px 4px 3px;
+  rotate: -0.6deg;
+}
+.lined-paper :is(.pen-underline, .pen-wavy, .pen-scribble) {
+  text-decoration-skip-ink: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.lined-paper .pen-underline {
+  text-decoration: underline 2px var(--pen-mark);
+  text-underline-offset: 4px;
+}
+.lined-paper .pen-wavy {
+  text-decoration: underline wavy 1.5px var(--pen-mark);
+  text-underline-offset: 4px;
+}
+.lined-paper .pen-scribble {
+  text-decoration: line-through wavy 3px var(--pen-mark);
 }
 
 /* A link inside a colour you set (<font color="#4f81bd">[[note]]</font> or

@@ -1,6 +1,6 @@
 {
   "name": "lined-paper-pages",
-  "version": "1.15.4",
+  "version": "1.16.0",
   "description": "Lined paper and Cornell notes for Obsidian: real A4 pages in reading view that match the PDF export.",
   "private": true,
   "license": "MIT",
@@ -15,6 +15,7 @@
     "test:scroll": "node --test tests/scroll.test.js",
     "test:editor": "node --test tests/editor.test.js",
     "test:settings": "node --test tests/settings.test.js",
+    "test:pen": "node --test tests/pen.test.js",
     "screenshots": "node scripts/screenshots.js",
     "package": "node scripts/package.js",
     "version": "node scripts/version-bump.js && git add manifest.json versions.json"
