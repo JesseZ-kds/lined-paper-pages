@@ -127,3 +127,43 @@ test('the date can be changed: click it, pick a date, it goes into the date prop
     await context.close();
   }
 });
+
+// every page that starts with a # title has a date in its title bar: its own (page-dates), or the note's
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  test(`every page's title bar has a date, its own or the note's; click it to change that page's (${mode})`, async (t) => {
+    const pages = { name: 'pages', cornell: true, blocks: [title('Part one'), group('<p>cue</p>', '<p>notes</p>'), title('Part two'), group('<p>cue</p>', '<p>notes</p>'), title('Part three'), group('<p>cue</p>', '<p>notes</p>')] };
+    const { page, context } = await openReading(pages, { cssPaging });
+    if (!page) return t.skip(`${mode} is not available in this browser`);
+    try {
+      const r = await page.evaluate(async () => {
+        const pl = window.plugin;
+        const fm = { date: '2026-10-26', 'page-dates': ['2026-10-28'] };
+        pl.noteDateInfo = () => ({ file: {}, key: 'date', value: fm.date, fm });
+        pl.app.fileManager = { processFrontMatter: (f, fn) => { fn(fm); return Promise.resolve(); } };
+        document.addEventListener('click', (e) => pl.onDateClick(e), true);
+        const view = document.querySelector('.markdown-preview-view');
+        pl.layout(view, pl.states.get(view));
+        const P = (() => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--page-h)'; view.appendChild(d); const h = d.getBoundingClientRect().height; d.remove(); return h; })();
+        const top = view.querySelector('.markdown-preview-sizer').getBoundingClientRect().top;
+        const dates = [...view.querySelectorAll('h1')].map((h) => {
+          const d = h.querySelector('.paper-date');
+          const y = d.getBoundingClientRect().top - top;
+          return [d.textContent, Math.floor(y / P), Math.round(y - Math.floor(y / P) * P) < 60];
+        });
+        // page 3 has no date of its own: click it and pick one
+        view.querySelectorAll('h1')[2].querySelector('.lp-prop-date').click();
+        const input = document.querySelector('.lp-date-picker');
+        const startsFrom = input.value;
+        input.value = '2026-11-02';
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        return { dates, startsFrom, list: fm['page-dates'], noteDate: fm.date };
+      });
+      assert.deepEqual(r.dates, [['26 Oct 2026', 0, true], ['28 Oct 2026', 1, true], ['26 Oct 2026', 2, true]], 'each page\'s date at the top of its page');
+      assert.equal(r.startsFrom, '2026-10-26', 'the picker starts from the date shown');
+      assert.deepEqual(r.list, ['2026-10-28', '2026-11-02'], 'that page\'s own date');
+      assert.equal(r.noteDate, '2026-10-26', 'the note\'s date unchanged');
+    } finally {
+      await context.close();
+    }
+  });
+}

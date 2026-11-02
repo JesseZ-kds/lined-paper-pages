@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-02
+
+### Added
+- **Dates on every new page.** Each page that starts with a `# Title` shows a date in its title
+  bar corner, in reading view and the PDF:
+  - Its own date comes from the `page-dates` list property: the first item for the 2nd title, the
+    second for the 3rd, and so on.
+  - A page without its own date shows the note's date.
+  - Clicking a page's date sets that page's own date.
+  - *Insert title* and *Insert Cornell page* on a later page put today in the list, at that page's
+    place, so the pages after it keep their dates.
+
 ## [1.17.1] - 2026-11-02
 
 ### Added

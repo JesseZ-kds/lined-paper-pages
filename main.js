@@ -882,25 +882,39 @@ function isoDate(v) {
   const m = /^(\d{4}-\d{2}-\d{2})(?:$|[T ])/.exec(String(v === null || v === undefined ? '' : v).trim());
   return m ? m[1] : '';
 }
-// The date in the title bar's corner comes from the note's date property: it is put into the note's
-// title on the page (the first # title), never written into the note, so the title line stays just
-// `# Title`. A date written in the title (<span class="paper-date">) is used as it is. Idempotent.
-function showDate(root, date) {
-  const h = root.querySelector('h1');
-  for (const old of root.querySelectorAll('.lp-prop-date')) if (old.parentElement !== h || !date) old.remove();
-  if (!h || !date || h.querySelector('.paper-date:not(.lp-prop-date)')) {
-    if (h) for (const d of h.querySelectorAll('.lp-prop-date')) d.remove();
-    return;
+// The date in a title bar's corner comes from the note's properties: the note's title (page 1)
+// shows its `date`, and the title of every later page (a # title that starts a new page) its own
+// date from the `page-dates` list (the 2nd # title the 1st date, the 3rd # title the 2nd ...), or
+// the note's date when it has none. The plugin puts it into the title on the page, never into the
+// note, so the title line stays just `# Title`. A date written in a title
+// (<span class="paper-date">) is used as it is. Idempotent.
+const noteTitles = (root) => Array.from(root.querySelectorAll('h1')).filter((h) => !h.closest('.markdown-embed, .internal-embed, .callout'));
+function showDates(root, first, pages) {
+  const titles = noteTitles(root);
+  const want = new Map();
+  titles.forEach((h, i) => {
+    const b = h.parentElement;
+    const page = i === 0 || (b && (breaksBefore(b) || nextPageBlock(b.previousElementSibling)));
+    const date = page ? ((i > 0 && formatDate((pages || [])[i - 1])) || first) : '';
+    if (date && !h.querySelector('.paper-date:not(.lp-prop-date)')) want.set(h, [date, i]);
+  });
+  for (const d of root.querySelectorAll('.lp-prop-date')) if (!want.has(d.parentElement)) d.remove();
+  for (const [h, [date, i]] of want) {
+    let d = h.querySelector(':scope > .lp-prop-date');
+    if (!d) {
+      d = document.createElement('span');
+      d.className = 'paper-date lp-prop-date';
+      d.setAttribute('contenteditable', 'false');
+      h.appendChild(d);
+    }
+    if (d.textContent !== date) d.textContent = date;
+    if (d.dataset.lpPage !== String(i)) d.dataset.lpPage = String(i);
   }
-  let d = h.querySelector('.lp-prop-date');
-  if (!d) {
-    d = document.createElement('span');
-    d.className = 'paper-date lp-prop-date';
-    d.setAttribute('contenteditable', 'false');
-    h.appendChild(d);
-  }
-  if (d.textContent !== date) d.textContent = date;
 }
+const showDate = (root, date) => showDates(root, date, []);
+// a list property's items ('' for none)
+const listValue = (v) => (Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [v]).map((x) => (x === null || x === undefined ? '' : String(x)));
+
 // the note's date property, set to today (YYYY-MM-DD) if it has none, through the editor (the
 // cursor stays where it was)
 function setDateProperty(editor) {
@@ -919,6 +933,47 @@ function setDateProperty(editor) {
   }
   editor.replaceRange(`---\ndate: ${iso}\n---\n`, { line: 0, ch: 0 });
   editor.setCursor({ line: cur.line + 3, ch: cur.ch });
+}
+// a new page's own date: today into the note's `page-dates` list, at the place of the # title
+// written at the cursor (the list keeps the dates of the pages after it with their pages). Through
+// the editor; the cursor stays where it was.
+function addPageDate(editor) {
+  const iso = globalThis.moment ? globalThis.moment().format('YYYY-MM-DD') : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const cur = editor.getCursor();
+  const n = editor.lineCount();
+  // the frontmatter (setDateProperty has made one)
+  if (editor.getLine(0) !== '---') return;
+  let end = -1;
+  for (let i = 1; i < n; i++) if (/^(---|\.\.\.)\s*$/.test(editor.getLine(i))) { end = i; break; }
+  if (end < 0) return;
+  // # titles above the cursor (not in code)
+  let titles = 0, fence = false;
+  for (let i = end + 1; i < cur.line && i < n; i++) {
+    const l = editor.getLine(i);
+    if (/^\s*(```|~~~)/.test(l)) fence = !fence;
+    else if (!fence && /^# /.test(l)) titles++;
+  }
+  if (titles < 1) return;   // (the note's own title: its date is the date property)
+  // the list as it is: `page-dates: [a, b]` or a `- a` line for each
+  let from = -1, to = -1, list = [];
+  for (let i = 1; i < end; i++) {
+    const m = /^page-dates\s*:\s*(.*)$/i.exec(editor.getLine(i));
+    if (!m) continue;
+    from = i; to = i + 1;
+    const inline = m[1].trim();
+    if (inline.startsWith('[')) list = inline.replace(/^\[|\]$/g, '').split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter((x, k, a) => x || a.length > 1);
+    else if (inline) list = [inline.replace(/^["']|["']$/g, '')];
+    while (to < end && /^\s+-\s*/.test(editor.getLine(to))) { list.push(editor.getLine(to).replace(/^\s+-\s*/, '').trim().replace(/^["']|["']$/g, '')); to++; }
+    break;
+  }
+  const k = titles - 1;
+  while (list.length < k) list.push('');
+  list.splice(k, 0, iso);
+  const lines = ['page-dates:', ...list.map((x) => '  - ' + (x || '""'))];
+  const text = lines.join('\n') + '\n';
+  if (from < 0) { editor.replaceRange(text, { line: end, ch: 0 }); from = end; to = end; }
+  else editor.replaceRange(text, { line: from, ch: 0 }, { line: to, ch: 0 });
+  editor.setCursor({ line: cur.line + lines.length - (to - from), ch: cur.ch });
 }
 // (every block written in a quote of its own, `>> [!…]`, like the cue / notes groups)
 const TEMPLATES = {
@@ -1026,7 +1081,7 @@ function addPaperCommands(plugin) {
     id, name,
     editorCallback: (editor, view) => {
       // (a title's date goes in the note's date property, shown in the title bar's corner)
-      if (key === 'title' || key === 'cornell') setDateProperty(editor);
+      if (key === 'title' || key === 'cornell') { setDateProperty(editor); addPageDate(editor); }
       insertBlock(editor, TEMPLATES[key]((view && view.file && view.file.basename) || 'Title'));
     },
   });
@@ -1143,12 +1198,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (st) this.queue(view, st);
     }, true);
     // PDF export: make sure every summary has its copy before the page is printed
-    this.registerDomEvent(window, 'beforeprint', () => { this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) showDate(pr, this.noteDate(pr)); unwrapQuotedBlocks(document.body); liftSummaries(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
+    this.registerDomEvent(window, 'beforeprint', () => { this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); this.showNoteDates(pr); } unwrapQuotedBlocks(document.body); liftSummaries(document.body); unwrapCalloutEmbeds(document.body); fitTitles(document.body); addSummarySizer(document.body); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); anchorMidSummaries(pr); } });
     this.registerInterval(window.setInterval(() => {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { showDate(pr, this.noteDate(pr)); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1451,12 +1506,12 @@ module.exports = class LinedPaperPages extends Plugin {
     const anchorTop = anchor && anchor.getBoundingClientRect().top;
     try {
       this.undoAll(st);
-      showDate(view, this.noteDate(view));
-      if (document.body.classList.contains('lp-no-pages')) return;
+      if (document.body.classList.contains('lp-no-pages')) { this.showNoteDates(view); return; }
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
       liftSummaries(view, st.undo);
       autoBreaks(view, st.undo);
+      this.showNoteDates(view);   // (after autoBreaks: it knows which titles start a page)
       unwrapCalloutEmbeds(view, st.undo);
       tidyEmbedLines(view, st.undo);
       markEmptyHeads(view, st.undo);
@@ -1543,6 +1598,11 @@ module.exports = class LinedPaperPages extends Plugin {
     const info = this.noteDateInfo(el);
     return info ? formatDate(info.value) : '';
   }
+  // the dates in the title bars of the note in `root`: page 1 and every later page with a # title
+  showNoteDates(root) {
+    const info = this.noteDateInfo(root);
+    showDates(root, this.noteDate(root), info && info.fm ? listValue(info.fm['page-dates']) : []);
+  }
   // the note shown in `el` (a reading view, or the PDF export: the open note), and its date property:
   // { file, key (null: none yet), value }
   noteDateInfo(el) {
@@ -1559,7 +1619,7 @@ module.exports = class LinedPaperPages extends Plugin {
       const cache = app.metadataCache.getFileCache(file);
       const fm = cache && cache.frontmatter;
       const key = dateKey(fm);
-      return { file, key, value: key ? fm[key] : '' };
+      return { file, key, value: key ? fm[key] : '', fm: fm || null };
     } catch (e) { return null; }
   }
 
@@ -1569,22 +1629,25 @@ module.exports = class LinedPaperPages extends Plugin {
     if (!view) return;
     e.preventDefault();
     e.stopPropagation();
-    this.editDate(view, d);
+    this.editDate(view, d, parseInt(d.dataset.lpPage || '0', 10) || 0);
   }
 
   // Change the date: a date picker over the date in the title bar (or, when the note has no date
   // yet, over the title bar's corner); the new date goes into the note's date property
   // (YYYY-MM-DD) on Enter or when the picker is left (Esc: no change). A date property that is not a plain date (free text) is edited as text.
-  editDate(el, anchor) {
+  editDate(el, anchor, page = 0) {
     const info = this.noteDateInfo(el);
     if (!info || !info.file) { new Notice('Lined Paper Pages: open a note first'); return null; }
     document.querySelectorAll('.lp-date-picker').forEach((p) => p.remove());
-    const iso = isoDate(info.value);
-    const text = !iso && info.key && String(info.value || '').trim() !== '';
+    // (a later page: its own date in page-dates, else the note's date to start from)
+    const own = page > 0 ? (listValue(info.fm && info.fm['page-dates'])[page - 1] || '') : null;
+    const current = own || info.value;
+    const iso = isoDate(current);
+    const text = !iso && String(current || '').trim() !== '';
     const input = document.createElement('input');
     input.type = text ? 'text' : 'date';
     input.className = 'lp-date-picker';
-    input.value = text ? String(info.value) : iso;
+    input.value = text ? String(current) : iso;
     input.setAttribute('aria-label', 'Date of this note');
     const r = anchor ? anchor.getBoundingClientRect() : null;
     const w = text ? 200 : 160;
@@ -1597,10 +1660,18 @@ module.exports = class LinedPaperPages extends Plugin {
       done = true;
       const v = input.value.trim();
       input.remove();
-      if (!save || v === (text ? String(info.value) : iso)) return;
+      if (!save || v === (text ? String(current) : iso)) return;
       const app = this.app;
       if (!app.fileManager || !app.fileManager.processFrontMatter) return;
       app.fileManager.processFrontMatter(info.file, (fm) => {
+        if (page > 0) {
+          const list = listValue(fm['page-dates']);
+          while (list.length < page) list.push('');
+          list[page - 1] = v;
+          while (list.length && !list[list.length - 1]) list.pop();
+          if (list.length) fm['page-dates'] = list; else delete fm['page-dates'];
+          return;
+        }
         const key = dateKey(fm) || 'date';
         if (v) fm[key] = v; else delete fm[key];
       });
@@ -2191,6 +2262,7 @@ module.exports.colourRuns = colourRuns;
 module.exports.setDateProperty = setDateProperty;
 module.exports.formatDate = formatDate;
 module.exports.isoDate = isoDate;
+module.exports.addPageDate = addPageDate;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

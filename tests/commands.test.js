@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -96,4 +96,25 @@ test('a note\'s own light or dark paper: its cssclasses, the rest kept', () => {
   assert.deepEqual(noteThemeClasses({ cssclasses: ['lined-paper', 'dark-paper'] }, 'light'), ['lined-paper', 'light-paper']);
   assert.deepEqual(noteThemeClasses({ cssclass: 'lined-paper, cornell' }, 'dark'), ['lined-paper', 'cornell', 'dark-paper']);
   assert.deepEqual(noteThemeClasses({}, 'light'), ['light-paper']);
+});
+
+test('a title on a later page: today in the page-dates list, at its place', () => {
+  const iso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  // the 3rd # title: the 2nd item, the 1st kept
+  const e = editor('---\ndate: 2026-10-26\npage-dates:\n  - 2026-10-27\n---\n# One\n# Two\n\n# Three', 8, 0);
+  addPageDate(e);
+  assert.equal(e.text(), `---\ndate: 2026-10-26\npage-dates:\n  - 2026-10-27\n  - ${iso}\n---\n# One\n# Two\n\n# Three`);
+  assert.deepEqual(e.getCursor(), { line: 9, ch: 0 });
+  // put between two pages: the later page keeps its date
+  const f = editor('---\ndate: 2026-10-26\npage-dates: [2026-10-27]\n---\n# One\nx\n# Two', 5, 1);
+  addPageDate(f);
+  assert.equal(f.text(), `---\ndate: 2026-10-26\npage-dates:\n  - ${iso}\n  - 2026-10-27\n---\n# One\nx\n# Two`);
+  // no list yet, the 3rd title: an empty place for the 2nd
+  const g = editor('---\ndate: 2026-10-26\n---\n# One\n# Two\n', 5, 0);
+  addPageDate(g);
+  assert.equal(g.text(), `---\ndate: 2026-10-26\npage-dates:\n  - ""\n  - ${iso}\n---\n# One\n# Two\n`);
+  // the note's own title: nothing (its date is the date property)
+  const h = editor('---\ndate: 2026-10-26\n---\n', 3, 0);
+  addPageDate(h);
+  assert.equal(h.text(), '---\ndate: 2026-10-26\n---\n');
 });

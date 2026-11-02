@@ -294,6 +294,21 @@ written.
 The date in the title bar's corner is the note's **`date` property** (`date: 2026-10-26`, shown as
 26 Oct 2026; `Date` or `created` work too). It is not written into the title, so the title line is
 just `# Title`. *Insert title* and *Insert Cornell page* set it to today when the note has none.
+**Every new page has a date too.** The title bar of each page that starts with a `# Title` shows
+the note's date, or that page's own date from the `page-dates` list property: the first date in it
+for the 2nd `# Title`, the second for the 3rd, and so on (an empty item: the note's date).
+*Insert title* / *Insert Cornell page* on a later page put today in that list, at that page's place,
+and clicking a page's date sets that page's own date.
+
+```yaml
+---
+date: 2026-10-26
+page-dates:
+  - 2026-10-28
+  - 2026-11-02
+---
+```
+
 To change it: in reading view, **click the date** in the title bar and pick a new one (Enter or
 click away to save, Esc to cancel); run *Set this note's date* (also for a note with no date yet);
 or edit the property itself while editing. A date written into the title the old way (`<span class="paper-date">…</span>`) still works.
