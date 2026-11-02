@@ -467,27 +467,57 @@ function liftSummaries(root, undo) {
   }
 }
 
-// An embedded block's text starts on the embed's own line. Should anything of Obsidian's still sit
-// above it inside the embed (a gap, an empty element where the hidden title was), the embed is pulled
-// up by that much (--lp-embed-pull: lined-paper.css). All measured first, then all set.
+// An embedded block's text starts on the embed's own line: the `![[Note#^id]]` line itself takes
+// no room. Its first line goes straight under whatever is written above it in the same column or
+// block (or on that column's first line, when nothing is), whatever sits in between: something of
+// Obsidian's inside the embed (spacing, an empty element where the hidden title was), or outside it
+// (an empty line, a line break or an invisible character before the embed). The embed is pulled up
+// by that much (--lp-embed-pull: lined-paper.css). All measured first, then all set.
+const VISIBLE = /[^\s​-‍⁠﻿]/;
+const EMBED_HIDDEN = '.markdown-embed-title, .embed-title, .markdown-embed-link, .mod-header, .mod-footer, .markdown-preview-pusher, .cn-sum-sizer, .lp-probe, .callout-title';
+// the rows a node's writing takes: [top of its first row, bottom of its last row], or null
+function writtenRows(n) {
+  if (n.nodeType === 3) {
+    if (!VISIBLE.test(n.data)) return null;
+    const r = document.createRange();
+    r.selectNodeContents(n);
+    const rects = Array.from(r.getClientRects()).filter((b) => b.height);
+    if (!rects.length) return null;
+    const lh = parseFloat(getComputedStyle(n.parentElement).lineHeight) || rects[0].height;
+    const first = rects[0], last = rects[rects.length - 1];
+    return [first.top - (lh - first.height) / 2, last.bottom + (lh - last.height) / 2];
+  }
+  if (!n.matches('img, table, tr, hr, input, svg, .math, mjx-container, .callout')) return null;
+  const b = n.getBoundingClientRect();
+  return b.height ? [b.top, b.bottom] : null;
+}
 function alignEmbeds(root, undo) {
-  const embeds = Array.from(root.querySelectorAll('.lined-paper .internal-embed[src*="#^"]')).filter((e) => !e.closest('.lp-embed-unwrapped') && e.offsetParent);
+  const embeds = Array.from(root.querySelectorAll('.internal-embed[src*="#^"]'))
+    .filter((e) => e.closest('.lined-paper, .print') && !e.closest('.lp-embed-unwrapped') && !e.parentElement.closest('.internal-embed') && e.getClientRects().length);
   for (const e of embeds) e.style.removeProperty('--lp-embed-pull');
-  const pulls = embeds.map((e) => {
-    const top = e.getBoundingClientRect().top;
-    const tw = document.createTreeWalker(e, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) => (n.nodeType === 1 && n.matches('.markdown-embed-title, .embed-title, .markdown-embed-link, .mod-header, .markdown-preview-pusher') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  const walk = (el, f, skip) => {
+    const tw = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.nodeType === 1 && (n === skip || n.matches(EMBED_HIDDEN)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
     });
-    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
-      if (n.nodeType === 3 ? !n.data.trim() : !n.matches('img, table, tr, li')) continue;
-      const box = n.nodeType === 3 ? (() => { const r = document.createRange(); r.selectNodeContents(n); return r.getBoundingClientRect(); })() : n.getBoundingClientRect();
-      if (!box.height) continue;
-      // (a line of text sits in its row: its row starts at the line's top less the half leading)
-      const lh = n.nodeType === 3 ? parseFloat(getComputedStyle(n.parentElement).lineHeight) || box.height : box.height;
-      const rowTop = n.nodeType === 3 ? box.top - (lh - box.height) / 2 : box.top;
-      return Math.round(rowTop - top);
-    }
-    return 0;
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) if (f(n) === false) return;
+  };
+  const pulls = embeds.map((e) => {
+    // where its writing starts now
+    let first = null;
+    walk(e, (n) => { const r = writtenRows(n); if (r) { first = r[0]; return false; } return true; });
+    if (first === null) return 0;
+    // where it should start: under the writing above it in its column / block, or at the top of that
+    const box = e.parentElement.closest('.callout-content, .markdown-preview-section > div, .markdown-preview-view > div, li, td, th') || e.parentElement;
+    const bb = box.getBoundingClientRect(), cs = getComputedStyle(box);
+    let want = bb.top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
+    walk(box, (n) => {
+      if (n.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_PRECEDING) return false;   // (past the embed)
+      if (n.nodeType === 1 && n.contains(e)) return true;                                   // (around it)
+      const r = writtenRows(n);
+      if (r) want = Math.max(want, r[1]);
+      return true;
+    }, e);
+    return Math.round(first - want);
   });
   embeds.forEach((e, i) => {
     if (pulls[i] > 1) {
@@ -1385,6 +1415,14 @@ module.exports = class LinedPaperPages extends Plugin {
           next: brk ? +(((nextPageBlock(brk) ? brk.nextElementSibling : brk).getBoundingClientRect().top - top) / L).toFixed(2) : null,
           shape: (function shape(el, d) { return el.tagName.toLowerCase() + (el.getAttribute('data-callout') ? '[' + el.getAttribute('data-callout') + ']' : el.className ? '.' + String(el.className).split(' ')[0] : '') + (d < 5 && el.children.length ? '(' + Array.from(el.children).slice(0, 8).map((c) => shape(c, d + 1)).join(' ') + ')' : ''); })(topBlock(x), 0),
         };
+      }),
+      // each block embed: where it is, how far it was pulled up, and the shape of its line (tags,
+      // classes and the kind of text: no words of the note)
+      embeds: Array.from(view.querySelectorAll('.internal-embed[src*="#^"]')).filter((e) => !e.parentElement.closest('.internal-embed')).slice(0, 20).map((e) => {
+        const line = e.parentElement.closest('.callout-content, .markdown-preview-section > div') || e.parentElement;
+        const shape = (el, d) => Array.from(el.childNodes).slice(0, 12).map((c) => c.nodeType === 3 ? (VISIBLE.test(c.data) ? 'text' : JSON.stringify(c.data.replace(/[^\s\u200b-\u200d\u2060\ufeff]/g, '')).slice(0, 12)) : c.nodeType !== 1 ? '' :
+          c.tagName.toLowerCase() + (c.className && typeof c.className === 'string' ? '.' + c.className.trim().split(/\s+/).slice(0, 2).join('.') : '') + (getComputedStyle(c).display === 'none' ? '!' : '') + (d < 7 && c.childNodes.length ? '(' + shape(c, d + 1) + ')' : '')).filter(Boolean).join(' ');
+        return { pull: e.style.getPropertyValue('--lp-embed-pull') || '0', ...at(e), line: shape(line, 0).slice(0, 1500) };
       }),
       sections: sizer ? Array.from(sizer.children).map((c) => c.className.slice(0, 40)).slice(0, 200) : [],
     };

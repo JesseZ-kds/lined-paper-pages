@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-11-02
+
+### Fixed
+- Every embedded block (`![[Note#^id]]`) starts on its own line in reading view and the PDF: its
+  first line goes straight under whatever is written above it (or on the column's first line), so
+  the `![[]]` line takes no room. The plugin now measures from the writing above the embed instead
+  of only inside the embed. That also catches an empty line outside it, from a line break, an
+  invisible character, an empty element or an empty paragraph Obsidian puts before it.
+
+### Changed
+- The layout report (Copy layout report) lists the note's embeds: where each one is, how far it
+  was pulled up, and the shape of its line (tags only, none of your text).
+
 ## [1.16.0] - 2026-11-02
 
 ### Added

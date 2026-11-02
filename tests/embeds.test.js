@@ -199,3 +199,39 @@ for (const [mode, cssPaging] of MODES) {
     assert.equal(Math.round((y('Tfirst') - y('above')) / L), 1, 'the table\'s first row on the line under "above"');
   });
 }
+
+// Whatever takes a line between the writing above an embed and the embed's first line (inside the
+// embed or outside it: a line break, an invisible character, an empty element, an empty paragraph),
+// the embed is pulled up: its first line goes straight under the writing above it, or on the
+// column's first line. Text after the embed follows it.
+for (const [mode, cssPaging] of MODES) {
+  const phantoms = {
+    'line break': (emb) => `<p><br>${emb}</p>`,
+    'invisible character': (emb) => `<p>​<br>${emb}</p>`,
+    'empty element': (emb) => `<p><span style="display:block;height:31px"></span>${emb}</p>`,
+    'empty paragraph': (emb) => `<p><br></p><p>${emb}</p>`,
+    'inside the embed': (emb) => `<p>${emb.replace('<div class="mod-header"></div>', '<div class="mod-header"></div><div class="el-p"><div style="height:31px"></div></div>')}</p>`,
+  };
+  for (const [name, wrap] of Object.entries(phantoms)) {
+    for (const above of ['', '<p>Wabove</p>']) {
+      test(`an embed starts on its line with ${name} before it (${above ? 'text above' : 'first in the notes'}, ${mode})`, async (t) => {
+        const { title, group } = require('./lib/notes');
+        const table = '<table><thead><tr><th>EMBHEAD</th><th>B</th></tr></thead><tbody><tr><td>EMBROW</td><td>x</td></tr></tbody></table>';
+        const emb = `<span class="internal-embed markdown-embed inline-embed is-loaded" src="Other#^t"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-table">${table}</div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></template></span>`;
+        const { page, context } = await openReading({ name: 'ph', cornell: true, blocks: [title('T'), group('<p>cue one</p>', '<p>first</p>'), group('<p>CUEX</p>', above + wrap(emb) + '<p>Wafter</p>')] }, { cssPaging });
+        if (!page) return t.skip(`${mode} is not available in this browser`);
+        try {
+          const rows = await page.evaluate(() => {
+            const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; document.querySelector('.markdown-preview-view').appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+            const at = (re) => [...document.querySelectorAll('p, th, td')].find((x) => re.test(x.textContent) && !x.querySelector('p, th, td')).getBoundingClientRect().top;
+            return ['EMBHEAD', 'EMBROW'].map((w) => +((at(new RegExp('^' + w)) - at(/^CUEX/)) / L).toFixed(2));
+          });
+          const s = above ? 1 : 0;
+          assert.deepEqual(rows, [s, s + 1], 'the table straight under what is above it');
+        } finally {
+          await context.close();
+        }
+      });
+    }
+  }
+}
