@@ -83,3 +83,47 @@ test('the date property is shown in the title bar\'s corner, not written in the 
     await context.close();
   }
 });
+
+test('the date can be changed: click it, pick a date, it goes into the date property', async () => {
+  const { page, context } = await openReading(note, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(async () => {
+      const pl = window.plugin;
+      const fm = { cssclasses: ['lined-paper'], Date: '2026-10-26' };
+      const file = { path: 'n.md' };
+      pl.noteDateInfo = () => ({ file, key: 'Date', value: fm.Date });
+      pl.app.fileManager = { processFrontMatter: (f, fn) => { fn(fm); return Promise.resolve(); } };
+      document.addEventListener('click', (e) => pl.onDateClick(e), true);   // (registerDomEvent in Obsidian)
+      const view = document.querySelector('.markdown-preview-view');
+      pl.layout(view, pl.states.get(view));
+      const d = view.querySelector('.lp-prop-date');
+      const shown = d.textContent;
+      d.click();
+      const input = document.querySelector('.lp-date-picker');
+      const out = { shown, type: input.type, value: input.value };
+      input.value = '2026-11-05';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      out.saved = fm.Date;
+      out.closed = !document.querySelector('.lp-date-picker');
+      // Esc: no change
+      view.querySelector('.lp-prop-date').click();
+      const again = document.querySelector('.lp-date-picker');
+      again.value = '2020-01-01';
+      again.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      out.kept = fm.Date;
+      // a note without a date yet: the date goes into a new `date` property
+      const fm2 = {};
+      pl.noteDateInfo = () => ({ file, key: null, value: '' });
+      pl.app.fileManager = { processFrontMatter: (f, fn) => { fn(fm2); return Promise.resolve(); } };
+      const p = pl.editDate(view, view.querySelector('h1'));
+      p.value = '2026-12-24';
+      p.blur();
+      await new Promise((res) => setTimeout(res, 20));
+      out.added = fm2;
+      return out;
+    });
+    assert.deepEqual(r, { shown: '26 Oct 2026', type: 'date', value: '2026-10-26', saved: '2026-11-05', closed: true, kept: '2026-11-05', added: { date: '2026-12-24' } });
+  } finally {
+    await context.close();
+  }
+});

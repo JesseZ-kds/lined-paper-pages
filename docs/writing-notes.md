@@ -51,6 +51,7 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Make this note a plain note again | Takes the two classes off |
 | Insert title (and today's date) | `# Note name`, and today's date in the note's `date` property (if it has none): shown in the title bar's corner as "26 Oct 2026" |
 | Insert Cornell page | Title, question, one cue + notes group, summary; today's date in the `date` property |
+| Set this note's date | A date picker for the note's `date` property (the date in the title bar) |
 | Switch the paper between light and dark | Light or dark pages for every note, whatever Obsidian's theme (also the ☀/☾ button in the left ribbon) |
 | Switch this note's paper between light and dark | This note only: adds `dark-paper` or `light-paper` to its `cssclasses` |
 | Paper follows Obsidian's light / dark theme again | Undoes *Switch the paper* |
@@ -293,7 +294,9 @@ written.
 The date in the title bar's corner is the note's **`date` property** (`date: 2026-10-26`, shown as
 26 Oct 2026; `Date` or `created` work too). It is not written into the title, so the title line is
 just `# Title`. *Insert title* and *Insert Cornell page* set it to today when the note has none.
-A date written into the title the old way (`<span class="paper-date">…</span>`) still works.
+To change it: in reading view, **click the date** in the title bar and pick a new one (Enter or
+click away to save, Esc to cancel); run *Set this note's date* (also for a note with no date yet);
+or edit the property itself while editing. A date written into the title the old way (`<span class="paper-date">…</span>`) still works.
 
 ## Light or dark paper
 

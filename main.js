@@ -867,11 +867,20 @@ function formatDate(v) {
   return str.slice(0, 40);
 }
 // the date of a note: its `date` property (any capitals), else `created`
-function frontmatterDate(fm) {
-  if (!fm || typeof fm !== 'object') return '';
+function dateKey(fm) {
+  if (!fm || typeof fm !== 'object') return null;
   const keys = Object.keys(fm);
-  const k = keys.find((x) => /^date$/i.test(x)) || keys.find((x) => /^created([ _-]?(at|on))?$/i.test(x));
+  return keys.find((x) => /^date$/i.test(x)) || keys.find((x) => /^created([ _-]?(at|on))?$/i.test(x)) || null;
+}
+function frontmatterDate(fm) {
+  const k = dateKey(fm);
   return k ? formatDate(fm[k]) : '';
+}
+// a date property's value as YYYY-MM-DD for the date picker ('' when it is not a date like that)
+function isoDate(v) {
+  if (Array.isArray(v)) v = v[0];
+  const m = /^(\d{4}-\d{2}-\d{2})(?:$|[T ])/.exec(String(v === null || v === undefined ? '' : v).trim());
+  return m ? m[1] : '';
 }
 // The date in the title bar's corner comes from the note's date property: it is put into the note's
 // title on the page (the first # title), never written into the note, so the title line stays just
@@ -998,6 +1007,19 @@ function addPaperCommands(plugin) {
       return true;
     },
   });
+  plugin.addCommand({
+    id: 'set-date', name: 'Set this note\'s date',
+    checkCallback: (checking) => {
+      const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
+      if (!file || file.extension !== 'md') return false;
+      if (!checking) {
+        const page = activePage();
+        const at = page && (page.querySelector('.lp-prop-date') || page.querySelector('h1') || page.querySelector('.metadata-container'));
+        plugin.editDate(page || document.body, at);
+      }
+      return true;
+    },
+  });
   if (plugin.addRibbonIcon) plugin.addRibbonIcon('sun-moon', 'Lined Paper: light / dark paper', () => plugin.togglePaperTheme());
 
   const insert = (id, name, key) => plugin.addCommand({
@@ -1113,6 +1135,8 @@ module.exports = class LinedPaperPages extends Plugin {
       const st = view && this.states.get(view);
       if (st) window.setTimeout(() => this.queue(view, st), 30);
     }, true);
+    // the date in the title bar (reading view): click it to change it
+    this.registerDomEvent(document, 'click', (e) => this.onDateClick(e), true);
     this.registerDomEvent(document, 'load', (e) => {
       const view = e.target && e.target.tagName === 'IMG' && e.target.closest(SEL_VIEW);
       const st = view && this.states.get(view);
@@ -1516,18 +1540,79 @@ module.exports = class LinedPaperPages extends Plugin {
   // lined-paper.css then does the pagination and this plugin must not move anything
   // the date property of the note shown in `el` (a reading view, or the PDF export: the open note)
   noteDate(el) {
+    const info = this.noteDateInfo(el);
+    return info ? formatDate(info.value) : '';
+  }
+  // the note shown in `el` (a reading view, or the PDF export: the open note), and its date property:
+  // { file, key (null: none yet), value }
+  noteDateInfo(el) {
     try {
       const app = this.app, ws = app && app.workspace;
-      if (!ws || !app.metadataCache) return '';
+      if (!ws || !app.metadataCache) return null;
       let file = null;
       if (el && !el.closest('.print') && ws.getLeavesOfType) {
         const leaf = ws.getLeavesOfType('markdown').find((l) => l.view && l.view.containerEl && l.view.containerEl.contains(el));
         file = leaf && leaf.view.file;
       }
       if (!file && ws.getActiveFile) file = ws.getActiveFile();
-      const cache = file && app.metadataCache.getFileCache(file);
-      return frontmatterDate(cache && cache.frontmatter);
-    } catch (e) { return ''; }
+      if (!file) return null;
+      const cache = app.metadataCache.getFileCache(file);
+      const fm = cache && cache.frontmatter;
+      const key = dateKey(fm);
+      return { file, key, value: key ? fm[key] : '' };
+    } catch (e) { return null; }
+  }
+
+  onDateClick(e) {
+    const d = e.target && e.target.closest && e.target.closest('.lp-prop-date');
+    const view = d && d.closest(SEL_VIEW);
+    if (!view) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.editDate(view, d);
+  }
+
+  // Change the date: a date picker over the date in the title bar (or, when the note has no date
+  // yet, over the title bar's corner); the new date goes into the note's date property
+  // (YYYY-MM-DD) on Enter or when the picker is left (Esc: no change). A date property that is not a plain date (free text) is edited as text.
+  editDate(el, anchor) {
+    const info = this.noteDateInfo(el);
+    if (!info || !info.file) { new Notice('Lined Paper Pages: open a note first'); return null; }
+    document.querySelectorAll('.lp-date-picker').forEach((p) => p.remove());
+    const iso = isoDate(info.value);
+    const text = !iso && info.key && String(info.value || '').trim() !== '';
+    const input = document.createElement('input');
+    input.type = text ? 'text' : 'date';
+    input.className = 'lp-date-picker';
+    input.value = text ? String(info.value) : iso;
+    input.setAttribute('aria-label', 'Date of this note');
+    const r = anchor ? anchor.getBoundingClientRect() : null;
+    const w = text ? 200 : 160;
+    input.style.cssText = `position:fixed;z-index:1000;width:${w}px;` +
+      (r && r.width ? `top:${Math.max(4, r.top - 2)}px;left:${Math.max(4, r.right - w)}px;` : 'top:80px;right:40px;');
+    document.body.appendChild(input);
+    let done = false;
+    const close = (save) => {
+      if (done) return;
+      done = true;
+      const v = input.value.trim();
+      input.remove();
+      if (!save || v === (text ? String(info.value) : iso)) return;
+      const app = this.app;
+      if (!app.fileManager || !app.fileManager.processFrontMatter) return;
+      app.fileManager.processFrontMatter(info.file, (fm) => {
+        const key = dateKey(fm) || 'date';
+        if (v) fm[key] = v; else delete fm[key];
+      });
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); close(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(false); }
+    });
+    input.addEventListener('blur', () => window.setTimeout(() => close(true), 0));
+    input.focus();
+    try { if (input.type === 'date' && input.showPicker) input.showPicker(); } catch (e) { /* (only from a click) */ }
+    return input;
   }
 
   layoutReport() {
@@ -2105,6 +2190,7 @@ module.exports.TEMPLATES = TEMPLATES;
 module.exports.colourRuns = colourRuns;
 module.exports.setDateProperty = setDateProperty;
 module.exports.formatDate = formatDate;
+module.exports.isoDate = isoDate;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

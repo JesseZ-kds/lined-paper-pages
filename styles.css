@@ -1176,6 +1176,16 @@ html body .lined-paper h1.lp-title-wrap.lp-title-wrap {
   display: none !important;
 }
 
+/* (reading view: click the date to change it) */
+.markdown-reading-view .lined-paper .lp-prop-date {
+  cursor: pointer;
+  pointer-events: auto;
+}
+.markdown-reading-view .lined-paper .lp-prop-date:hover {
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+
 /* Date: top right corner. Written in the title (<span class="paper-date">) or, with the plugin,
    the note's date property (the plugin puts it in the title on the page: .lp-prop-date) */
 .lined-paper .paper-date {

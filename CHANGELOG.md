@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-11-02
+
+### Added
+- The date stays easy to change. In reading view, click the date in the title bar and pick a new
+  one; it is saved to the note's date property (Enter or click away to save, Esc to cancel). The
+  *Set this note's date* command does the same from anywhere, also for a note that has no date
+  yet. While editing, the date is the note's ordinary date property.
+
 ## [1.17.0] - 2026-11-02
 
 ### Added

@@ -106,6 +106,7 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Pen: circle / box / underline / wavy underline / scribble out | — (your choice) |
 | Pen: cross out | Ctrl/Cmd + Alt + X |
 | Insert checkbox (task) | Ctrl/Cmd + Alt + K |
+| Set this note's date | Ctrl/Cmd + Alt + Y |
 | Switch the paper between light and dark | Ctrl/Cmd + Alt + M |
 | Switch this note's paper between light and dark | — |
 | Re-paginate reading view | — |
