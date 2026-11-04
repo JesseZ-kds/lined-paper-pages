@@ -235,3 +235,30 @@ for (const [mode, cssPaging] of MODES) {
     }
   }
 }
+
+// An embedded callout first in the notes starts on the notes' first line, like a typed one, whatever
+// takes a line above it (an empty paragraph, a line break, an empty element)
+for (const [mode, cssPaging] of MODES) {
+  const { title, group, callout } = require('./lib/notes');
+  const quote = callout('quote', 'QTITLE source', '<p>QTEXT a quoted line</p>');
+  const emb = `<span class="internal-embed markdown-embed inline-embed is-loaded" src="Quotes#^q"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-div">${quote}</div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></template></span>`;
+  const shapes = {
+    none: `<p>${emb}</p>`,
+    'empty paragraph': `<p><br></p><p>${emb}</p>`,
+    'line break': `<p><br>${emb}</p>`,
+    'empty element': `<div style="height:31px"></div><p>${emb}</p>`,
+  };
+  for (const [name, html] of Object.entries(shapes)) {
+    test(`an embedded quote first in the notes starts on the notes' first line (${name}, ${mode})`, async (t) => {
+      const blocks = [title('T'), group('<p>CUEA which point</p>', `${html}<ul><li>LISTA a point</li></ul>`), group('<p>CUEB next</p>', `<p>${emb.replace('#^q', '#^q2')}</p><ul><li>LISTB b</li></ul>`)];
+      const typed = await render({ name: 'quote-typed', cornell: true, blocks: [title('T'), group('<p>CUEA which point</p>', `${quote}<ul><li>LISTA a point</li></ul>`), group('<p>CUEB next</p>', `${quote}<ul><li>LISTB b</li></ul>`)] }, { cssPaging });
+      if (typed.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+      const r = await render({ name: 'quote-embed', cornell: true, blocks }, { cssPaging });
+      assert.deepEqual(r.errors, []);
+      const at = (x) => x.reading.words.filter((w) => /^(QTITLE|QTEXT|LISTA|LISTB|CUEA|CUEB)$/.test(w.w)).map((w) => `${w.w}@${w.page}:${Math.round(w.y)}`);
+      assert.deepEqual(at(r), at(typed), 'where a typed quote would be');
+      const c = compare(r.reading, r.pdf);
+      assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
+    });
+  }
+}

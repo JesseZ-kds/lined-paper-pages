@@ -530,6 +530,47 @@ function alignEmbeds(root, undo) {
   });
 }
 
+// An embedded callout (the copy shown for `![[Note#^callout]]`) that is the first thing written in its
+// column (the notes, a cue, [!wide], a block of the note) starts on that column's first line, exactly
+// where the same callout typed there would: anything of Obsidian's that takes a line above it (an
+// empty line, a line break, an element where the embed was) is not counted. Measured, then set: the
+// whole rows it sits too low are taken off its top margin.
+function alignEmbedCopies(root, undo) {
+  // (not a summary: that goes to the bottom of its page; nor anything else placed on its own)
+  const copies = Array.from(root.querySelectorAll('.lp-embed-copy')).filter((c) => c.getClientRects().length && !c.parentElement.closest('.lp-embed-copy') &&
+    !c.matches('[data-callout="summary"], [data-callout="nextpage"], [data-callout="divider"]') && !/absolute|fixed/.test(getComputedStyle(c).position));
+  for (const c of copies) if (c._lpPull) { c.style.removeProperty('margin-top'); c._lpPull = 0; }
+  const L = copies.length ? px(copies[0].closest('.lined-paper, .print') || root, 'var(--line)') : 0;
+  if (!(L > 4)) return;
+  const plans = copies.map((c) => {
+    const box = c.parentElement.closest('.callout-content, li, .markdown-preview-section > div, .markdown-preview-view > div');
+    if (!box) return 0;
+    // (only when nothing is written above it in its column)
+    let before = false;
+    const tw = document.createTreeWalker(box, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n === c || (n.nodeType === 1 && n.matches(EMBED_HIDDEN + ', .lp-embed-unwrapped')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      if (n.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_PRECEDING) break;   // (past it)
+      if (n.nodeType === 1 && n.contains(c)) continue;
+      if (writtenRows(n)) { before = true; break; }
+    }
+    if (before) return 0;
+    const b = box.getBoundingClientRect(), cs = getComputedStyle(box);
+    const top = b.top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
+    // (a callout's box sits a little above its first line: whole rows lower than that are too low)
+    const rows = Math.floor((c.getBoundingClientRect().top - top) / L + 0.5);
+    return rows >= 1 ? { margin: parseFloat(getComputedStyle(c).marginTop) || 0, pull: rows * L } : 0;
+  });
+  copies.forEach((c, i) => {
+    const p = plans[i];
+    if (!p) return;
+    c.style.setProperty('margin-top', p.margin - p.pull + 'px', 'important');
+    c._lpPull = p.pull;
+    if (undo) undo.push({ t: 'prop', el: c, name: 'margin-top' });
+  });
+}
+
 // A table written with an empty header row (Markdown needs one, so `| | |` over `|---|---|` is how
 // a table without a header is written) has no header on the page: that row takes no line, and the
 // table's first row is on the line the table starts on (reading view and the PDF; lined-paper.css:
@@ -1072,6 +1113,87 @@ function insertBlock(editor, template) {
 }
 
 // write the selected text with a pen (or type an empty pen span to write in)
+// ---------- pen colours, highlighters and pen marks: put on, change, take off ----------
+// The styled runs in one line of source: <font color>, <span style="color">  (colour),
+// <span class="pen-…">  (mark), <mark …> and ==…==  (highlight). Where each is, and its tags.
+function styledRuns(text) {
+  const out = [];
+  const re = /<(font|span|mark)\b([^>]*)>([\s\S]*?)<\/\1\s*>|==(?!=)([^=\n]+?)==/gi;
+  for (let m; (m = re.exec(text));) {
+    let kind = null;
+    if (m[4] !== undefined) kind = 'highlight';
+    else {
+      const tag = m[1].toLowerCase(), attrs = m[2];
+      if (tag === 'mark') kind = 'highlight';
+      else if (tag === 'span' && PEN_CLASS_RE.test(attrs)) kind = 'mark';
+      else if ((tag === 'font' && /\bcolor\s*=/i.test(attrs)) || (tag === 'span' && /\bstyle\s*=\s*["'][^"']*\bcolor\s*:/i.test(attrs))) kind = 'colour';
+    }
+    if (!kind) continue;
+    const open = m[4] !== undefined ? '==' : m[0].slice(0, m[0].indexOf('>') + 1);
+    const close = m[4] !== undefined ? '==' : m[0].slice(m[0].lastIndexOf('</'));
+    out.push({ kind, from: m.index, to: m.index + m[0].length, innerFrom: m.index + open.length, innerTo: m.index + m[0].length - close.length, open, close });
+  }
+  return out;
+}
+// One line: the runs of `kinds` over [a, b) taken off (the parts of a run outside [a, b) keep their
+// style), then [a, b) styled with `wrap` ({ open, close }; none: only taken off). Without a selection
+// (a === b), the run the cursor is in is changed (or taken off) as a whole; outside one, an empty
+// `wrap` is put at the cursor to write in. Spaces at either end of the selection stay outside.
+// Returns { text, a, b }: the new line and the styled text's place in it.
+function restyleLine(line, a, b, kinds, wrap) {
+  const of = (r) => kinds.includes(r.kind);
+  if (a === b) {
+    const r = styledRuns(line).find((x) => of(x) && a >= x.from && a <= x.to);
+    if (!r) {
+      if (!wrap) return { text: line, a, b };
+      return { text: line.slice(0, a) + wrap.open + wrap.close + line.slice(a), a: a + wrap.open.length, b: a + wrap.open.length };
+    }
+    a = r.innerFrom; b = r.innerTo;
+  }
+  while (a < b && /\s/.test(line[a])) a++;
+  while (b > a && /\s/.test(line[b - 1])) b--;
+  if (a === b) return { text: line, a, b };
+  // take the runs off, from the right (what is left of them keeps its style)
+  const runs = styledRuns(line).filter((r) => of(r) && r.from < b && r.to > a).sort((x, y) => y.from - x.from);
+  for (const r of runs) {
+    const inner = line.slice(r.innerFrom, r.innerTo);
+    const s = Math.min(Math.max(a - r.innerFrom, 0), inner.length), e = Math.min(Math.max(b - r.innerFrom, 0), inner.length);
+    const keep = (part) => {
+      if (!part.trim()) return part;
+      const lead = part.match(/^\s*/)[0], trail = part.match(/\s*$/)[0];
+      return lead + r.open + part.trim() + r.close + trail;
+    };
+    const left = keep(inner.slice(0, s)), mid = inner.slice(s, e), right = keep(inner.slice(e));
+    const rep = left + mid + right;
+    const delta = rep.length - (r.to - r.from);
+    line = line.slice(0, r.from) + rep + line.slice(r.to);
+    const midStart = r.from + left.length;
+    if (a >= r.from) a = midStart; 
+    if (b <= r.to) b = midStart + mid.length; else b += delta;
+  }
+  while (a < b && /\s/.test(line[a])) a++;
+  while (b > a && /\s/.test(line[b - 1])) b--;
+  if (!wrap || a === b) return { text: line, a, b };
+  const mid = line.slice(a, b);
+  return { text: line.slice(0, a) + wrap.open + mid + wrap.close + line.slice(b), a: a + wrap.open.length, b: a + wrap.open.length + mid.length };
+}
+// the editor: each selected line (or the cursor's run) restyled, the styled text selected after
+function restyleSelection(editor, kinds, wrap) {
+  const from = editor.getCursor('from'), to = editor.getCursor('to');
+  let sel = null;
+  for (let l = from.line; l <= to.line; l++) {
+    const line = editor.getLine(l);
+    const a = l === from.line ? from.ch : 0;
+    const b = l === to.line ? to.ch : line.length;
+    if (from.line !== to.line && a === b) continue;
+    const r = restyleLine(line, a, b, kinds, wrap);
+    if (r.text !== line) editor.replaceRange(r.text, { line: l, ch: 0 }, { line: l, ch: line.length });
+    if (!sel) sel = { anchor: { line: l, ch: r.a } };
+    sel.head = { line: l, ch: r.b };
+  }
+  if (sel && editor.setSelection) editor.setSelection(sel.anchor, sel.head);
+}
+
 // write the selected text with a pen or highlighter (or type an empty one to write in)
 function wrapSelection(editor, open, close) {
   const sel = editor.getSelection();
@@ -1170,21 +1292,27 @@ function addPaperCommands(plugin) {
 
   const wrap = wrapSelection;
 
+  // (a new colour, highlighter or mark takes the place of the one there: never one inside another)
   for (const [name, hex] of COLOURS) {
     plugin.addCommand({
       id: 'colour-' + name, name: `Pen: ${name}`,
-      editorCallback: (editor) => wrap(editor, `<font color="${hex}">`, '</font>'),
+      editorCallback: (editor) => restyleSelection(editor, ['colour'], { open: `<font color="${hex}">`, close: '</font>' }),
     });
   }
-  plugin.addCommand({ id: 'highlighter', name: 'Pen: highlighter', editorCallback: (editor) => wrap(editor, '==', '==') });
+  plugin.addCommand({ id: 'highlighter', name: 'Pen: highlighter', editorCallback: (editor) => restyleSelection(editor, ['highlight'], { open: '==', close: '==' }) });
   // highlighters of other colours, in the same note
   for (const c of HIGHLIGHTERS) {
-    plugin.addCommand({ id: 'highlighter-' + c, name: 'Highlighter: ' + c, editorCallback: (editor) => wrap(editor, `<mark class="hl-${c}">`, '</mark>') });
+    plugin.addCommand({ id: 'highlighter-' + c, name: 'Highlighter: ' + c, editorCallback: (editor) => restyleSelection(editor, ['highlight'], { open: `<mark class="hl-${c}">`, close: '</mark>' }) });
   }
   // marks drawn over the writing with the marking pen (lined-paper.css "PEN AND PAPER")
   for (const [id, name] of PEN_MARKS) {
-    plugin.addCommand({ id: 'pen-' + id, name: 'Pen: ' + name, editorCallback: (editor) => wrap(editor, `<span class="pen-${id}">`, '</span>') });
+    plugin.addCommand({ id: 'pen-' + id, name: 'Pen: ' + name, editorCallback: (editor) => restyleSelection(editor, ['mark'], { open: `<span class="pen-${id}">`, close: '</span>' }) });
   }
+  // taking them off again: of the selection, or of the run the cursor is in
+  plugin.addCommand({ id: 'remove-colour', name: 'Remove pen colour', editorCallback: (editor) => restyleSelection(editor, ['colour'], null) });
+  plugin.addCommand({ id: 'remove-highlight', name: 'Remove highlight', editorCallback: (editor) => restyleSelection(editor, ['highlight'], null) });
+  plugin.addCommand({ id: 'remove-marks', name: 'Remove pen marks (circle, box, underline …)', editorCallback: (editor) => restyleSelection(editor, ['mark'], null) });
+  plugin.addCommand({ id: 'remove-all-styles', name: 'Remove all colours, highlights and marks', editorCallback: (editor) => restyleSelection(editor, ['colour', 'highlight', 'mark'], null) });
   plugin.addCommand({ id: 'cross-out', name: 'Pen: cross out', editorCallback: (editor) => wrap(editor, '~~', '~~') });
   plugin.addCommand({ id: 'insert-task', name: 'Insert checkbox (task)', editorCallback: (editor) => {
     const cur = editor.getCursor();
@@ -1231,7 +1359,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -1276,7 +1404,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1589,6 +1717,7 @@ module.exports = class LinedPaperPages extends Plugin {
       tidyEmbedLines(view, st.undo);
       markEmptyHeads(view, st.undo);
       alignEmbeds(view, st.undo);
+      alignEmbedCopies(view, st.undo);
       fitTitles(view, st.undo);
       addSummarySizer(view);
       anchorMidSummaries(view, st.undo);
@@ -2342,6 +2471,7 @@ module.exports.isoDate = isoDate;
 module.exports.addPageDate = addPageDate;
 module.exports.sectionDates = sectionDates;
 module.exports.wrapSelection = wrapSelection;
+module.exports.restyleLine = restyleLine;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

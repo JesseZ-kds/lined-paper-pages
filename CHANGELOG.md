@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-04
+
+### Added
+- **Change or remove a colour, highlight or mark easily.**
+  - A pen colour, highlighter or pen mark now takes the place of the one already there instead of
+    going inside it. Recolour part of a coloured phrase and the rest keeps its colour.
+  - Without a selection, the command changes the whole run the cursor is in.
+  - New commands: *Remove pen colour*, *Remove highlight*, *Remove pen marks* and *Remove all
+    colours, highlights and marks*, for the selection or the run the cursor is in.
+
+### Fixed
+- **Embedded quotes start on the notes' first line.** An embedded callout (`![[Note#^quote]]`)
+  first in the notes (or a cue, a full-width block, ...) starts on that column's first line, like
+  the same callout typed there, in reading view and the PDF. Before, something Obsidian put above
+  it could push it a line down.
+
+- **Highlighted links:** a `[[link]]` that is highlighted is written in the colour of the writing
+  round it, not the link colour. The highlight already marks it, and the link still works (while
+  editing too).
+
+### Changed
+- **The highlighter is one even colour.** No streaks or darker ends, and it runs a little past the
+  first and last letter, like a real highlighter. The ends are still cut on the slant (square on
+  dark paper).
+
 ## [1.19.1] - 2026-11-04
 
 ### Fixed

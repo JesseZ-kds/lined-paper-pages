@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -138,4 +138,37 @@ test('pen and highlighter commands: spaces selected at either end stay outside t
 test('a highlighter of another colour is found in a line of source (editing view shows it)', () => {
   const runs = colourRuns('a <mark class="hl-pink">pink words</mark> b <mark>plain</mark>');
   assert.deepEqual(runs.map((r) => [r.inner, r.mark]), [['pink words', 'cm-highlight hl-pink']]);
+});
+
+test('a new pen colour, highlighter or mark takes the place of the old one; remove takes it off', () => {
+  const sel = (line, part) => { const a = line.indexOf(part); return [a, a + part.length]; };
+  const blue = { open: '<font color="#1e4fbf">', close: '</font>' };
+  const pink = { open: '<mark class="hl-pink">', close: '</mark>' };
+  // the whole coloured text, selected with its tags or without: the colour is changed, not nested
+  let l = 'the <font color="#c62828">foetus</font> is';
+  assert.equal(restyleLine(l, ...sel(l, 'foetus'), ['colour'], blue).text, 'the <font color="#1e4fbf">foetus</font> is');
+  assert.equal(restyleLine(l, ...sel(l, '<font color="#c62828">foetus</font>'), ['colour'], blue).text, 'the <font color="#1e4fbf">foetus</font> is');
+  // no selection, the cursor in it: the whole run
+  assert.equal(restyleLine(l, l.indexOf('tus'), l.indexOf('tus'), ['colour'], blue).text, 'the <font color="#1e4fbf">foetus</font> is');
+  // part of it: the rest keeps its colour
+  l = '<font color="#c62828">life begins at birth</font>';
+  assert.equal(restyleLine(l, ...sel(l, 'birth'), ['colour'], blue).text, '<font color="#c62828">life begins at</font> <font color="#1e4fbf">birth</font>');
+  // remove
+  assert.equal(restyleLine(l, 3, 3, ['colour'], null).text, 'life begins at birth');
+  // highlighters: == and <mark> are one kind; a colour stays when the highlight changes
+  l = 'at ==birth== and <font color="#c62828">life</font>';
+  assert.equal(restyleLine(l, ...sel(l, 'birth'), ['highlight'], pink).text, 'at <mark class="hl-pink">birth</mark> and <font color="#c62828">life</font>');
+  assert.equal(restyleLine(l, ...sel(l, 'at ==birth== and <font color="#c62828">life</font>'), ['colour', 'highlight', 'mark'], null).text, 'at birth and life');
+  l = '<mark class="hl-green">a b c</mark>';
+  assert.equal(restyleLine(l, ...sel(l, 'b'), ['highlight'], { open: '==', close: '==' }).text, '<mark class="hl-green">a</mark> ==b== <mark class="hl-green">c</mark>');
+  // marks
+  l = 'a <span class="pen-box">word</span>';
+  assert.equal(restyleLine(l, ...sel(l, 'word'), ['mark'], { open: '<span class="pen-circle">', close: '</span>' }).text, 'a <span class="pen-circle">word</span>');
+  // nothing there yet, no selection: an empty one to write in
+  const r = restyleLine('ab', 1, 1, ['colour'], blue);
+  assert.deepEqual(r, { text: 'a<font color="#1e4fbf"></font>b', a: 23, b: 23 });
+  // the styled text is selected after
+  l = 'x foetus y';
+  const q = restyleLine(l, ...sel(l, 'foetus '), ['colour'], blue);
+  assert.equal(q.text.slice(q.a, q.b), 'foetus');
 });

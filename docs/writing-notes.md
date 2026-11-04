@@ -64,6 +64,7 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Pen: blue / red / green / purple / orange | Writes the selected text (or what you type next) in that pen: `<font color="…">` (see [Pen colours](#pen-colours)) |
 | Pen: highlighter | Marks the selected text with a yellow highlighter: `==text==` |
 | Highlighter: yellow / green / pink / blue / orange | Highlights the selected words in that colour, `<mark class="hl-pink">…</mark>`: several colours in one note (`==text==` is the colour picked in the settings) |
+| Remove pen colour / Remove highlight / Remove pen marks / Remove all colours, highlights and marks | Takes them off the selected text, or off the run the cursor is in. (A new pen colour, highlighter or mark always takes the place of the one there: no need to remove it first) |
 | Pen: circle / box | Draws a circle / a box round the selected words with the marking pen: `<span class="pen-circle">…</span>` (see [Pen marks](#pen-marks)) |
 | Pen: underline / wavy underline | Underlines the selected words with the marking pen |
 | Pen: scribble out | Scribbles over the selected words, like a mistake crossed out by hand |
@@ -287,9 +288,8 @@ More highlighter colours in the same note: the *Highlighter: …* commands, or
 The stroke covers the words and the spaces between them; the space before and after a highlight stays
 clear (a space you select by accident at either end is left outside).
 
-The highlighter looks like a real felt-tip one: a see-through lemon stroke over the body of the
-letters, with the chisel tip's slanted ends (a little darker where the pen lands and lifts) and faint
-streaks. In dark theme the pens are a little lighter and the
+The highlighter looks like a real felt-tip one: one even see-through stroke over the body of the
+letters, running a little past the words, its ends cut on the slant like the chisel tip. In dark theme the pens are a little lighter and the
 highlighter is a solid yellow stroke with dark text, so they stay easy to read on the dark paper
 (on screen and in a PDF exported from dark theme); the Word / Office colours (`#4f81bd`, `#c0504d`,
 `#9bbb59`, `#8064a2`, `#4bacc6`, `#f79646`) are a little lighter there too. For printing, export from the light theme: white paper with

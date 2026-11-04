@@ -110,7 +110,8 @@ test('highlighters of several colours in one note; the stroke covers the spaces 
     });
     assert.deepEqual(r.map((x) => x.colour), ['rgba(255, 232, 26, 0.55)', 'rgba(255, 120, 190, 0.38)', 'rgba(120, 220, 90, 0.45)']);
     for (const x of r) {
-      assert.ok(x.clearBefore > 0.5 && x.clearAfter > 0.5, 'the space next to a highlight stays mostly clear: ' + JSON.stringify(x));
+      // (it runs a little past the words, as a highlighter does: part of the space stays clear)
+      assert.ok(x.clearBefore > 0.3 && x.clearAfter > 0.3, 'part of the space next to a highlight stays clear: ' + JSON.stringify(x));
     }
   } finally {
     await context.close();
@@ -163,5 +164,27 @@ test('the box and the circle show in reading view (a line round the words, in th
     assert.ok(r.every(([, w]) => parseFloat(w) >= 1), 'a visible line: ' + JSON.stringify(r));
   } finally {
     await context.close();
+  }
+});
+
+test('a highlighted [[link]] is written in the colour of the writing, not the link colour', async () => {
+  const { title, block } = require('./lib/notes');
+  for (const theme of ['theme-light', 'theme-dark']) {
+    const n = { name: 'hl-link', cornell: false, blocks: [title('L'), block('<p>see <a class="internal-link" href="x">plain link</a> and <mark><a class="internal-link" href="x">marked link</a></mark> and <mark class="hl-pink">a <a class="internal-link" href="y">pink link</a></mark></p>')] };
+    const { page, context } = await openReading(n, { theme });
+    try {
+      // (Obsidian's link colour)
+      await page.addStyleTag({ content: '.markdown-rendered a.internal-link { color: rgb(1, 2, 200); }' });
+      const r = await page.evaluate(() => {
+        const col = (el) => getComputedStyle(el).color;
+        const links = [...document.querySelectorAll('a')];
+        return { plain: col(links[0]), marked: col(links[1]), pink: col(links[2]), markText: col(document.querySelector('mark')) };
+      });
+      assert.equal(r.plain, 'rgb(1, 2, 200)', `${theme}: a link not highlighted keeps its colour`);
+      assert.equal(r.marked, r.markText, `${theme}: the writing's colour`);
+      assert.equal(r.pink, r.markText, `${theme}: in every highlighter`);
+    } finally {
+      await context.close();
+    }
   }
 });

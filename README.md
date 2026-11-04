@@ -104,6 +104,8 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Pen: blue / red / green / purple / orange | Ctrl/Cmd + Alt + 1 … 5 |
 | Pen: highlighter | Ctrl/Cmd + Alt + H |
 | Highlighter: yellow / green / pink / blue / orange | Ctrl/Cmd + Shift + Alt + 1 … 5 |
+| Remove all colours, highlights and marks | Ctrl/Cmd + Alt + 0 |
+| Remove pen colour / Remove highlight / Remove pen marks | — |
 | Pen: circle / box / underline / wavy underline / scribble out | — (your choice) |
 | Pen: cross out | Ctrl/Cmd + Alt + X |
 | Insert checkbox (task) | Ctrl/Cmd + Alt + K |
