@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.19.1] - 2026-11-04
+
+### Fixed
+- **No more grey highlights.** The highlighter came out grey or murky on some pages (light paper
+  in Obsidian's dark theme, some themes), because it was blended with what was behind it. It is
+  never blended now, so it looks the same on every page, in reading view and in the PDF.
+
+- **The box and circle pen marks show in reading view and the PDF.** They were drawn as an extra
+  layer positioned round the words, which did not always show. They are now a line round the words
+  themselves, which takes no room, so the words stay exactly where they were.
+
+### Changed
+- **The highlighter looks like a real felt-tip.**
+  - On light paper: a see-through lemon stroke over the body of the letters (not the whole row),
+    chisel-tip slanted ends a little darker where the pen lands and lifts, and faint streaks.
+  - On dark paper: a solid bright stroke with dark text and square ends.
+  - The same for every highlighter colour.
+
 ## [1.19.0] - 2026-11-04
 
 ### Added

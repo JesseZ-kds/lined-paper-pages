@@ -287,8 +287,9 @@ More highlighter colours in the same note: the *Highlighter: …* commands, or
 The stroke covers the words and the spaces between them; the space before and after a highlight stays
 clear (a space you select by accident at either end is left outside).
 
-The highlighter looks like a real one: a see-through yellow stroke across the middle of the words,
-slightly slanted, darker at its ends. In dark theme the pens are a little lighter and the
+The highlighter looks like a real felt-tip one: a see-through lemon stroke over the body of the
+letters, with the chisel tip's slanted ends (a little darker where the pen lands and lifts) and faint
+streaks. In dark theme the pens are a little lighter and the
 highlighter is a solid yellow stroke with dark text, so they stay easy to read on the dark paper
 (on screen and in a PDF exported from dark theme); the Word / Office colours (`#4f81bd`, `#c0504d`,
 `#9bbb59`, `#8064a2`, `#4bacc6`, `#f79646`) are a little lighter there too. For printing, export from the light theme: white paper with

@@ -2962,9 +2962,8 @@ body {
   --pen-green: #2e7d32;
   --pen-purple: #6a1b9a;
   --pen-orange: #d84315;
-  --pen-highlight: rgba(255, 221, 0, 0.5);
-  --pen-highlight-edge: rgba(255, 200, 0, 0.7);
-  --pen-highlight-blend: multiply;
+  --pen-highlight: rgba(255, 232, 26, 0.55);
+  --pen-highlight-edge: rgba(250, 205, 0, 0.42);
 }
 :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) {
   --pen-blue: #8ab4f8;
@@ -2973,9 +2972,10 @@ body {
   --pen-purple: #c58af9;
   --pen-orange: #fcad70;
   /* (on dark paper a see-through yellow turns olive: the highlighter is a solid stroke, dark text on it) */
-  --pen-highlight: rgba(250, 215, 70, 0.86);
-  --pen-highlight-edge: rgba(240, 195, 30, 0.95);
-  --pen-highlight-blend: normal;
+  --pen-highlight: rgba(250, 222, 80, 0.92);
+  --pen-highlight-edge: rgba(215, 165, 0, 0.26);
+  --pen-highlight-streak: rgba(0, 0, 0, 0.05);
+  --pen-highlight-cut: 0em;   /* (a bright stroke on dark paper: square ends, no dark wedge of paper at its tips) */
 }
 :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight) { color: #1f2328 !important; }
 /* The colours of Word / Office's palette, often used for notes (<font color="#4f81bd">), are a
@@ -2992,27 +2992,51 @@ body {
 .lined-paper font[color="#2e7d32" i] { color: var(--pen-green) !important; }
 .lined-paper font[color="#6a1b9a" i] { color: var(--pen-purple) !important; }
 .lined-paper font[color="#d84315" i] { color: var(--pen-orange) !important; }
-/* the highlighter: a see-through yellow stroke over the middle of the letters, a little slanted, its
-   ends darker where the pen lands and lifts, the text showing through it */
+/* The highlighter, like a real felt-tip one: a see-through stroke over the body of the letters (from
+   just under the line to the top of the small letters, not the whole row), with the chisel tip's
+   slanted ends, a little darker where the pen lands and lifts, and the faint streaks of its felt.
+   The text is drawn on top of it. Nothing is blended with what is behind it (a blend made it come out
+   grey on some pages, depending on the theme): it looks the same on every page, in reading view and
+   in the PDF. On dark paper it is a solid bright stroke with dark text, so it stays easy to read. */
+body {
+  --pen-highlight-streak: rgba(255, 255, 255, 0.16);
+  --pen-highlight-cut: 0.1em;
+}
 .lined-paper :is(mark, .cm-highlight) {
   color: inherit !important;
   background-color: transparent !important;
   background-image:
-    linear-gradient(100deg, transparent 0.6%, var(--pen-highlight-edge) 2.2%, var(--pen-highlight) 7%, var(--pen-highlight) 93%, var(--pen-highlight-edge) 97.8%, transparent 99.4%),
-    linear-gradient(178deg, transparent 8%, var(--pen-highlight) 30%, transparent 90%) !important;
-  background-size: 100% 64%, 100% 64% !important;
-  background-position: 0 62%, 0 62% !important;
+    /* the felt's streaks */
+    repeating-linear-gradient(179deg, transparent 0 0.17em, var(--pen-highlight-streak) 0.17em 0.22em),
+    /* where the tip lands and lifts: a little more ink */
+    linear-gradient(104deg, transparent var(--pen-highlight-cut), var(--pen-highlight-edge) var(--pen-highlight-cut), transparent 0.42em, transparent calc(100% - 0.42em), var(--pen-highlight-edge) calc(100% - var(--pen-highlight-cut)), transparent calc(100% - var(--pen-highlight-cut))),
+    /* the stroke, its ends cut on the slant like a chisel tip */
+    linear-gradient(104deg, transparent var(--pen-highlight-cut), var(--pen-highlight) var(--pen-highlight-cut), var(--pen-highlight) calc(100% - var(--pen-highlight-cut)), transparent calc(100% - var(--pen-highlight-cut))) !important;
+  background-size: 100% 0.86em !important;
+  background-position: 0 72% !important;
   background-repeat: no-repeat !important;
   /* (the stroke covers the words and the spaces between them, and runs only a hair past the first and
      last letter: the space to a word next to it, not highlighted, stays clear. The text doesn't move.) */
-  padding: 0 0.06em;
-  margin: 0 -0.06em;
-  border-radius: 0.5em 0.2em 0.45em 0.25em;
+  padding: 0 0.1em !important;
+  margin: 0 -0.1em !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none;
+  mix-blend-mode: normal !important;
   -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;   /* (a highlight over two lines: a stroke on each) */
-  mix-blend-mode: var(--pen-highlight-blend);
+  box-decoration-break: clone;   /* (a highlight over two lines: a stroke on each, with its own ends) */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+/* (while editing, Obsidian cuts a highlight into pieces round bold, links ...: one even stroke, no
+   ends in the middle of it) */
+.lined-paper .cm-highlight {
+  background-image:
+    repeating-linear-gradient(179deg, transparent 0 0.17em, var(--pen-highlight-streak) 0.17em 0.22em),
+    linear-gradient(var(--pen-highlight), var(--pen-highlight)) !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* ---------- PEN AND PAPER ----------
@@ -3179,27 +3203,27 @@ body.lp-strike-red .lined-paper :is(del, s, .cm-strikethrough) {
 }
 
 /* The highlighter's colour (==text==) */
-body.lp-hl-green { --pen-highlight: rgba(120, 220, 90, 0.45); --pen-highlight-edge: rgba(95, 200, 70, 0.65); }
-body.lp-hl-pink { --pen-highlight: rgba(255, 120, 190, 0.38); --pen-highlight-edge: rgba(245, 90, 170, 0.58); }
-body.lp-hl-blue { --pen-highlight: rgba(90, 190, 255, 0.4); --pen-highlight-edge: rgba(60, 165, 245, 0.6); }
-body.lp-hl-orange { --pen-highlight: rgba(255, 170, 60, 0.45); --pen-highlight-edge: rgba(250, 145, 30, 0.65); }
-body.lp-hl-green :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(150, 225, 120, 0.86); --pen-highlight-edge: rgba(120, 205, 90, 0.95); }
-body.lp-hl-pink :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(250, 160, 205, 0.86); --pen-highlight-edge: rgba(240, 130, 190, 0.95); }
-body.lp-hl-blue :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(140, 205, 250, 0.86); --pen-highlight-edge: rgba(110, 185, 245, 0.95); }
-body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(250, 190, 110, 0.86); --pen-highlight-edge: rgba(245, 165, 70, 0.95); }
+body.lp-hl-green { --pen-highlight: rgba(120, 220, 90, 0.45); --pen-highlight-edge: rgba(95, 200, 70, 0.42); }
+body.lp-hl-pink { --pen-highlight: rgba(255, 120, 190, 0.38); --pen-highlight-edge: rgba(245, 90, 170, 0.42); }
+body.lp-hl-blue { --pen-highlight: rgba(90, 190, 255, 0.4); --pen-highlight-edge: rgba(60, 165, 245, 0.42); }
+body.lp-hl-orange { --pen-highlight: rgba(255, 170, 60, 0.45); --pen-highlight-edge: rgba(250, 145, 30, 0.42); }
+body.lp-hl-green :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(150, 225, 120, 0.92); --pen-highlight-edge: rgba(105, 168, 62, 0.26); }
+body.lp-hl-pink :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(250, 160, 205, 0.92); --pen-highlight-edge: rgba(211, 106, 133, 0.26); }
+body.lp-hl-blue :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(140, 205, 250, 0.92); --pen-highlight-edge: rgba(96, 151, 171, 0.26); }
+body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight: rgba(250, 190, 110, 0.92); --pen-highlight-edge: rgba(215, 135, 49, 0.26); }
 
 /* Highlighters of other colours in the same note (the "Highlighter: …" commands):
    <mark class="hl-pink">text</mark>; ==text== is the highlighter picked in the settings */
-.lined-paper :is(mark, .cm-highlight).hl-yellow { --pen-highlight: rgba(255, 221, 0, 0.5); --pen-highlight-edge: rgba(255, 200, 0, 0.7); }
-.lined-paper :is(mark, .cm-highlight).hl-green { --pen-highlight: rgba(120, 220, 90, 0.45); --pen-highlight-edge: rgba(95, 200, 70, 0.65); }
-.lined-paper :is(mark, .cm-highlight).hl-pink { --pen-highlight: rgba(255, 120, 190, 0.38); --pen-highlight-edge: rgba(245, 90, 170, 0.58); }
-.lined-paper :is(mark, .cm-highlight).hl-blue { --pen-highlight: rgba(90, 190, 255, 0.4); --pen-highlight-edge: rgba(60, 165, 245, 0.6); }
-.lined-paper :is(mark, .cm-highlight).hl-orange { --pen-highlight: rgba(255, 170, 60, 0.45); --pen-highlight-edge: rgba(250, 145, 30, 0.65); }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-yellow { --pen-highlight: rgba(250, 215, 70, 0.86); --pen-highlight-edge: rgba(240, 195, 30, 0.95); }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-green { --pen-highlight: rgba(150, 225, 120, 0.86); --pen-highlight-edge: rgba(120, 205, 90, 0.95); }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-pink { --pen-highlight: rgba(250, 160, 205, 0.86); --pen-highlight-edge: rgba(240, 130, 190, 0.95); }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-blue { --pen-highlight: rgba(140, 205, 250, 0.86); --pen-highlight-edge: rgba(110, 185, 245, 0.95); }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-orange { --pen-highlight: rgba(250, 190, 110, 0.86); --pen-highlight-edge: rgba(245, 165, 70, 0.95); }
+.lined-paper :is(mark, .cm-highlight).hl-yellow { --pen-highlight: rgba(255, 232, 26, 0.55); --pen-highlight-edge: rgba(250, 205, 0, 0.42); }
+.lined-paper :is(mark, .cm-highlight).hl-green { --pen-highlight: rgba(120, 220, 90, 0.45); --pen-highlight-edge: rgba(95, 200, 70, 0.42); }
+.lined-paper :is(mark, .cm-highlight).hl-pink { --pen-highlight: rgba(255, 120, 190, 0.38); --pen-highlight-edge: rgba(245, 90, 170, 0.42); }
+.lined-paper :is(mark, .cm-highlight).hl-blue { --pen-highlight: rgba(90, 190, 255, 0.4); --pen-highlight-edge: rgba(60, 165, 245, 0.42); }
+.lined-paper :is(mark, .cm-highlight).hl-orange { --pen-highlight: rgba(255, 170, 60, 0.45); --pen-highlight-edge: rgba(250, 145, 30, 0.42); }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-yellow { --pen-highlight: rgba(250, 222, 80, 0.92); --pen-highlight-edge: rgba(211, 159, 21, 0.26); }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-green { --pen-highlight: rgba(150, 225, 120, 0.92); --pen-highlight-edge: rgba(105, 168, 62, 0.26); }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-pink { --pen-highlight: rgba(250, 160, 205, 0.92); --pen-highlight-edge: rgba(211, 106, 133, 0.26); }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-blue { --pen-highlight: rgba(140, 205, 250, 0.92); --pen-highlight-edge: rgba(96, 151, 171, 0.26); }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-orange { --pen-highlight: rgba(250, 190, 110, 0.92); --pen-highlight-edge: rgba(215, 135, 49, 0.26); }
 
 /* Pen marks (the "Pen: circle / box / underline / wavy underline / scribble out" commands):
    <span class="pen-circle">word</span> and so on. Drawn over the writing with the marking pen
@@ -3207,26 +3231,27 @@ body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.d
 .lined-paper {
   --pen-mark: var(--lp-mark, var(--pen-red));
 }
+/* (a line round the words themselves, an outline: no extra layer to place, so it shows wherever the
+   words are, in reading view, while editing and in the PDF; an outline takes no room, and the
+   padding that gives the words some air is taken back by the margins, so the words don't move) */
 .lined-paper :is(.pen-circle, .pen-box) {
-  position: relative;
-}
-.lined-paper :is(.pen-circle, .pen-box)::before {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  border: 1.6px solid var(--pen-mark);
+  outline: 1.6px solid var(--pen-mark) !important;
+  outline-offset: 0 !important;
+  border: none !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;   /* (words over two lines: a box on each) */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.lined-paper .pen-circle::before {
-  inset: -0.08em -0.42em -0.1em -0.38em;
-  border-radius: 50% 46% 54% 48% / 56% 50% 46% 52%;
-  rotate: -3deg;
+.lined-paper .pen-box {
+  padding: 0 0.12em !important;
+  margin: 0 -0.12em !important;
+  border-radius: 2px 5px 3px 4px / 4px 2px 5px 3px !important;
 }
-.lined-paper .pen-box::before {
-  inset: 0 -0.22em -0.04em -0.2em;
-  border-radius: 2px 4px 3px 2px / 3px 2px 4px 3px;
-  rotate: -0.6deg;
+.lined-paper .pen-circle {
+  padding: 0 0.3em !important;
+  margin: 0 -0.3em !important;
+  border-radius: 50% 46% 54% 48% / 56% 50% 46% 52% !important;
 }
 .lined-paper :is(.pen-underline, .pen-wavy, .pen-scribble) {
   text-decoration-skip-ink: none;

@@ -56,8 +56,8 @@ test('pen and paper options: the pen, the paper, bullets, checkboxes, marks', as
         task: cs('li.task-list-item').listStyleType,
         heading: cs('h2').textDecorationStyle,
         strike: cs('del').textDecorationStyle,
-        circle: cs('.pen-circle', '::before').borderTopStyle,
-        box: cs('.pen-box', '::before').borderTopStyle,
+        circle: cs('.pen-circle').outlineStyle,
+        box: cs('.pen-box').outlineStyle,
         checkbox: cs('input[type="checkbox"]').appearance,
         tick: cs('input[type="checkbox"]:checked', '::after').content,
         untick: cs('input[type="checkbox"]:not(:checked)', '::after').display,
@@ -108,10 +108,59 @@ test('highlighters of several colours in one note; the stroke covers the spaces 
         };
       });
     });
-    assert.deepEqual(r.map((x) => x.colour), ['rgba(255, 221, 0, 0.5)', 'rgba(255, 120, 190, 0.38)', 'rgba(120, 220, 90, 0.45)']);
+    assert.deepEqual(r.map((x) => x.colour), ['rgba(255, 232, 26, 0.55)', 'rgba(255, 120, 190, 0.38)', 'rgba(120, 220, 90, 0.45)']);
     for (const x of r) {
       assert.ok(x.clearBefore > 0.5 && x.clearAfter > 0.5, 'the space next to a highlight stays mostly clear: ' + JSON.stringify(x));
     }
+  } finally {
+    await context.close();
+  }
+});
+
+test('the highlighter is never blended with what is behind it, and light paper looks the same in Obsidian\'s dark theme', async () => {
+  const { title, block } = require('./lib/notes');
+  const n = { name: 'hl2', cornell: false, blocks: [title('H'), block('<p>at <mark>conception</mark> and <mark class="hl-pink">pink</mark></p>')] };
+  const look = async (theme, paper) => {
+    const { page, context } = await openReading(n, { theme });
+    try {
+      if (paper) await page.evaluate((p) => window.plugin.setSetting('paper-theme', p), paper);
+      return await page.evaluate(() => [...document.querySelectorAll('mark')].map((m) => { const cs = getComputedStyle(m); return [cs.mixBlendMode, cs.backgroundImage, cs.color]; }));
+    } finally {
+      await context.close();
+    }
+  };
+  const light = await look('theme-light');
+  const lightInDark = await look('theme-dark', 'light');
+  const dark = await look('theme-dark');
+  assert.ok([...light, ...lightInDark, ...dark].every((x) => x[0] === 'normal'), 'no blend');
+  assert.deepEqual(lightInDark, light, 'light paper: the same highlighter in either theme');
+  assert.deepEqual(dark.map((x) => x[2]), ['rgb(31, 35, 40)', 'rgb(31, 35, 40)'], 'dark paper: dark text on the bright stroke');
+});
+
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  test(`a box and a circle are drawn round the words, which don't move, in reading view and the PDF (${mode})`, async (t) => {
+    const { title, block, group } = require('./lib/notes');
+    const words = (marked) => [title('B'), block(`<p>Bfirst ${marked ? '<span class="pen-box">Bboxed words</span>' : 'Bboxed words'} Bafter and ${marked ? '<span class="pen-circle">Bcircled</span>' : 'Bcircled'} Bend</p>`),
+      group('<p>Bcue</p>', `<p>Bnote ${marked ? '<span class="pen-box">Bkey</span>' : 'Bkey'} Bterm</p>`)];
+    const plain = await render({ name: 'box0', cornell: true, blocks: words(false) }, { cssPaging });
+    if (plain.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+    const marked = await render({ name: 'box1', cornell: true, blocks: words(true) }, { cssPaging });
+    assert.deepEqual(marked.errors, []);
+    const at = (r) => r.reading.words.filter((w) => /^B/.test(w.w)).map((w) => `${w.w}@${Math.round(w.x)},${Math.round(w.y)}`);
+    assert.deepEqual(at(marked), at(plain), 'every word where it was');
+    const c = compare(marked.reading, marked.pdf);
+    assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
+  });
+}
+
+test('the box and the circle show in reading view (a line round the words, in the marking pen)', async () => {
+  const { title, block } = require('./lib/notes');
+  const { page, context } = await openReading({ name: 'box', cornell: false, blocks: [title('B'), block('<p>a <span class="pen-box">boxed</span> and <span class="pen-circle">circled</span></p>')] });
+  try {
+    const r = await page.evaluate(() => [...document.querySelectorAll('.pen-box, .pen-circle')].map((e) => { const cs = getComputedStyle(e); return [cs.outlineStyle, cs.outlineWidth, cs.outlineColor]; }));
+    // (the browser draws the 1.6px line as whole screen pixels: 1px here)
+    assert.deepEqual(r.map(([style, , colour]) => [style, colour]), [['solid', 'rgb(192, 57, 43)'], ['solid', 'rgb(192, 57, 43)']]);
+    assert.ok(r.every(([, w]) => parseFloat(w) >= 1), 'a visible line: ' + JSON.stringify(r));
   } finally {
     await context.close();
   }
