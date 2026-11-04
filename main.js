@@ -912,6 +912,57 @@ function showDates(root, first, pages) {
   }
 }
 const showDate = (root, date) => showDates(root, date, []);
+// The PDF export: Obsidian renders the note bit by bit and prints it straight away, so each part gets
+// its date as it is rendered (a markdown post-processor), from the note's properties Obsidian hands
+// over (ctx.frontmatter) and the note's source (ctx.getSectionInfo): which # title of the note this
+// is, and whether it starts a page (every # title after the first, with "Start a new page at every
+// # title" on, or one under a [!nextpage]).
+function sectionDates(el, ctx, fm) {
+  const hs = noteTitles(el);
+  if (!hs.length || !fm) return;
+  const first = frontmatterDate(fm), pages = listValue(fm['page-dates']);
+  let lines = null, start = 0;
+  try {
+    const info = ctx && ctx.getSectionInfo && ctx.getSectionInfo(el);
+    if (info && typeof info.text === 'string') { lines = info.text.split('\n'); start = info.lineStart; }
+  } catch (e) { /* no source */ }
+  if (!lines) {
+    // no source: the whole export, once this part is in it (which titles start a page is on the page
+    // then); a part not in it yet: its title gets the note's date (put right with the rest later)
+    const pr = el.closest('.print');
+    if (pr) { autoBreaks(pr); showDates(pr, first, pages); return; }
+    for (const h of hs) sectionDates(h.parentElement || h, { getSectionInfo: () => ({ text: '# x', lineStart: 0 }) }, { date: fm[dateKey(fm)] });
+    return;
+  }
+  // the # titles of the note, in order, with whether each starts a page
+  const titles = [];
+  let i = 0, fence = false;
+  if (lines[0] === '---') { for (i = 1; i < lines.length && !/^(---|\.\.\.)\s*$/.test(lines[i]); i++); i++; }
+  const auto = !document.body.classList.contains('lp-no-auto-break');
+  for (let prev = ''; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^\s*(```|~~~)/.test(l)) fence = !fence;
+    else if (!fence && /^# /.test(l)) titles.push({ line: i, page: !titles.length || auto || /\[!nextpage\]/i.test(prev) });
+    if (l.trim()) prev = l;
+  }
+  const mine = titles.filter((t) => t.line >= start);
+  hs.forEach((h, k) => {
+    const t = mine[k];
+    if (!t || h.querySelector('.paper-date:not(.lp-prop-date)')) return;
+    const n = titles.indexOf(t);
+    const date = t.page ? ((n > 0 && formatDate(pages[n - 1])) || first) : '';
+    let d = h.querySelector(':scope > .lp-prop-date');
+    if (!date) { if (d) d.remove(); return; }
+    if (!d) {
+      d = document.createElement('span');
+      d.className = 'paper-date lp-prop-date';
+      d.setAttribute('contenteditable', 'false');
+      h.appendChild(d);
+    }
+    if (d.textContent !== date) d.textContent = date;
+    d.dataset.lpPage = String(n);
+  });
+}
 // a list property's items ('' for none)
 const listValue = (v) => (Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [v]).map((x) => (x === null || x === undefined ? '' : String(x)));
 
@@ -1158,6 +1209,9 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
+      // (the PDF export: the date in each title bar, from the note's properties)
+      if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
+      if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
       const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
@@ -1601,7 +1655,11 @@ module.exports = class LinedPaperPages extends Plugin {
   // the dates in the title bars of the note in `root`: page 1 and every later page with a # title
   showNoteDates(root) {
     const info = this.noteDateInfo(root);
-    showDates(root, this.noteDate(root), info && info.fm ? listValue(info.fm['page-dates']) : []);
+    let fm = info ? info.fm : null;
+    if (root.closest('.print') || root.matches('.print')) fm = fm || this.exportFm || null;
+    // (no note found, as can happen while a PDF is made: the dates already there stay)
+    if (!info && !fm) return;
+    showDates(root, info ? this.noteDate(root) : frontmatterDate(fm), listValue(fm && fm['page-dates']));
   }
   // the note shown in `el` (a reading view, or the PDF export: the open note), and its date property:
   // { file, key (null: none yet), value }
@@ -2263,6 +2321,7 @@ module.exports.setDateProperty = setDateProperty;
 module.exports.formatDate = formatDate;
 module.exports.isoDate = isoDate;
 module.exports.addPageDate = addPageDate;
+module.exports.sectionDates = sectionDates;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

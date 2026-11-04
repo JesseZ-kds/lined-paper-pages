@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-11-04
+
+### Fixed
+- The PDF export has the dates: the note's date on page 1 and each later page's date (its own from
+  `page-dates`, or the note's) in its title bar.
+  - Before, they were only added a moment after the export was made, which could be too late.
+  - Now each part of the export gets its date as Obsidian renders it, from the note's properties
+    and its source.
+
 ## [1.18.0] - 2026-11-02
 
 ### Added

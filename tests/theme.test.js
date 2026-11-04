@@ -69,12 +69,12 @@ test('the date property is shown in the title bar\'s corner, not written in the 
     const r = await page.evaluate(async () => {
       const h = document.querySelector('h1');
       const before = h.getBoundingClientRect();
-      window.plugin.noteDate = () => '26 Oct 2026';
+      window.plugin.noteDateInfo = () => ({ file: {}, key: 'date', value: '2026-10-26', fm: { date: '2026-10-26' } });
       window.plugin.layout(document.querySelector('.markdown-preview-view'), window.plugin.states.get(document.querySelector('.markdown-preview-view')));
       const d = h.querySelector('.paper-date');
       const after = h.getBoundingClientRect(), db = d.getBoundingClientRect();
       const once = h.querySelectorAll('.paper-date').length;
-      window.plugin.noteDate = () => '';
+      window.plugin.noteDateInfo = () => ({ file: {}, key: null, value: '', fm: {} });
       window.plugin.layout(document.querySelector('.markdown-preview-view'), window.plugin.states.get(document.querySelector('.markdown-preview-view')));
       return { text: d.textContent, once, sameTitle: before.top === after.top && before.height === after.height, corner: db.right > after.right - 80 && db.top < after.top + 40, gone: h.querySelectorAll('.paper-date').length };
     });
@@ -166,4 +166,41 @@ for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination'
       await context.close();
     }
   });
+}
+
+// The PDF export has the dates too: each page's title bar, the note's date or the page's own
+const { render, compare, describeMismatch } = require('./lib/harness');
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  for (const source of [true, false]) {
+    test(`the PDF has every page's date in its title bar (${source ? 'from the note\'s source' : 'without the source'}, ${mode})`, async (t) => {
+      const fm = { date: '2026-10-26', 'page-dates': ['2026-10-28'] };
+      const blocks = [], text = ['---', 'date: 2026-10-26', 'page-dates:', '  - 2026-10-28', '---'], lines = [];
+      for (const name of ['Part one', 'Part two', 'Part three']) {
+        lines.push(text.length); blocks.push(title(name)); text.push('# ' + name, '');
+        lines.push(text.length); blocks.push(group('<p>cue</p>', `<p>notes of ${name.split(' ')[1]}</p>`)); text.push('>> [!cue]', '>> cue', '>', '>> [!notes]', '>> notes', '');
+      }
+      const r = await render({ name: 'pdf-dates', cornell: true, blocks }, {
+        cssPaging,
+        exportCtx: { frontmatter: fm, text: source ? text.join('\n') : '', lines },
+        prepare: `(() => { const pl = window.plugin; const fm = ${JSON.stringify(fm)}; pl.noteDateInfo = () => ({ file: {}, key: 'date', value: fm.date, fm }); const v = document.querySelector('.markdown-preview-view'); pl.layout(v, pl.states.get(v)); })()`,
+      });
+      if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+      assert.deepEqual(r.errors, []);
+      // the dates in the PDF: on which page, near its top-right corner
+      const months = r.pdf.words.filter((w) => w.w === 'Oct');
+      const dates = months.map((m) => {
+        const day = r.pdf.words.find((w) => w.page === m.page && Math.abs(w.bottom - m.bottom) < 2 && w.x < m.x && m.x - w.x < 40);
+        return [day && day.w, m.page, m.bottom < 60, m.x > 450];
+      }).sort((a, b) => a[1] - b[1]);
+      if (source) {
+        assert.deepEqual(dates, [['26', 1, true, true], ['28', 2, true, true], ['26', 3, true, true]], 'each page\'s date in its corner');
+      } else {
+        // (without the source the export can't tell the titles apart while it renders them; the
+        // whole export is dated once it is all there, as below. Page 1 always has the note's date.)
+        assert.ok(dates.some((d) => d[0] === '26' && d[1] === 1 && d[2] && d[3]), 'page 1 has the note\'s date: ' + JSON.stringify(dates));
+      }
+      const c = compare(r.reading, r.pdf);
+      assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
+    });
+  }
 }

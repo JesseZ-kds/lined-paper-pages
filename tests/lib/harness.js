@@ -45,7 +45,7 @@ async function closeBrowsers() {
 // ---------- the plugin, in the page ----------
 // Loads main.js with a stand-in for the `obsidian` module. `options.export` collects the
 // markdown post-processors (the PDF export runs them) instead of starting the reading view.
-function installPlugin({ src, exportMode, extra }) {
+function installPlugin({ src, exportMode, extra, ctx }) {
   const processors = [];
   const app = { workspace: { on: () => ({}), getLeavesOfType: () => [], openLinkText: () => {} } };
   class Plugin {
@@ -61,7 +61,13 @@ function installPlugin({ src, exportMode, extra }) {
   const plugin = new module.exports();
   if (exportMode) plugin.scheduleScan = () => {};
   plugin.onload();
-  if (exportMode) for (const el of document.querySelectorAll('.markdown-preview-view > div')) for (const f of processors) f(el, {});
+  // (ctx: what Obsidian hands a post-processor: the note's properties, and where each block is in its
+  // source: { frontmatter, text, lines: the first source line of each block })
+  const ctxFor = (el, i) => (!ctx ? {} : {
+    frontmatter: ctx.frontmatter,
+    getSectionInfo: () => (ctx.text ? { text: ctx.text, lineStart: ctx.lines[i], lineEnd: (ctx.lines[i + 1] || ctx.text.split('\n').length) - 1 } : null),
+  });
+  if (exportMode) Array.from(document.querySelectorAll('.markdown-preview-view > div')).forEach((el, i) => { for (const f of processors) f(el, ctxFor(el, i)); });
   window.plugin = plugin;
   window.__processors = processors;
 }
@@ -147,11 +153,12 @@ async function openReading(note, { cssPaging = false, plugin = true, dpr = 1, th
  *          cssPaged = whether the browser made the pages with CSS (null: mode not available here)
  */
 async function render(note, options = {}) {
-  const { cssPaging = false, plugin = true, postProcess = true, dpr = 1, theme = 'theme-light', screenshots = null, fonts = false } = options;
+  const { cssPaging = false, plugin = true, postProcess = true, dpr = 1, theme = 'theme-light', screenshots = null, fonts = false, exportCtx = null, prepare = null } = options;
   const { page, context, cssPaged } = await openReading(note, { cssPaging, plugin, dpr, theme, fonts });
   if (!page) return { cssPaged: null };   // this pagination mode isn't available in this browser
   try {
     const errors = page.errors;
+    if (prepare) { await page.evaluate(prepare); await page.waitForTimeout(100); }
     const reading = await page.evaluate(readingWords);
     const g = reading.geometry;
     reading.pages = Math.max(1, Math.round((g.height + g.pageHeight - g.sheetHeight) / g.pageHeight));
@@ -166,7 +173,7 @@ async function render(note, options = {}) {
     exportPage.on('pageerror', (e) => errors.push(e.message));
     await exportPage.setContent(pages(note, theme, fonts, plugin).print);
     if (fonts) await exportPage.evaluate(() => document.fonts.ready);
-    await exportPage.evaluate(installPlugin, { src: plugin && postProcess ? MAIN : NO_PLUGIN, exportMode: true });
+    await exportPage.evaluate(installPlugin, { src: plugin && postProcess ? MAIN : NO_PLUGIN, exportMode: true, ctx: exportCtx });
     await exportPage.waitForTimeout(50);
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-')), 'export.pdf');
     await exportPage.pdf({ path: file, preferCSSPageSize: true, printBackground: true });
