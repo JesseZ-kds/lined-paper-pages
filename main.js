@@ -612,7 +612,7 @@ function unwrapCalloutEmbeds(root, undo) {
 // Obsidian does not turn a [[link]] inside such a tag into a link everywhere (it can come out as
 // plain text, or not at all). The plugin shows the text in its colour with the link working: in
 // editing view through an editor extension, in reading view and the PDF by rebuilding the tag.
-const COLOUR_RE = /<font\b[^>]*?\bcolor\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>(.*?)<\/font\s*>|<span\b([^>]*)>(.*?)<\/span\s*>/gi;
+const COLOUR_RE = /<font\b[^>]*?\bcolor\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>(.*?)<\/font\s*>|<span\b([^>]*)>(.*?)<\/span\s*>|<mark\b([^>]*)>(.*?)<\/mark\s*>/gi;
 // a pen mark: <span class="pen-circle"> (box, underline, wavy, scribble)
 const PEN_CLASS_RE = /\bclass\s*=\s*(?:"[^"]*?\b(pen-(?:circle|box|underline|wavy|scribble))\b[^"]*"|'[^']*?\b(pen-(?:circle|box|underline|wavy|scribble))\b[^']*')/i;
 const SAFE_COLOUR = /^[#\w(),.%\s-]+$/;
@@ -623,7 +623,12 @@ function colourRuns(text) {
   for (let m; (m = COLOUR_RE.exec(text));) {
     let colour = '', inner, mark = '';
     if (m[4] !== undefined) { colour = m[1] ?? m[2] ?? m[3]; inner = m[4]; }
-    else {
+    else if (m[8] !== undefined) {
+      // <mark class="hl-pink">: a highlighter of that colour
+      const h = /\bclass\s*=\s*["'][^"']*?\b(hl-(?:yellow|green|pink|blue|orange))\b/i.exec(m[7]);
+      if (!h) continue;
+      mark = 'cm-highlight ' + h[1].toLowerCase(); inner = m[8];
+    } else {
       const st = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(m[5]);
       const c = st && /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(st[1] ?? st[2] ?? '');
       const p = PEN_CLASS_RE.exec(m[5]);
@@ -1039,6 +1044,8 @@ const TEMPLATES = {
 };
 // the pens (lined-paper.css "PEN COLOURS": each shown as var(--pen-…), lighter in dark theme)
 const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], ['purple', '#6a1b9a'], ['orange', '#d84315']];
+// the highlighters of the "Highlighter: …" commands, <mark class="hl-…">
+const HIGHLIGHTERS = ['yellow', 'green', 'pink', 'blue', 'orange'];
 // the marks of the "Pen: …" commands, <span class="pen-…">
 const PEN_MARKS = [['circle', 'circle'], ['box', 'box'], ['underline', 'underline'], ['wavy', 'wavy underline'], ['scribble', 'scribble out']];
 const PEN_VAR = Object.fromEntries(COLOURS.map(([name, hex]) => [hex, `var(--pen-${name}, ${hex})`]));
@@ -1062,6 +1069,22 @@ function insertBlock(editor, template) {
   editor.replaceRange(text, at);
   const before = text.slice(0, mark).split('\n');
   editor.setCursor({ line: at.line + before.length - 1, ch: (before.length === 1 ? at.ch : 0) + before[before.length - 1].length });
+}
+
+// write the selected text with a pen (or type an empty pen span to write in)
+// write the selected text with a pen or highlighter (or type an empty one to write in)
+function wrapSelection(editor, open, close) {
+  const sel = editor.getSelection();
+  // (spaces selected at either end stay outside: the mark covers the words and the spaces between
+  // them, never the space next to a word that isn't marked)
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(sel || '');
+  if (sel && m[2]) editor.replaceSelection(m[1] + open + m[2] + close + m[3]);
+  else if (sel) editor.replaceSelection(sel);
+  else {
+    const cur = editor.getCursor();
+    editor.replaceRange(open + close, cur);
+    editor.setCursor({ line: cur.line, ch: cur.ch + open.length });
+  }
 }
 
 function addPaperCommands(plugin) {
@@ -1145,16 +1168,8 @@ function addPaperCommands(plugin) {
   insert('insert-divider', 'Insert divider line', 'divider');
   insert('insert-nextpage', 'Insert page break', 'nextpage');
 
-  // write the selected text with a pen (or type an empty pen span to write in)
-  const wrap = (editor, open, close) => {
-    const sel = editor.getSelection();
-    if (sel) editor.replaceSelection(open + sel + close);
-    else {
-      const cur = editor.getCursor();
-      editor.replaceRange(open + close, cur);
-      editor.setCursor({ line: cur.line, ch: cur.ch + open.length });
-    }
-  };
+  const wrap = wrapSelection;
+
   for (const [name, hex] of COLOURS) {
     plugin.addCommand({
       id: 'colour-' + name, name: `Pen: ${name}`,
@@ -1162,6 +1177,10 @@ function addPaperCommands(plugin) {
     });
   }
   plugin.addCommand({ id: 'highlighter', name: 'Pen: highlighter', editorCallback: (editor) => wrap(editor, '==', '==') });
+  // highlighters of other colours, in the same note
+  for (const c of HIGHLIGHTERS) {
+    plugin.addCommand({ id: 'highlighter-' + c, name: 'Highlighter: ' + c, editorCallback: (editor) => wrap(editor, `<mark class="hl-${c}">`, '</mark>') });
+  }
   // marks drawn over the writing with the marking pen (lined-paper.css "PEN AND PAPER")
   for (const [id, name] of PEN_MARKS) {
     plugin.addCommand({ id: 'pen-' + id, name: 'Pen: ' + name, editorCallback: (editor) => wrap(editor, `<span class="pen-${id}">`, '</span>') });
@@ -2322,6 +2341,7 @@ module.exports.formatDate = formatDate;
 module.exports.isoDate = isoDate;
 module.exports.addPageDate = addPageDate;
 module.exports.sectionDates = sectionDates;
+module.exports.wrapSelection = wrapSelection;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

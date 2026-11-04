@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -117,4 +117,25 @@ test('a title on a later page: today in the page-dates list, at its place', () =
   const h = editor('---\ndate: 2026-10-26\n---\n', 3, 0);
   addPageDate(h);
   assert.equal(h.text(), '---\ndate: 2026-10-26\n---\n');
+});
+
+test('pen and highlighter commands: spaces selected at either end stay outside the mark', () => {
+  const sel = (text) => {
+    let out = null;
+    return { getSelection: () => text, replaceSelection: (v) => { out = v; }, out: () => out };
+  };
+  const a = sel('two words ');
+  wrapSelection(a, '<mark class="hl-pink">', '</mark>');
+  assert.equal(a.out(), '<mark class="hl-pink">two words</mark> ');
+  const b = sel(' word');
+  wrapSelection(b, '==', '==');
+  assert.equal(b.out(), ' ==word==');
+  const c = sel('  ');
+  wrapSelection(c, '==', '==');
+  assert.equal(c.out(), '  ', 'only spaces: nothing to mark');
+});
+
+test('a highlighter of another colour is found in a line of source (editing view shows it)', () => {
+  const runs = colourRuns('a <mark class="hl-pink">pink words</mark> b <mark>plain</mark>');
+  assert.deepEqual(runs.map((r) => [r.inner, r.mark]), [['pink words', 'cm-highlight hl-pink']]);
 });

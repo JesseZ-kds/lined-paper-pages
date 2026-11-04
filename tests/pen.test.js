@@ -87,3 +87,32 @@ test('a colour set under Colours wins over the pen and the paper; dark paper sta
     await context.close();
   }
 });
+
+test('highlighters of several colours in one note; the stroke covers the spaces between its words, not the space next to it', async () => {
+  const { title, block } = require('./lib/notes');
+  const n = { name: 'hl', cornell: false, blocks: [title('H'), block('<p>before <mark>Ayellow words</mark> after <mark class="hl-pink">Apink one</mark> and <mark class="hl-green">Agreen</mark> end</p>')] };
+  const { page, context } = await openReading(n, { theme: 'theme-light', fonts: true });
+  try {
+    const r = await page.evaluate(() => {
+      const marks = [...document.querySelectorAll('mark')];
+      const word = (m, side) => { const n = side === 'prev' ? m.previousSibling : m.nextSibling; const rg = document.createRange(); const t = n.data; const i = side === 'prev' ? t.trimEnd().length - 1 : t.length - t.trimStart().length; rg.setStart(n, i); rg.setEnd(n, i + 1); return rg.getBoundingClientRect(); };
+      const space = (m) => { const n = m.nextSibling; const rg = document.createRange(); rg.setStart(n, 0); rg.setEnd(n, 1); return rg.getBoundingClientRect().width; };
+      return marks.map((m) => {
+        const b = m.getBoundingClientRect();
+        const before = word(m, 'prev'), after = word(m, 'next');
+        return {
+          colour: getComputedStyle(m).getPropertyValue('--pen-highlight').trim(),
+          // the stroke's ends: how much of the space beside it is left clear (share of a space)
+          clearBefore: +((b.left - before.right) / space(m)).toFixed(2),
+          clearAfter: +((after.left - b.right) / space(m)).toFixed(2),
+        };
+      });
+    });
+    assert.deepEqual(r.map((x) => x.colour), ['rgba(255, 221, 0, 0.5)', 'rgba(255, 120, 190, 0.38)', 'rgba(120, 220, 90, 0.45)']);
+    for (const x of r) {
+      assert.ok(x.clearBefore > 0.5 && x.clearAfter > 0.5, 'the space next to a highlight stays mostly clear: ' + JSON.stringify(x));
+    }
+  } finally {
+    await context.close();
+  }
+});

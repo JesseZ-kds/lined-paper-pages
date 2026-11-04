@@ -103,6 +103,7 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Insert page break | Ctrl/Cmd + Alt + Enter |
 | Pen: blue / red / green / purple / orange | Ctrl/Cmd + Alt + 1 … 5 |
 | Pen: highlighter | Ctrl/Cmd + Alt + H |
+| Highlighter: yellow / green / pink / blue / orange | Ctrl/Cmd + Shift + Alt + 1 … 5 |
 | Pen: circle / box / underline / wavy underline / scribble out | — (your choice) |
 | Pen: cross out | Ctrl/Cmd + Alt + X |
 | Insert checkbox (task) | Ctrl/Cmd + Alt + K |

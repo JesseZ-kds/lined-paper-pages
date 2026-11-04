@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-04
+
+### Added
+- **Highlighters of several colours in one note.** The *Highlighter: yellow / green / pink / blue /
+  orange* commands write `<mark class="hl-pink">text</mark>`, which shows while editing, in reading
+  view and in the PDF. `==text==` stays the colour picked in the settings.
+
+### Fixed
+- **Highlight edges:** a highlight covers the words and the spaces between them, but no longer
+  runs into the space before or after it, so that space stays clear up to the next word.
+- **Selected spaces:** the pen and highlighter commands leave a space selected at either end
+  outside the mark.
+
 ## [1.18.1] - 2026-11-04
 
 ### Fixed

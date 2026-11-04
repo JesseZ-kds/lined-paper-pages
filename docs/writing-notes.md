@@ -63,6 +63,7 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Insert page break | `[!nextpage]` |
 | Pen: blue / red / green / purple / orange | Writes the selected text (or what you type next) in that pen: `<font color="…">` (see [Pen colours](#pen-colours)) |
 | Pen: highlighter | Marks the selected text with a yellow highlighter: `==text==` |
+| Highlighter: yellow / green / pink / blue / orange | Highlights the selected words in that colour, `<mark class="hl-pink">…</mark>`: several colours in one note (`==text==` is the colour picked in the settings) |
 | Pen: circle / box | Draws a circle / a box round the selected words with the marking pen: `<span class="pen-circle">…</span>` (see [Pen marks](#pen-marks)) |
 | Pen: underline / wavy underline | Underlines the selected words with the marking pen |
 | Pen: scribble out | Scribbles over the selected words, like a mistake crossed out by hand |
@@ -280,6 +281,11 @@ on white paper. Use the *Pen* commands (give them hotkeys), or type the tags you
 | Purple | `<font color="#6a1b9a">text</font>` | names, people, sources, quotes |
 | Orange | `<font color="#d84315">text</font>` | dates, numbers, formulas |
 | Highlighter | `==text==` | the one thing to remember |
+
+More highlighter colours in the same note: the *Highlighter: …* commands, or
+`<mark class="hl-green">text</mark>` (`hl-yellow`, `hl-green`, `hl-pink`, `hl-blue`, `hl-orange`).
+The stroke covers the words and the spaces between them; the space before and after a highlight stays
+clear (a space you select by accident at either end is left outside).
 
 The highlighter looks like a real one: a see-through yellow stroke across the middle of the words,
 slightly slanted, darker at its ends. In dark theme the pens are a little lighter and the
