@@ -1118,7 +1118,8 @@ function insertBlock(editor, template) {
 // <span class="pen-…">  (mark), <mark …> and ==…==  (highlight). Where each is, and its tags.
 function styledRuns(text) {
   const out = [];
-  const re = /<(font|span|mark)\b([^>]*)>([\s\S]*?)<\/\1\s*>|==(?!=)([^=\n]+?)==/gi;
+  // (==…== may hold an `=`, as in ==<mark class="hl-blue">…</mark>==)
+  const re = /<(font|span|mark)\b([^>]*)>([\s\S]*?)<\/\1\s*>|==(?![=\s])([^\n]*?[^\s=])==/gi;
   for (let m; (m = re.exec(text));) {
     let kind = null;
     if (m[4] !== undefined) kind = 'highlight';
@@ -1153,9 +1154,21 @@ function restyleLine(line, a, b, kinds, wrap) {
   while (a < b && /\s/.test(line[a])) a++;
   while (b > a && /\s/.test(line[b - 1])) b--;
   if (a === b) return { text: line, a, b };
-  // take the runs off, from the right (what is left of them keeps its style)
-  const runs = styledRuns(line).filter((r) => of(r) && r.from < b && r.to > a).sort((x, y) => y.from - x.from);
-  for (const r of runs) {
+  // take the runs off one at a time, the innermost / rightmost first, looking again after each (one may
+  // be inside another; what is left of a run outside the selection keeps its style)
+  for (let guard = 0; guard < 50; guard++) {
+    const all = [];
+    // (runs inside a run: found by looking inside it too)
+    const find = (text, base) => {
+      for (const r of styledRuns(text)) {
+        const run = { ...r, from: r.from + base, to: r.to + base, innerFrom: r.innerFrom + base, innerTo: r.innerTo + base };
+        all.push(run);
+        find(text.slice(r.innerFrom, r.innerTo), run.innerFrom);
+      }
+    };
+    find(line, 0);
+    const r = all.filter((x) => of(x) && x.from < b && x.to > a).sort((x, y) => (y.from - x.from) || (x.to - y.to))[0];
+    if (!r) break;
     const inner = line.slice(r.innerFrom, r.innerTo);
     const s = Math.min(Math.max(a - r.innerFrom, 0), inner.length), e = Math.min(Math.max(b - r.innerFrom, 0), inner.length);
     const keep = (part) => {

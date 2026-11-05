@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.20.1] - 2026-11-05
+
+### Fixed
+- **Smudged highlights in the PDF.** Highlights came out grey or brownish in some PDF viewers: a
+  see-through colour gradient is saved in a PDF with a transparency mask, which those viewers draw
+  darker. The PDF now prints each highlight as one solid colour (the stroke's colour as it looks on
+  the paper, with square ends), with no transparency at all. Reading view is unchanged.
+- **A highlight inside another** (`==<mark class="hl-blue">…</mark>==`, as older versions of the
+  commands wrote it) shows only the inner colour instead of a murky mix of the two.
+  - The highlighter commands and *Remove highlight* now take off both layers.
+  - They also recognise `==…==` around text that contains an `=`.
+
 ## [1.20.0] - 2026-11-04
 
 ### Added

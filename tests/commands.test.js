@@ -172,3 +172,13 @@ test('a new pen colour, highlighter or mark takes the place of the old one; remo
   const q = restyleLine(l, ...sel(l, 'foetus '), ['colour'], blue);
   assert.equal(q.text.slice(q.a, q.b), 'foetus');
 });
+
+test('a highlight inside another (written by older versions): both taken off, then the new one put on', () => {
+  const sel = (line, part) => { const a = line.indexOf(part); return [a, a + part.length]; };
+  let l = 'begins ==<mark class="hl-blue">at birth</mark>==.';
+  assert.equal(restyleLine(l, ...sel(l, 'at birth'), ['highlight'], { open: '<mark class="hl-orange">', close: '</mark>' }).text, 'begins <mark class="hl-orange">at birth</mark>.');
+  assert.equal(restyleLine(l, l.indexOf('birth'), l.indexOf('birth'), ['highlight'], null).text, 'begins at birth.', 'remove, the cursor in it');
+  l = 'a ==b <mark class="hl-pink">c</mark> d== e';
+  const c = l.indexOf('>c<') + 1;
+  assert.equal(restyleLine(l, c, c + 1, ['highlight'], null).text, 'a ==b== c ==d== e', 'the rest of the outer one stays');
+});

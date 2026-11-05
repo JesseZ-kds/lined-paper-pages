@@ -101,14 +101,14 @@ test('highlighters of several colours in one note; the stroke covers the spaces 
         const b = m.getBoundingClientRect();
         const before = word(m, 'prev'), after = word(m, 'next');
         return {
-          colour: getComputedStyle(m).getPropertyValue('--pen-highlight').trim(),
+          colour: getComputedStyle(m).getPropertyValue('--pen-highlight').trim().replace(/rgb\(var\(--pen-highlight-rgb\) \/ var\(--pen-highlight-a\)\)/, () => 'rgb(' + getComputedStyle(m).getPropertyValue('--pen-highlight-rgb').trim() + ' / ' + getComputedStyle(m).getPropertyValue('--pen-highlight-a').trim() + ')'),
           // the stroke's ends: how much of the space beside it is left clear (share of a space)
           clearBefore: +((b.left - before.right) / space(m)).toFixed(2),
           clearAfter: +((after.left - b.right) / space(m)).toFixed(2),
         };
       });
     });
-    assert.deepEqual(r.map((x) => x.colour), ['rgba(255, 232, 26, 0.55)', 'rgba(255, 120, 190, 0.38)', 'rgba(120, 220, 90, 0.45)']);
+    assert.deepEqual(r.map((x) => x.colour), ['rgb(255 232 26 / 0.55)', 'rgb(255 120 190 / 0.38)', 'rgb(120 220 90 / 0.45)']);
     for (const x of r) {
       // (it runs a little past the words, as a highlighter does: part of the space stays clear)
       assert.ok(x.clearBefore > 0.3 && x.clearAfter > 0.3, 'part of the space next to a highlight stays clear: ' + JSON.stringify(x));
@@ -188,3 +188,50 @@ test('a highlighted [[link]] is written in the colour of the writing, not the li
     }
   }
 });
+
+test('a highlight inside another shows only its own colour, not a smudged mix of the two', async () => {
+  const { title, block } = require('./lib/notes');
+  const n = { name: 'nest', cornell: false, blocks: [title('N'), block('<p>x <mark><mark class="hl-blue">nested blue</mark></mark> y <mark class="hl-blue">single blue</mark> z <mark><mark class="hl-orange">nested orange</mark></mark> w <mark class="hl-orange">single orange</mark></p>')] };
+  const { page, context } = await openReading(n, { theme: 'theme-light' });
+  try {
+    // the colour of the stroke just under each highlight's first letter (paper showing through it)
+    // (in the space between its two words: only the stroke there, no letter)
+    const boxes = await page.evaluate(() => [...document.querySelectorAll('mark[class]')].map((m) => {
+      const t = m.firstChild, i = t.data.indexOf(' '), rg = document.createRange();
+      rg.setStart(t, i); rg.setEnd(t, i + 1);
+      const b = rg.getBoundingClientRect();
+      return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height * 0.6) };
+    }));
+    const png = await page.screenshot({ fullPage: false });
+    const px = await page.evaluate(async ({ data, boxes }) => {
+      const img = await createImageBitmap(await (await fetch('data:image/png;base64,' + data)).blob());
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      return boxes.map(({ x, y }) => Array.from(g.getImageData(x, y, 1, 1).data.slice(0, 3)));
+    }, { data: png.toString('base64'), boxes });
+    const close = (p, q) => p.every((v, i) => Math.abs(v - q[i]) <= 6);
+    assert.ok(close(px[0], px[1]), 'nested blue = blue: ' + JSON.stringify(px));
+    assert.ok(close(px[2], px[3]), 'nested orange = orange: ' + JSON.stringify(px));
+  } finally {
+    await context.close();
+  }
+});
+
+// The PDF: every highlight a solid colour (a see-through gradient is saved with a transparency mask,
+// which some PDF viewers draw darker: a grey, smudged highlight)
+for (const theme of ['theme-light', 'theme-dark']) {
+  test(`the PDF has no see-through highlights: solid colours, no transparency masks (${theme})`, async () => {
+    const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+    const { title, block } = require('./lib/notes');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-hl-'));
+    try {
+      const n = { name: 'hlpdf', cornell: false, blocks: [title('H'), block('<p>a <mark>yellow</mark> b <mark class="hl-green">green</mark> c <mark class="hl-pink">pink</mark> d <mark class="hl-blue">blue</mark> e <mark class="hl-orange">orange</mark> f <mark><mark class="hl-blue">nested</mark></mark></p>')] };
+      const r = await render(n, { theme, screenshots: dir });
+      assert.deepEqual(r.errors, []);
+      const pdf = fs.readFileSync(path.join(dir, 'hlpdf.pdf'), 'latin1');
+      assert.equal((pdf.match(/\/SMask/g) || []).length, 0, 'no transparency masks');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
