@@ -51,6 +51,7 @@ Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a comman
 | Make this note a plain note again | Takes the two classes off |
 | Insert title (and today's date) | `# Note name`, and today's date in the note's `date` property (if it has none): shown in the title bar's corner as "26 Oct 2026" |
 | Insert Cornell page | Title, question, one cue + notes group, summary; today's date in the `date` property |
+| Insert arrow / double arrow / wavy arrow | Types `->`, `=>` or `~>`, drawn as an arrow |
 | Set this note's date | A date picker for the note's `date` property (the date in the title bar) |
 | Switch the paper between light and dark | Light or dark pages for every note, whatever Obsidian's theme (also the ☀/☾ button in the left ribbon) |
 | Switch this note's paper between light and dark | This note only: adds `dark-paper` or `light-paper` to its `cssclasses` |
@@ -330,6 +331,22 @@ The paper follows Obsidian's light or dark theme, unless you choose otherwise:
   `cssclasses`.
 
 The PDF export uses the same paper. For printing, light paper uses far less ink.
+
+## Arrows
+
+Type an arrow and it is drawn, like an arrow drawn with your pen:
+
+| Type | Drawn |
+| --- | --- |
+| `->`  `<-`  `<->` | an arrow right, left, both ways |
+| `=>`  `<=>` | a double arrow (leads to / both ways) |
+| `-->`  `<--` | a long arrow |
+| `~>` | a wavy arrow (roughly leads to) |
+
+Pick their look in *Settings → Pen and paper → Arrows*: hand-drawn, straight, bold (filled heads)
+or as typed; and their colour (*Arrow colour*: by default the colour of the writing round them).
+They show in reading view, in the PDF and while editing (the text again when the cursor is on it),
+never in code, and the note keeps what you typed.
 
 ## Pen marks
 

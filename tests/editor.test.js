@@ -80,7 +80,7 @@ test('editing view: <font color>[[link]]</font> shows coloured, its link opens, 
     // the plugin hands its editor extension to Obsidian; here it goes into a real CodeMirror editor
     const r = await page.evaluate((src) => {
       const opened = [];
-      class Plugin { constructor() { this.app = { workspace: { on: () => ({}), openLinkText: (h) => opened.push(h), getLeavesOfType: () => [] } }; } loadData() { return Promise.resolve({}); } saveData() {} addSettingTab() {} registerEvent() {} register() {} registerMarkdownPostProcessor() {} registerDomEvent() {} registerInterval() {} addCommand() {} registerEditorExtension(e) { window.__ext = e; } }
+      class Plugin { constructor() { this.app = { workspace: { on: () => ({}), openLinkText: (h) => opened.push(h), getLeavesOfType: () => [] } }; } loadData() { return Promise.resolve({}); } saveData() {} addSettingTab() {} registerEvent() {} register() {} registerMarkdownPostProcessor() {} registerDomEvent() {} registerInterval() {} addCommand() {} registerEditorExtension(e) { window.__ext = [...(window.__ext || []), e]; } }
       const mods = { obsidian: { Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class {} }, '@codemirror/view': CM.view, '@codemirror/state': CM.state };
       const module = { exports: {} };
       new Function('require', 'module', src)((n) => mods[n], module);
@@ -137,6 +137,45 @@ test('editing view: an embedded block on a quote line starts on that line', asyn
       return [+((top(p) - top(document.getElementById('a'))) / L).toFixed(2), +((top(document.getElementById('b')) - top(document.getElementById('a'))) / L).toFixed(2)];
     });
     assert.deepEqual(r, [1, 2]);
+  } finally {
+    await context.close();
+  }
+});
+
+test('editing view: arrows (-> => ~> …) are drawn, the text shows again with the cursor on it, code is left alone', async () => {
+  const bundle = (await esbuild.build({
+    stdin: {
+      contents: "import * as view from '@codemirror/view'; import * as state from '@codemirror/state'; import * as language from '@codemirror/language'; import { markdown } from '@codemirror/lang-markdown'; window.CM = { view, state, language, markdown };",
+      resolveDir: ROOT,
+    },
+    bundle: true, write: false, format: 'iife', logLevel: 'silent',
+  })).outputFiles[0].text;
+  const b = await browser(false);
+  const context = await b.newContext({ viewport: { width: 900, height: 600 } });
+  try {
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.setContent(`<!doctype html><html><head><style>${SIM}</style><style>${CSS}</style><script>${bundle}</script></head><body class="theme-light">
+      <div class="markdown-source-view mod-cm6 is-live-preview lined-paper" id="host"></div></body></html>`);
+    const r = await page.evaluate((src) => {
+      class Plugin { constructor() { this.app = { workspace: { on: () => ({}), openLinkText: () => {}, getLeavesOfType: () => [] } }; } loadData() { return Promise.resolve({}); } saveData() {} addSettingTab() {} registerEvent() {} register() {} registerMarkdownPostProcessor() {} registerDomEvent() {} registerInterval() {} addCommand() {} registerEditorExtension(e) { window.__ext = [...(window.__ext || []), e]; } }
+      const mods = { obsidian: { Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class {} }, '@codemirror/view': CM.view, '@codemirror/state': CM.state, '@codemirror/language': CM.language };
+      const module = { exports: {} };
+      new Function('require', 'module', src)((n) => mods[n], module);
+      const pl = new module.exports(); pl.scheduleScan = () => {}; pl.onload();
+      const doc = ['# Arrows', '', 'cause -> effect => result ~> more', 'code `a -> b` stays', '', 'end'].join('\n');
+      const v = new CM.view.EditorView({ doc, extensions: [CM.markdown(), window.__ext], parent: document.getElementById('host'), selection: { anchor: doc.length } });
+      const line = (n) => v.contentDOM.querySelectorAll('.cm-line')[n];
+      const out = { drawn: [...line(2).querySelectorAll('.lp-arrow')].map((a) => a.dataset.arrow), inCode: line(3).querySelectorAll('.lp-arrow').length };
+      v.dispatch({ selection: { anchor: v.state.doc.line(3).from + 7 } });   // (on the ->)
+      out.cursorOn = [...line(2).querySelectorAll('.lp-arrow')].map((a) => a.dataset.arrow);
+      return out;
+    }, MAIN);
+    assert.deepEqual(r.drawn, ['r', 'dr', 'wave']);
+    assert.equal(r.inCode, 0, 'not in inline code');
+    assert.deepEqual(r.cursorOn, ['dr', 'wave'], 'the -> under the cursor shows as typed');
+    assert.deepEqual(errors, []);
   } finally {
     await context.close();
   }

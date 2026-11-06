@@ -100,6 +100,7 @@ function readingWords() {
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
     const el = n.parentElement;
     if (!el || el.closest('.lp-hdr, .lp-sheet') || !el.checkVisibility({ visibilityProperty: true })) continue;
+    if (parseFloat(getComputedStyle(el).fontSize) < 1) continue;   // (hidden text: an arrow's typed text)
     for (const m of n.data.matchAll(/\S+/g)) {
       range.setStart(n, m.index); range.setEnd(n, m.index + m[0].length);
       const r = range.getClientRects()[0];

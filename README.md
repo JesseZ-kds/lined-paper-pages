@@ -105,6 +105,7 @@ the keys. Suggested shortcuts (none are set for you; check a combination is free
 | Pen: highlighter | Ctrl/Cmd + Alt + H |
 | Highlighter: yellow / green / pink / blue / orange | Ctrl/Cmd + Shift + Alt + 1 … 5 |
 | Remove all colours, highlights and marks | Ctrl/Cmd + Alt + 0 |
+| Insert arrow / double arrow / wavy arrow | Ctrl/Cmd + Alt + → (your choice) |
 | Remove pen colour / Remove highlight / Remove pen marks | — |
 | Pen: circle / box / underline / wavy underline / scribble out | — (your choice) |
 | Pen: cross out | Ctrl/Cmd + Alt + X |

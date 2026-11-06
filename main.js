@@ -81,6 +81,10 @@ const SETTINGS = [
     options: { line: 'One line', scribble: 'Scribbled out', double: 'Two lines', red: 'A red line' } },
   { key: 'highlighter', type: 'select', cls: 'lp-hl-', def: 'yellow', name: 'Highlighter (==text==)',
     options: { yellow: 'Yellow', green: 'Green', pink: 'Pink', blue: 'Blue', orange: 'Orange' } },
+  { key: 'arrows', type: 'select', cls: 'lp-arrows-', def: 'hand', name: 'Arrows',
+    options: { hand: 'Hand-drawn', simple: 'Straight', bold: 'Bold (filled heads)', off: 'As typed (->)' },
+    desc: 'Type -> <- <-> => <=> --> <-- or ~> in a note and it is drawn as an arrow in this style (=> double, --> long, ~> wavy).' },
+  { key: 'lp-arrow-ink', type: 'color', def: '#1f2937', name: 'Arrow colour', desc: 'Default: the colour of the writing round it.' },
   { key: 'lp-mark', type: 'color', def: '#c0392b', name: 'Marking pen colour',
     desc: 'For the circles, boxes, underlines and scribbles of the "Pen: circle / box / underline …" commands. Default: the heading underline colour.' },
 
@@ -647,6 +651,104 @@ function unwrapCalloutEmbeds(root, undo) {
       if (undo) undo.push({ t: 'cls', el: h, name: 'lp-embed-unwrapped' });
     }
   }
+}
+
+// ---------- arrows: ->  <-  <->  =>  <=>  -->  <--  ~> ----------
+// Typed in a note, each is drawn as an arrow (lined-paper.css "ARROWS"): in reading view and the PDF
+// the text is put in a <span class="lp-arrow"> holding the drawing and, hidden, the typed text (so it
+// still copies as typed); while editing, an editor extension shows the same drawing. Never in code.
+const ARROW_RE = /<=>|<->|<--|-->|<-|->|=>|~>/g;
+const ARROW_KIND = { '->': 'r', '<-': 'l', '<->': 'lr', '=>': 'dr', '<=>': 'dlr', '-->': 'long', '<--': 'longl', '~>': 'wave' };
+const ARROW_SKIP = 'code, pre, kbd, samp, script, style, textarea, svg, .math, mjx-container, .lp-arrow, .cm-editor, .metadata-container, .frontmatter-container';
+function arrowEl(src) {
+  const kind = ARROW_KIND[src];
+  const s = document.createElement('span');
+  s.className = 'lp-arrow';
+  s.dataset.arrow = kind;
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', /long/.test(kind) ? '0 0 36 12' : '0 0 24 12');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  for (const c of ['lp-a1', 'lp-a2', 'lp-a3']) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('class', c);
+    svg.appendChild(p);
+  }
+  const t = document.createElement('span');
+  t.className = 'lp-arrow-src';
+  t.textContent = src;
+  s.append(svg, t);
+  return s;
+}
+function drawArrows(root) {
+  const nodes = [];
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    ARROW_RE.lastIndex = 0;
+    if (!ARROW_RE.test(n.data)) continue;
+    const p = n.parentElement;
+    if (!p || p.closest(ARROW_SKIP)) continue;
+    nodes.push(n);
+  }
+  for (const n of nodes) {
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    ARROW_RE.lastIndex = 0;
+    for (let m; (m = ARROW_RE.exec(n.data));) {
+      if (m.index > last) frag.appendChild(document.createTextNode(n.data.slice(last, m.index)));
+      frag.appendChild(arrowEl(m[0]));
+      last = m.index + m[0].length;
+    }
+    if (last < n.data.length) frag.appendChild(document.createTextNode(n.data.slice(last)));
+    n.replaceWith(frag);
+  }
+}
+// editing view: each arrow shown drawn, its text again while the cursor is on it (not in code)
+function arrowEditorExtension() {
+  let V, S, Lang;
+  try { V = require('@codemirror/view'); S = require('@codemirror/state'); } catch (e) { return null; }
+  try { Lang = require('@codemirror/language'); } catch (e) { Lang = null; }
+  if (!V || !V.ViewPlugin || !V.Decoration || !V.WidgetType || !S || !S.RangeSetBuilder) return null;
+  class ArrowWidget extends V.WidgetType {
+    constructor(src) { super(); this.src = src; }
+    eq(o) { return o.src === this.src; }
+    toDOM() { return arrowEl(this.src); }
+  }
+  const inCode = (state, pos) => {
+    if (!Lang || !Lang.syntaxTree) return false;
+    for (let n = Lang.syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) if (/code|math|comment|url|html/i.test(n.type.name)) return true;
+    return false;
+  };
+  const off = () => document.body.classList.contains('lp-arrows-off');
+  const build = (view) => {
+    const b = new S.RangeSetBuilder();
+    if (off() || !view.dom.closest('.lined-paper') || !view.dom.closest('.is-live-preview')) return b.finish();
+    const sel = view.state.selection.ranges;
+    let seen = -1;
+    for (const { from, to } of view.visibleRanges) {
+      for (let pos = from; pos <= to;) {
+        const line = view.state.doc.lineAt(pos);
+        pos = line.to + 1;
+        if (line.from <= seen) continue;
+        seen = line.from;
+        ARROW_RE.lastIndex = 0;
+        for (let m; (m = ARROW_RE.exec(line.text));) {
+          const a = line.from + m.index, z = a + m[0].length;
+          if (sel.some((r) => r.from <= z && r.to >= a) || inCode(view.state, a)) continue;
+          b.add(a, z, V.Decoration.replace({ widget: new ArrowWidget(m[0]) }));
+        }
+      }
+    }
+    return b.finish();
+  };
+  return V.ViewPlugin.fromClass(class {
+    constructor(view) { this.off = off(); this.decorations = build(view); }
+    update(u) {
+      const o = off();
+      if (u.docChanged || u.viewportChanged || u.selectionSet || o !== this.off) { this.off = o; this.decorations = build(u.view); }
+    }
+  }, { decorations: (v) => v.decorations });
 }
 
 // ---------- coloured text: <font color="..."> ... </font>, <span style="color: ..."> ... </span> ----------
@@ -1321,6 +1423,17 @@ function addPaperCommands(plugin) {
   for (const [id, name] of PEN_MARKS) {
     plugin.addCommand({ id: 'pen-' + id, name: 'Pen: ' + name, editorCallback: (editor) => restyleSelection(editor, ['mark'], { open: `<span class="pen-${id}">`, close: '</span>' }) });
   }
+  // arrows (drawn by the plugin: Settings → Pen and paper → Arrows)
+  for (const [id, name, text] of [['insert-arrow', 'Insert arrow (->)', '->'], ['insert-arrow-double', 'Insert double arrow (=>)', '=>'], ['insert-arrow-wavy', 'Insert wavy arrow (~>)', '~>']]) {
+    plugin.addCommand({ id, name, editorCallback: (editor) => {
+      const cur = editor.getCursor();
+      const line = editor.getLine(cur.line);
+      const before = cur.ch > 0 && !/\s/.test(line[cur.ch - 1]) ? ' ' : '';
+      const ins = before + text + ' ';
+      editor.replaceRange(ins, cur);
+      editor.setCursor({ line: cur.line, ch: cur.ch + ins.length });
+    } });
+  }
   // taking them off again: of the selection, or of the run the cursor is in
   plugin.addCommand({ id: 'remove-colour', name: 'Remove pen colour', editorCallback: (editor) => restyleSelection(editor, ['colour'], null) });
   plugin.addCommand({ id: 'remove-highlight', name: 'Remove highlight', editorCallback: (editor) => restyleSelection(editor, ['highlight'], null) });
@@ -1362,6 +1475,8 @@ module.exports = class LinedPaperPages extends Plugin {
     // coloured text with links: editing view
     const colourExt = colourEditorExtension(this);
     if (colourExt && this.registerEditorExtension) this.registerEditorExtension(colourExt);
+    const arrowExt = arrowEditorExtension();
+    if (arrowExt && this.registerEditorExtension) this.registerEditorExtension(arrowExt);
     this.registerMarkdownPostProcessor((el, ctx) => {
       // coloured text with links: reading view and PDF
       const openLink = (href, e) => this.app.workspace.openLinkText(href, (ctx && ctx.sourcePath) || '', !!(e && (e.ctrlKey || e.metaKey)));
@@ -1372,7 +1487,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { drawArrows(el); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -1417,7 +1532,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1536,6 +1651,8 @@ module.exports = class LinedPaperPages extends Plugin {
       }
     }
     this.applyPaperThemes();
+    // (editors redraw their arrows: drawn, or as typed)
+    try { if (this.app && this.app.workspace && this.app.workspace.updateOptions) this.app.workspace.updateOptions(); } catch (e) { /* */ }
     this.scheduleScan(true);
   }
 
@@ -1720,6 +1837,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const anchorTop = anchor && anchor.getBoundingClientRect().top;
     try {
       this.undoAll(st);
+      drawArrows(view);   // (the arrows, if a part of the note was not drawn yet: kept, nothing to undo)
       if (document.body.classList.contains('lp-no-pages')) { this.showNoteDates(view); return; }
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
@@ -2485,6 +2603,7 @@ module.exports.addPageDate = addPageDate;
 module.exports.sectionDates = sectionDates;
 module.exports.wrapSelection = wrapSelection;
 module.exports.restyleLine = restyleLine;
+module.exports.drawArrows = drawArrows;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

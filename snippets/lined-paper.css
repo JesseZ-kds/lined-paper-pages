@@ -2904,11 +2904,9 @@ body {
   --pen-purple: #c58af9;
   --pen-orange: #fcad70;
   /* (on dark paper a see-through yellow turns olive: the highlighter is a solid stroke, dark text on it) */
-  --pen-highlight-rgb: 250 222 80; --pen-highlight-a: 0.92;
+  --pen-highlight-rgb: 255 214 0; --pen-highlight-a: 0.62;
  
-  --pen-highlight-cut: 0em;   /* (a bright stroke on dark paper: square ends, no dark wedge of paper at its tips) */
 }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight) { color: #1f2328 !important; }
 /* The colours of Word / Office's palette, often used for notes (<font color="#4f81bd">), are a
    little lighter in dark theme too, so they stay as easy to read as the pens (as written on white
    paper). */
@@ -2928,7 +2926,7 @@ body {
    little past the first and last letter, its ends cut on the slant like the chisel tip. The text is
    drawn on top of it. Nothing is blended with what is behind it (a blend made it come out grey on
    some pages): it looks the same on every page, in reading view and in the PDF. On dark paper it is
-   a solid bright stroke with dark text, so it stays easy to read. */
+   a vivid see-through stroke with the light writing on it, as a highlighter looks in a dark app. */
 body {
   --pen-highlight-cut: 0.07em;
 }
@@ -2987,6 +2985,132 @@ body {
   padding: 0 !important;
   margin: 0 !important;
 }
+
+/* ---------- ARROWS ----------
+   ->  <-  <->  =>  <=>  -->  <--  ~>  typed in a note are drawn as arrows (the plugin puts each in a
+   <span class="lp-arrow" data-arrow="…">, the typed text kept, hidden, inside it). Their look:
+   Settings → Pen and paper → Arrows (hand-drawn, straight, bold, or as typed), in the colour of the
+   writing round them (or Arrow colour). Drawn as lines, so they print sharp in the PDF. */
+.lined-paper .lp-arrow {
+  display: inline-block;
+  position: relative;
+  width: 1.25em;
+  height: 0.62em;
+  margin: 0 0.06em;
+  vertical-align: -0.02em;
+  line-height: 0;
+  -webkit-text-stroke-width: 0;
+}
+.lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) {
+  width: 1.85em;
+}
+.lined-paper .lp-arrow > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--lp-arrow-ink, currentColor);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lined-paper .lp-arrow:is([data-arrow="l"], [data-arrow="longl"]) > svg {
+  transform: scaleX(-1);
+}
+/* (the typed text: still there to copy, not shown) */
+.lined-paper .lp-arrow > .lp-arrow-src {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  font-size: 0;
+  color: transparent;
+}
+/* Bold: thicker lines, filled heads */
+body.lp-arrows-bold .lined-paper .lp-arrow > svg {
+  stroke-width: 2.3;
+}
+body.lp-arrows-bold .lined-paper .lp-arrow > svg > :is(.lp-a2, .lp-a3) {
+  fill: var(--lp-arrow-ink, currentColor);
+}
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a2,
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a2 {
+  fill: none;
+}
+/* As typed: the text itself, no drawing */
+body.lp-arrows-off .lined-paper .lp-arrow {
+  display: inline;
+  width: auto;
+  height: auto;
+  margin: 0;
+  vertical-align: baseline;
+  line-height: inherit;
+}
+body.lp-arrows-off .lined-paper .lp-arrow > svg {
+  display: none;
+}
+body.lp-arrows-off .lined-paper .lp-arrow > .lp-arrow-src {
+  position: static;
+  font-size: inherit;
+  color: inherit;
+}
+/* (hand-drawn: the default) */
+.lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a1 { d: path("M2 7.3 C6.5 5.2 12 8.1 21.3 5.4"); }
+.lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a2 { d: path("M15.3 1.5 C17.9 3.3 19.9 4.5 21.9 5.4 C19.7 6.9 17.7 8.5 16.3 10.8"); }
+.lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a3 { d: path("M0 0"); }
+.lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a1 { d: path("M2.6 7.1 C8 5.1 13.4 8 21.3 5.5"); }
+.lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a2 { d: path("M15.3 1.5 C17.9 3.3 19.9 4.5 21.9 5.4 C19.7 6.9 17.7 8.5 16.3 10.8"); }
+.lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a3 { d: path("M8.2 2 C5.8 3.9 4 5.3 2.2 7 C4.2 8 5.9 9.2 7.5 11"); }
+.lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a1 { d: path("M2 5.1 C6.8 3.3 12 5.4 18.9 3.9"); }
+.lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a2 { d: path("M2.4 8.4 C7 6.8 12.4 8.8 18.9 7.3"); }
+.lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a3 { d: path("M14.6 1.2 C17.2 3.1 19.4 4.4 21.9 5.6 C19.4 7.3 17.2 8.9 15.4 11"); }
+.lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a1 { d: path("M4.6 4.5 C9 3.9 14 4.8 19.4 4.3"); }
+.lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a2 { d: path("M4.6 7.8 C9 7.3 14 8.2 19.4 7.6"); }
+.lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a3 { d: path("M16 1.6 C18.1 3.1 20.1 4.6 22.4 6 C20.2 7.4 18.1 8.8 16.2 10.5 M8 1.6 C5.9 3.1 3.9 4.6 1.6 6 C3.8 7.4 5.9 8.8 7.8 10.5"); }
+.lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a1 { d: path("M2 7.4 C9 5 19.5 8.2 33.3 5.4"); }
+.lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a2 { d: path("M27.3 1.5 C29.9 3.3 31.9 4.5 33.9 5.4 C31.7 6.9 29.7 8.5 28.3 10.8"); }
+.lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a3 { d: path("M0 0"); }
+.lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a1 { d: path("M2 6.8 C3.8 3.6 5.6 3.4 7.4 6.4 C9.2 9.4 11 9.4 12.8 6.4 C14.4 3.8 16.6 3.9 20.4 5.8"); }
+.lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a2 { d: path("M16.4 2.6 C18 3.8 19.6 4.9 21.4 5.9 C19.6 7.1 18 8.2 16.6 9.6"); }
+.lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a3 { d: path("M0 0"); }
+/* (straight) */
+body.lp-arrows-simple .lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a1 { d: path("M2 6 H21.6"); }
+body.lp-arrows-simple .lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a2 { d: path("M16.2 2.2 L22 6 L16.2 9.8"); }
+body.lp-arrows-simple .lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a3 { d: path("M0 0"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a1 { d: path("M2.4 6 H21.6"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a2 { d: path("M16.2 2.2 L22 6 L16.2 9.8"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a3 { d: path("M7.8 2.2 L2 6 L7.8 9.8"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a1 { d: path("M2 4.5 H19"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a2 { d: path("M2 7.5 H19"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a3 { d: path("M15.2 1.6 L21.8 6 L15.2 10.4"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a1 { d: path("M4.8 4.5 H19.2"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a2 { d: path("M4.8 7.5 H19.2"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a3 { d: path("M16.2 1.6 L22.6 6 L16.2 10.4 M7.8 1.6 L1.4 6 L7.8 10.4"); }
+body.lp-arrows-simple .lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a1 { d: path("M2 6 H33.6"); }
+body.lp-arrows-simple .lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a2 { d: path("M28.2 2.2 L34 6 L28.2 9.8"); }
+body.lp-arrows-simple .lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a3 { d: path("M0 0"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a1 { d: path("M2 6 C3.8 3 5.6 3 7.4 6 C9.2 9 11 9 12.8 6 C14.6 3 16.4 3 20.6 6"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a2 { d: path("M16.6 2.4 L21.8 6 L16.6 9.6"); }
+body.lp-arrows-simple .lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a3 { d: path("M0 0"); }
+/* (bold) */
+body.lp-arrows-bold .lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a1 { d: path("M2 6 H16.5"); }
+body.lp-arrows-bold .lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a2 { d: path("M15 1.4 L23 6 L15 10.6 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow:is([data-arrow="r"], [data-arrow="l"]) > svg > .lp-a3 { d: path("M0 0"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a1 { d: path("M8 6 H16"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a2 { d: path("M15 1.4 L23 6 L15 10.6 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="lr"] > svg > .lp-a3 { d: path("M9 1.4 L1 6 L9 10.6 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a1 { d: path("M2 4.2 H16"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a2 { d: path("M2 7.8 H16"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dr"] > svg > .lp-a3 { d: path("M14.6 0.8 L22.6 6 L14.6 11.2 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a1 { d: path("M8.5 4.2 H15.5"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a2 { d: path("M8.5 7.8 H15.5"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="dlr"] > svg > .lp-a3 { d: path("M15 0.8 L23 6 L15 11.2 Z M9 0.8 L1 6 L9 11.2 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a1 { d: path("M2 6 H28.5"); }
+body.lp-arrows-bold .lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a2 { d: path("M27 1.4 L35 6 L27 10.6 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow:is([data-arrow="long"], [data-arrow="longl"]) > svg > .lp-a3 { d: path("M0 0"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a1 { d: path("M2 6 C3.8 3 5.6 3 7.4 6 C9.2 9 11 9 12.8 6 C14.2 3.6 15.4 3.4 16.4 4.4"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a2 { d: path("M14.8 1.4 L22.8 6 L14.8 10.6 Z"); }
+body.lp-arrows-bold .lined-paper .lp-arrow[data-arrow="wave"] > svg > .lp-a3 { d: path("M0 0"); }
 
 /* ---------- PEN AND PAPER ----------
    Settings → Lined Paper Pages → Pen and paper. Each choice is a class on <body> (the plugin sets
@@ -3156,10 +3280,10 @@ body.lp-hl-green { --pen-highlight-rgb: 120 220 90; --pen-highlight-a: 0.45; }
 body.lp-hl-pink { --pen-highlight-rgb: 255 120 190; --pen-highlight-a: 0.38; }
 body.lp-hl-blue { --pen-highlight-rgb: 90 190 255; --pen-highlight-a: 0.4; }
 body.lp-hl-orange { --pen-highlight-rgb: 255 170 60; --pen-highlight-a: 0.45; }
-body.lp-hl-green :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 150 225 120; --pen-highlight-a: 0.92; }
-body.lp-hl-pink :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 250 160 205; --pen-highlight-a: 0.92; }
-body.lp-hl-blue :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 140 205 250; --pen-highlight-a: 0.92; }
-body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 250 190 110; --pen-highlight-a: 0.92; }
+body.lp-hl-green :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 70 215 90; --pen-highlight-a: 0.5; }
+body.lp-hl-pink :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 255 85 175; --pen-highlight-a: 0.55; }
+body.lp-hl-blue :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 60 155 255; --pen-highlight-a: 0.6; }
+body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) { --pen-highlight-rgb: 255 145 30; --pen-highlight-a: 0.58; }
 
 /* Highlighters of other colours in the same note (the "Highlighter: …" commands):
    <mark class="hl-pink">text</mark>; ==text== is the highlighter picked in the settings */
@@ -3168,11 +3292,11 @@ body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.d
 .lined-paper :is(mark, .cm-highlight).hl-pink { --pen-highlight-rgb: 255 120 190; --pen-highlight-a: 0.38; }
 .lined-paper :is(mark, .cm-highlight).hl-blue { --pen-highlight-rgb: 90 190 255; --pen-highlight-a: 0.4; }
 .lined-paper :is(mark, .cm-highlight).hl-orange { --pen-highlight-rgb: 255 170 60; --pen-highlight-a: 0.45; }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-yellow { --pen-highlight-rgb: 250 222 80; --pen-highlight-a: 0.92; }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-green { --pen-highlight-rgb: 150 225 120; --pen-highlight-a: 0.92; }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-pink { --pen-highlight-rgb: 250 160 205; --pen-highlight-a: 0.92; }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-blue { --pen-highlight-rgb: 140 205 250; --pen-highlight-a: 0.92; }
-:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-orange { --pen-highlight-rgb: 250 190 110; --pen-highlight-a: 0.92; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-yellow { --pen-highlight-rgb: 255 214 0; --pen-highlight-a: 0.62; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-green { --pen-highlight-rgb: 70 215 90; --pen-highlight-a: 0.5; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-pink { --pen-highlight-rgb: 255 85 175; --pen-highlight-a: 0.55; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-blue { --pen-highlight-rgb: 60 155 255; --pen-highlight-a: 0.6; }
+:is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.dark-paper, .lined-paper.lp-dark):not(.lp-light) :is(mark, .cm-highlight).hl-orange { --pen-highlight-rgb: 255 145 30; --pen-highlight-a: 0.58; }
 
 /* Pen marks (the "Pen: circle / box / underline / wavy underline / scribble out" commands):
    <span class="pen-circle">word</span> and so on. Drawn over the writing with the marking pen

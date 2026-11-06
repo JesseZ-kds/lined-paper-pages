@@ -135,7 +135,7 @@ test('the highlighter is never blended with what is behind it, and light paper l
   const dark = await look('theme-dark');
   assert.ok([...light, ...lightInDark, ...dark].every((x) => x[0] === 'normal'), 'no blend');
   assert.deepEqual(lightInDark, light, 'light paper: the same highlighter in either theme');
-  assert.deepEqual(dark.map((x) => x[2]), ['rgb(31, 35, 40)', 'rgb(31, 35, 40)'], 'dark paper: dark text on the bright stroke');
+  assert.deepEqual(dark.map((x) => x[2]), ['rgb(214, 222, 238)', 'rgb(214, 222, 238)'], 'dark paper: the light writing stays light on the see-through stroke');
 });
 
 for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
@@ -235,3 +235,45 @@ for (const theme of ['theme-light', 'theme-dark']) {
     }
   });
 }
+
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  test(`arrows (-> <- <-> => <=> --> <-- ~>) are drawn, not in code, reading view = PDF (${mode})`, async (t) => {
+    const { title, group, block } = require('./lib/notes');
+    const blocks = [title('Arrows'), group('<p>Acause -> Aeffect</p>', '<ul><li>Aa -> Ab => Ac ~> Ad</li><li>Ae <- Af <-> Ag <=> Ah --> Ai <-- Aj</li></ul>'), block('<p>Acode <code>x -> y</code> Aend</p>'), block('<pre><code>a -> b</code></pre>')];
+    const r = await render({ name: 'arrows', cornell: true, blocks }, { cssPaging, prepare: '1' });
+    if (r.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+    assert.deepEqual(r.errors, []);
+    // (the arrows are drawings: no word of the PDF but the code's own -> )
+    const c = compare(r.reading, r.pdf);
+    assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
+  });
+}
+
+test('arrows: each kind drawn, the typed text kept (it copies as typed), code left alone, "As typed" shows the text', async () => {
+  const { title, block } = require('./lib/notes');
+  const n = { name: 'arrows2', cornell: false, blocks: [title('A'), block('<p>a -> b <- c <-> d => e <=> f --> g <-- h ~> i</p>'), block('<p>x <code>p -> q</code> y</p>')] };
+  const { page, context } = await openReading(n, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(() => {
+      const p = document.querySelectorAll('p')[0];
+      const out = {
+        kinds: [...p.querySelectorAll('.lp-arrow')].map((a) => a.dataset.arrow),
+        text: p.textContent,
+        code: document.querySelector('code').textContent + ':' + document.querySelectorAll('code .lp-arrow').length,
+        drawnWidth: Math.round(p.querySelector('.lp-arrow svg').getBoundingClientRect().width),
+      };
+      document.body.classList.add('lp-arrows-off');
+      out.offSvg = getComputedStyle(p.querySelector('.lp-arrow svg')).display;
+      out.offText = getComputedStyle(p.querySelector('.lp-arrow-src')).fontSize !== '0px';
+      return out;
+    });
+    assert.deepEqual(r.kinds, ['r', 'l', 'lr', 'dr', 'dlr', 'long', 'longl', 'wave']);
+    assert.equal(r.text, 'a -> b <- c <-> d => e <=> f --> g <-- h ~> i', 'the typed text, as typed');
+    assert.equal(r.code, 'p -> q:0', 'not in code');
+    assert.ok(r.drawnWidth > 10, 'drawn');
+    assert.equal(r.offSvg, 'none');
+    assert.ok(r.offText, 'as typed: the text shows');
+  } finally {
+    await context.close();
+  }
+});

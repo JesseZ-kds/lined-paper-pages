@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-06
+
+### Added
+- **Arrows.** Type an arrow in a note and it is drawn, in reading view, the PDF and while editing.
+  While editing, the typed text shows again when the cursor is on it. Code is left alone.
+
+  | Type | Arrow |
+  | --- | --- |
+  | `->` `<-` `<->` | single (right, left, both ways) |
+  | `=>` `<=>` | double |
+  | `-->` `<--` | long |
+  | `~>` | wavy |
+
+  - *Settings → Pen and paper → Arrows*: hand-drawn (the default), straight, bold with filled heads,
+    or as typed.
+  - *Arrow colour*: by default the arrow takes the colour of the writing round it.
+  - New commands: *Insert arrow*, *Insert double arrow*, *Insert wavy arrow*.
+  - The note keeps what you typed, so `->` copies as `->`.
+
+### Changed
+- **The highlighter on dark paper** is now a vivid see-through stroke with the light writing on it
+  and the same slanted ends as on light paper. Before, it was a solid box with dark text, which
+  looked like a label and hid a full stop next to it. In the PDF it prints as the same colour,
+  solid.
+
 ## [1.20.2] - 2026-11-06
 
 ### Fixed
