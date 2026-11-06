@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.20.2] - 2026-11-06
+
+### Fixed
+- **The release (and the tests) run on GitHub again.** GitHub's `ubuntu-latest` became Ubuntu 26.04,
+  where the test browser (Playwright 1.56) cannot be installed, so the 1.20.1 release was never
+  published. The workflows now run on Ubuntu 24.04. The plugin itself is the same as 1.20.1.
+
 ## [1.20.1] - 2026-11-05
 
 ### Fixed
