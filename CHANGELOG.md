@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.24.1] - 2026-11-08
+
+### Fixed
+- **No more empty lines round an embedded table.** Obsidian's HTML has line breaks between its
+  blocks: inside a table (before the header row, between it and the rows, after them) and round
+  an embed in the notes. Obsidian keeps line breaks as new lines inside callouts (that is how Enter
+  writes a new line in the notes), so each of those became an empty ruled line:
+  - one above the table's header row,
+  - one between the header and the rows,
+  - one under the table.
+
+  Those line breaks between blocks are now taken out. The table's header is level with the cue,
+  its rows follow straight after, and the next group follows right after it. A line break in your
+  writing still makes a new line. Found from a layout report.
+
 ## [1.24.0] - 2026-11-08
 
 ### Added

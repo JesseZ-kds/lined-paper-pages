@@ -351,3 +351,38 @@ for (const [mode, cssPaging] of MODES) {
     assert.deepEqual(out['lp-table-gap'], { head: 0, act: 2, qld: 4, next: 6, emptyRowShown: false });
   });
 }
+
+// Obsidian's HTML has line breaks between its blocks (in a table: before the header, between it and
+// the rows, after them; round an embed in the notes), and the notes keep line breaks as new lines (so
+// Enter writes a new line): those line breaks take no line. A line break in the writing still does.
+for (const [mode, cssPaging] of MODES) {
+  test(`line breaks between Obsidian's blocks take no line: an embedded table level with the cue, its rows straight after the header, no line after it (${mode})`, async (t) => {
+    const { title, group } = require('./lib/notes');
+    const rows = [['NACT', 'NAnytime'], ['NNSW', 'NUp'], ['NNT', 'NUp']];
+    const table = `<table>\n<thead>\n<tr>\n<th></th>\n<th>NPermissible</th>\n</tr>\n</thead>\n<tbody>\n${rows.map((r) => `<tr>\n<td>${r[0]}</td>\n<td>${r[1]}</td>\n</tr>`).join('\n')}\n</tbody>\n</table>`;
+    const emb = `\n<p><span class="internal-embed markdown-embed inline-embed is-loaded" src="Laws#^t"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content node-insert-event"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header mod-ui"></div><div class="el-table">${table}</div></div></div></div><div class="markdown-embed-content node-insert-event"></div><div class="markdown-embed-link"></div></template></span></p>\n`;
+    const blocks = [title('T'), group('<p>Ncue</p>', emb), group('<p>Nnext</p>', '<p>Nfirst\nNsecond</p>')];
+    const { page, context } = await openReading({ name: 'nl', cornell: true, blocks }, { cssPaging });
+    if (!page) return t.skip(`${mode} is not available in this browser`);
+    try {
+      await page.addStyleTag({ content: '.markdown-rendered .callout-content { white-space: pre-wrap; }' });   // (as Obsidian's callouts)
+      const r = await page.evaluate(async () => {
+        const v = document.querySelector('.markdown-preview-view');
+        window.plugin.layout(v, window.plugin.states.get(v));
+        await new Promise((res) => setTimeout(res, 50));
+        const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; v.appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+        const rg = document.createRange();
+        const at = (w) => {
+          const tw = document.createTreeWalker(v, NodeFilter.SHOW_TEXT);
+          for (let n = tw.nextNode(); n; n = tw.nextNode()) { const i = n.data.indexOf(w); if (i >= 0 && n.parentElement.checkVisibility()) { rg.setStart(n, i); rg.setEnd(n, i + 1); return rg.getBoundingClientRect().top; } }
+          return NaN;
+        };
+        const row = (w) => Math.round((at(w) - at('Ncue')) / L);
+        return { head: row('NPermissible'), act: row('NACT'), nt: row('NNT'), next: row('Nnext'), first: row('Nfirst'), second: row('Nsecond') };
+      });
+      assert.deepEqual(r, { head: 0, act: 1, nt: 3, next: 5, first: 5, second: 6 });
+    } finally {
+      await context.close();
+    }
+  });
+}

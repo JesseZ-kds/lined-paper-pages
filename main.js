@@ -715,6 +715,30 @@ function roundTables(root, undo) {
   blocks.forEach((b, i) => { if (plans[i]) set(b, 'margin-bottom', plans[i].margin + plans[i].extra); });
 }
 
+// Obsidian's HTML has line breaks between its blocks (inside a table: before the header, between the
+// header and the rows, after them; round an embed in the notes). Where line breaks are kept as new
+// lines (in callouts, so Enter writes a new line in the notes) each became an empty ruled line: a
+// line above an embedded table, between its header and rows, and under it. Such a line break, with
+// only blocks round it, is taken out. (Line breaks in your writing stay; never in code.)
+const BLOCK_DISPLAY = /^(block|flow-root|flex|grid|table|table-row-group|table-header-group|table-footer-group|table-row|table-caption|list-item)$/;
+function dropBlankLines(root) {
+  const blank = [];
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    if (/\S/.test(n.data) || !/[\n\r]/.test(n.data)) continue;
+    const p = n.parentElement;
+    if (!p || p.closest('pre, code, textarea, .cm-editor')) continue;
+    if (p.matches('table, thead, tbody, tfoot, tr, colgroup')) { blank.push(n); continue; }
+    blank.push(n);
+  }
+  const isBlock = (x) => !x || (x.nodeType === 3 && !/\S/.test(x.data)) || (x.nodeType === 8) ||
+    (x.nodeType === 1 && BLOCK_DISPLAY.test(getComputedStyle(x).display));
+  const drop = blank.filter((n) => n.parentElement.matches('table, thead, tbody, tfoot, tr, colgroup') ||
+    (getComputedStyle(n.parentElement).display !== 'inline' && /pre/.test(getComputedStyle(n.parentElement).whiteSpace) && isBlock(n.previousSibling) && isBlock(n.nextSibling) &&
+     (n.previousElementSibling || n.nextElementSibling)));
+  for (const n of drop) n.remove();
+}
+
 // A table written with an empty header row (Markdown needs one, so `| | |` over `|---|---|` is how
 // a table without a header is written) has no header on the page: that row takes no line, and the
 // table's first row is on the line the table starts on (reading view and the PDF; lined-paper.css:
@@ -1704,7 +1728,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { drawArrows(el); markBullets(el, ctx); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { drawArrows(el); markBullets(el, ctx); dropBlankLines(el); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -1749,7 +1773,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); evenRows(pr); roundTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); dropBlankLines(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); evenRows(pr); roundTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -2055,6 +2079,7 @@ module.exports = class LinedPaperPages extends Plugin {
     try {
       this.undoAll(st);
       drawArrows(view);   // (the arrows, if a part of the note was not drawn yet: kept, nothing to undo)
+      dropBlankLines(view);   // (line breaks between blocks: no empty lines of their own)
       if (document.body.classList.contains('lp-no-pages')) { this.showNoteDates(view); return; }
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
