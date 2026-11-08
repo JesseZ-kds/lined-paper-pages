@@ -3213,7 +3213,7 @@ body:is(.lp-bullet-dash, .lp-bullet-arrow, .lp-bullet-circle, .lp-bullet-star) .
   line-height: inherit;
 }
 body.lp-bullet-dash .lined-paper .list-bullet::after { content: "–" !important; }
-body.lp-bullet-arrow .lined-paper .list-bullet::after { content: "→" !important; }
+body.lp-bullet-arrow .lined-paper .cm-line .list-bullet::after { content: "→" !important; }
 body.lp-bullet-circle .lined-paper .list-bullet::after { content: "∘" !important; }
 body.lp-bullet-star .lined-paper .list-bullet::after { content: "✱" !important; }
 /* ↳ an arrow from the line above (Bullets, or Sub-point bullets): a line coming down from just under
@@ -3325,34 +3325,64 @@ body.lp-plus-arrow .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after
    lp-mark-plus). These win over Bullets and Sub-point bullets. */
 body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: disc; }
 body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
-body.lp-star-dot .lined-paper .lp-mark-star .list-bullet::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-dot .lined-paper :is(li.lp-mark-star > .list-bullet, .cm-line.lp-mark-star .list-bullet)::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: "–  "; }
 body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
-body.lp-star-dash .lined-paper .lp-mark-star .list-bullet::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
-body.lp-star-arrow .lined-paper .lp-mark-star .list-bullet::after { content: "→" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-dash .lined-paper :is(li.lp-mark-star > .list-bullet, .cm-line.lp-mark-star .list-bullet)::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-arrow .lined-paper .cm-line.lp-mark-star .list-bullet::after { content: "→" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: "∘  "; }
 body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
-body.lp-star-circle .lined-paper .lp-mark-star .list-bullet::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-circle .lined-paper :is(li.lp-mark-star > .list-bullet, .cm-line.lp-mark-star .list-bullet)::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: "✱  "; }
 body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
-body.lp-star-star .lined-paper .lp-mark-star .list-bullet::after { content: "✱" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
-body.lp-star-hook .lined-paper .lp-mark-star .list-bullet::after { content: "↳" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-star .lined-paper :is(li.lp-mark-star > .list-bullet, .cm-line.lp-mark-star .list-bullet)::after { content: "✱" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-hook .lined-paper .cm-line.lp-mark-star .list-bullet::after { content: "↳" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: disc; }
 body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
-body.lp-plus-dot .lined-paper .lp-mark-plus .list-bullet::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-dot .lined-paper :is(li.lp-mark-plus > .list-bullet, .cm-line.lp-mark-plus .list-bullet)::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: "–  "; }
 body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
-body.lp-plus-dash .lined-paper .lp-mark-plus .list-bullet::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
-body.lp-plus-arrow .lined-paper .lp-mark-plus .list-bullet::after { content: "→" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-dash .lined-paper :is(li.lp-mark-plus > .list-bullet, .cm-line.lp-mark-plus .list-bullet)::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-arrow .lined-paper .cm-line.lp-mark-plus .list-bullet::after { content: "→" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: "∘  "; }
 body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
-body.lp-plus-circle .lined-paper .lp-mark-plus .list-bullet::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-circle .lined-paper :is(li.lp-mark-plus > .list-bullet, .cm-line.lp-mark-plus .list-bullet)::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: "✱  "; }
 body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
-body.lp-plus-star .lined-paper .lp-mark-plus .list-bullet::after { content: "✱" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
-body.lp-plus-hook .lined-paper .lp-mark-plus .list-bullet::after { content: "↳" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-star .lined-paper :is(li.lp-mark-plus > .list-bullet, .cm-line.lp-mark-plus .list-bullet)::after { content: "✱" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-hook .lined-paper .cm-line.lp-mark-plus .list-bullet::after { content: "↳" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+/* Obsidian's own bullet (reading view and the PDF draw each bullet as a .list-bullet in the item):
+   restyled to the bullet chosen, or hidden where the plugin draws its own (↳, →; its room kept, so
+   nothing moves). No list marker of the browser's as well. */
+.lined-paper li:has(> .list-bullet) {
+  list-style-type: none !important;
+}
+body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item) > .list-bullet,
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item) > .list-bullet,
+body.lp-star-hook .lined-paper ul > li.lp-mark-star:not(.task-list-item) > .list-bullet,
+body.lp-plus-hook .lined-paper ul > li.lp-mark-plus:not(.task-list-item) > .list-bullet,
+body.lp-bullet-arrow .lined-paper ul > li:not(.task-list-item) > .list-bullet,
+body.lp-sub-arrow .lined-paper :is(ul, ol) ul > li:not(.task-list-item) > .list-bullet,
+body.lp-star-arrow .lined-paper ul > li.lp-mark-star:not(.task-list-item) > .list-bullet,
+body.lp-plus-arrow .lined-paper ul > li.lp-mark-plus:not(.task-list-item) > .list-bullet {
+  visibility: hidden !important;
+}
+body:is(.lp-sub-dash, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item) > .list-bullet,
+body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item) > .list-bullet,
+body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item) > .list-bullet,
+body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item) > .list-bullet,
+body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item) > .list-bullet,
+body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item) > .list-bullet,
+body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item) > .list-bullet,
+body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item) > .list-bullet,
+body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item) > .list-bullet {
+  visibility: visible !important;
+}
+body.lp-sub-dash .lined-paper :is(ul, ol) ul > li > .list-bullet::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-sub-dot .lined-paper :is(ul, ol) ul > li > .list-bullet::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-sub-circle .lined-paper :is(ul, ol) ul > li > .list-bullet::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 /* (while editing: Obsidian's bullet as ↳) */
-body.lp-bullet-hook .lined-paper .list-bullet::after {
+body.lp-bullet-hook .lined-paper .cm-line .list-bullet::after {
   content: "↳" !important;
   width: auto !important;
   height: auto !important;

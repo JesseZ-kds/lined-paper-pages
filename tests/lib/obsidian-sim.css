@@ -23,3 +23,9 @@ body.theme-dark { --callout-blend-mode: lighten; background: #1e1e1e; color: #da
 .markdown-rendered, .markdown-preview-view { font-family: Arial, "Liberation Sans", sans-serif; }
 .callout-title-inner { font-weight: 600; }
 .markdown-embed .markdown-preview-view, .markdown-embed .markdown-rendered { font-size: 16px; }
+
+/* Obsidian's reading view draws a list item's bullet itself: <ul class="has-list-bullet"><li>
+   <span class="list-bullet"></span>…, a dot in the item's margin (the browser's marker off) */
+.markdown-rendered ul.has-list-bullet > li { list-style: none; }
+.markdown-rendered li > .list-bullet { float: left; margin-left: -1.05em; width: 1.05em; text-align: center; }
+.markdown-rendered li > .list-bullet::after { content: '\200B'; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background-color: currentColor; vertical-align: middle; }

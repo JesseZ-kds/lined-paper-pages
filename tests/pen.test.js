@@ -378,3 +378,40 @@ for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination'
     assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
   });
 }
+
+// Obsidian draws each bullet itself (a .list-bullet in the item): every point shows one bullet, the one
+// chosen, whatever the settings
+test('bullets with Obsidian\'s own bullet element: one bullet per point, the one chosen', async () => {
+  const { title, group } = require('./lib/notes');
+  const li = (cls, text, sub = '') => `<li class="${cls}"><span class="list-bullet"></span>${text}${sub}</li>`;
+  const html = `<ul class="has-list-bullet">${li('lp-mark-star', 'The stage of pregnancy deems if and how', `<ul class="has-list-bullet">${li('lp-mark-star', 's')}${li('lp-mark-plus', 'd')}</ul>`)}${li('lp-mark-dash', 'a dash point')}</ul>`;
+  const n = { name: 'obs-bullets', cornell: true, blocks: [title('B'), group('<p>cue</p>', html)] };
+  const cases = [
+    ['', ['obsidian', 'obsidian', 'obsidian', 'obsidian']],
+    ['lp-star-hook', ['drawn', 'drawn', 'obsidian', 'obsidian']],
+    ['lp-star-arrow lp-plus-hook', ['drawn', 'drawn', 'drawn', 'obsidian']],
+    ['lp-star-dash lp-plus-circle', ['–', '–', '∘', 'obsidian']],
+    ['lp-sub-hook', ['obsidian', 'drawn', 'drawn', 'obsidian']],
+    ['lp-bullet-hook lp-sub-dash', ['drawn', '–', '–', 'drawn']],
+    ['lp-bullet-dash lp-star-hook', ['drawn', 'drawn', '–', '–']],
+  ];
+  for (const [cls, want] of cases) {
+    const { page, context } = await openReading(n, { theme: 'theme-light ' + cls });
+    try {
+      const r = await page.evaluate(() => [...document.querySelectorAll('li')].map((li) => {
+        const shown = [];
+        if (getComputedStyle(li).listStyleType !== 'none') shown.push('marker');
+        const b = li.querySelector(':scope > .list-bullet');
+        if (b && getComputedStyle(b).visibility === 'visible') {
+          const a = getComputedStyle(b, '::after');
+          shown.push(a.content === '"\\u200b"' || a.content === '"​"' ? 'obsidian' : a.content.replace(/"/g, ''));
+        }
+        if (getComputedStyle(li, '::before').content !== 'none') shown.push('drawn');
+        return shown.join('+');
+      }));
+      assert.deepEqual(r, want, cls || '(defaults)');
+    } finally {
+      await context.close();
+    }
+  }
+});

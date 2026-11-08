@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.23.1] - 2026-11-08
+
+### Fixed
+- **Bullets in Obsidian.** Every point shows one bullet, the one chosen for the character it was
+  typed with (`-`, `*`, `+`).
+  - Obsidian draws each bullet itself (an element in the list item), so with ↳ or → a point showed
+    two bullets: Obsidian's, now restyled to a ↳ or → character, and the drawn one.
+  - A point's choice also leaked onto the bullets of the points under it.
+  - Now Obsidian's bullet is restyled for dot, dash, circle and star (sub-points too), and hidden
+    (its room kept) where the plugin draws ↳ or →.
+  - A point's choice applies only to its own bullet.
+
 ## [1.23.0] - 2026-11-08
 
 ### Added
