@@ -348,6 +348,14 @@ or as typed; and their colour (*Arrow colour*: by default the colour of the writ
 They show in reading view, in the PDF and while editing (the text again when the cursor is on it),
 never in code, and the note keeps what you typed.
 
+**A coloured arrow:** put the cursor on it and run a *Pen: …* colour command (or write it in a pen
+colour, `<font color="#c62828">-></font>`). It keeps that colour, even with an *Arrow colour* set.
+
+**↳ bullets:** *Settings → Pen and paper → Bullets* (every point) or *Sub-point bullets* (only the
+indented points of a list) can be *↳ Arrow from the line above*: a line coming down from the line
+above, turning to point at the point, as in hand-written notes where a point follows from the one
+above it.
+
 ## Pen marks
 
 Mark words the way you would on paper. Select them and run a *Pen* command (or type the tag):

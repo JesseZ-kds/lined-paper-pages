@@ -3094,6 +3094,14 @@ body {
   font-size: 0;
   color: transparent;
 }
+/* (an arrow written in a pen colour, <font color> / <span style="color">, is drawn in that colour, even
+   with an Arrow colour set) */
+.lined-paper :is(font[color], span[style*="color"], .lp-colour) .lp-arrow > svg {
+  stroke: currentColor;
+}
+body.lp-arrows-bold .lined-paper :is(font[color], span[style*="color"], .lp-colour) .lp-arrow > svg > :is(.lp-a2, .lp-a3) {
+  fill: currentColor;
+}
 /* Bold: thicker lines, filled heads */
 body.lp-arrows-bold .lined-paper .lp-arrow > svg {
   stroke-width: 2.3;
@@ -3277,6 +3285,70 @@ body.lp-bullet-dash .lined-paper .list-bullet::after { content: "–" !important
 body.lp-bullet-arrow .lined-paper .list-bullet::after { content: "→" !important; }
 body.lp-bullet-circle .lined-paper .list-bullet::after { content: "∘" !important; }
 body.lp-bullet-star .lined-paper .list-bullet::after { content: "✱" !important; }
+/* ↳ an arrow from the line above (Bullets, or Sub-point bullets): a line coming down from just under
+   the line above, turning to point at the writing. Drawn with lines (crisp in the PDF), in the bullet
+   colour. */
+body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item),
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item) {
+  list-style-type: none;
+  position: relative;
+  --hook-ink: var(--lp-bullet-ink, var(--ink));
+  --hook-top: calc(var(--line) * -0.2);                              /* (up into the line above) */
+  --hook-y: calc(var(--line) - var(--shift) - 0.3em);                /* (the middle of the writing) */
+}
+body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item)::before,
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before {
+  content: "";
+  position: absolute;
+  left: -1.08em;
+  top: var(--hook-top);
+  width: 0.64em;
+  height: calc(var(--hook-y) - var(--hook-top));
+  border-left: 1.7px solid var(--hook-ink);
+  border-bottom: 1.7px solid var(--hook-ink);
+  border-bottom-left-radius: 0.3em;
+  box-sizing: border-box;
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item)::after,
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after {
+  content: "";
+  position: absolute;
+  left: calc(-1.08em + 0.64em - 0.33em);
+  top: calc(var(--hook-y) - 0.17em - 0.8px);
+  width: 0.34em;
+  height: 0.34em;
+  border-top: 1.7px solid var(--hook-ink);
+  border-right: 1.7px solid var(--hook-ink);
+  transform: rotate(45deg);
+  box-sizing: border-box;
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* Sub-point bullets other than ↳ (a list inside a list) */
+body:is(.lp-sub-dash, .lp-sub-arrow, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before,
+body:is(.lp-sub-dash, .lp-sub-arrow, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after {
+  content: none;
+}
+body.lp-sub-dash .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: "–  "; }
+body.lp-sub-arrow .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: "→  "; }
+body.lp-sub-dot .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: disc; }
+body.lp-sub-circle .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: "∘  "; }
+/* (while editing: Obsidian's bullet as ↳) */
+body.lp-bullet-hook .lined-paper .list-bullet::after {
+  content: "↳" !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: var(--lp-bullet-ink, var(--ink));
+  font-size: inherit;
+  line-height: inherit;
+}
+
 body.lp-bullet-dash .lined-paper ul > li.task-list-item,
 body.lp-bullet-arrow .lined-paper ul > li.task-list-item,
 body.lp-bullet-circle .lined-paper ul > li.task-list-item,

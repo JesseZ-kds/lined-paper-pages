@@ -277,3 +277,58 @@ test('arrows: each kind drawn, the typed text kept (it copies as typed), code le
     await context.close();
   }
 });
+
+test('an arrow in a pen colour is drawn in that colour, even with an Arrow colour set', async () => {
+  const { title, block } = require('./lib/notes');
+  const n = { name: 'arrow-colour', cornell: false, blocks: [title('C'), block('<p>a -> b <font color="#c62828">-></font> c <span style="color: #2e7d32">=></span> d</p>')] };
+  const { page, context } = await openReading(n, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(() => {
+      document.body.style.setProperty('--lp-arrow-ink', '#123456');
+      // (each arrow, and the colour of the pen it is written in)
+      return [...document.querySelectorAll('.lp-arrow svg')].map((s) => [getComputedStyle(s).stroke, getComputedStyle(s.closest('font, span[style]') || s).color]);
+    });
+    assert.equal(r[0][0], 'rgb(18, 52, 86)', 'Arrow colour');
+    assert.equal(r[1][0], r[1][1], 'the red pen');
+    assert.equal(r[2][0], r[2][1], 'the green pen');
+    assert.notEqual(r[1][0], r[0][0]);
+  } finally {
+    await context.close();
+  }
+});
+
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  test(`↳ bullets: drawn from the line above, for every point or only sub-points; no word moves, reading view = PDF (${mode})`, async (t) => {
+    const { title, group } = require('./lib/notes');
+    const blocks = [title('Hooks'), group('<p>Hcue</p>', '<ul><li>Htop one<ul><li>Hsub one</li><li>Hsub two</li></ul></li><li>Htop two</li></ul>')];
+    const plain = await render({ name: 'hook0', cornell: true, blocks }, { cssPaging });
+    if (plain.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+    for (const cls of ['lp-sub-hook', 'lp-bullet-hook', 'lp-bullet-hook lp-sub-dash']) {
+      const r = await render({ name: 'hook1', cornell: true, blocks }, { cssPaging, theme: 'theme-light ' + cls });
+      assert.deepEqual(r.errors, []);
+      const at = (x) => x.reading.words.filter((w) => /^H/.test(w.w)).map((w) => `${w.w}@${Math.round(w.x)},${Math.round(w.y)}`);
+      assert.deepEqual(at(r), at(plain), `${cls}: every word where it was`);
+      // (a dash bullet is text in the PDF, a list marker in reading view: not compared)
+      const c = compare(r.reading, { ...r.pdf, words: r.pdf.words.filter((w) => w.w !== '–') });
+      assert.ok(c.ok, `${cls}: reading view = PDF: ` + describeMismatch(c));
+    }
+  });
+}
+
+test('↳ bullets: on the points chosen, coming down from the line above', async () => {
+  const { title, block } = require('./lib/notes');
+  const n = { name: 'hook', cornell: false, blocks: [title('H'), block('<ul><li>top<ul><li>sub</li></ul></li></ul>')] };
+  for (const [cls, want] of [['lp-sub-hook', [false, true]], ['lp-bullet-hook', [true, true]], ['lp-bullet-hook lp-sub-dash', [true, false]]]) {
+    const { page, context } = await openReading(n, { theme: 'theme-light ' + cls });
+    try {
+      const r = await page.evaluate(() => [...document.querySelectorAll('li')].map((li) => {
+        const cs = getComputedStyle(li, '::before');
+        return { hook: cs.content !== 'none' && cs.borderLeftStyle === 'solid', up: parseFloat(cs.top) < 0 };
+      }));
+      assert.deepEqual(r.map((x) => x.hook), want, cls);
+      assert.ok(r.filter((x) => x.hook).every((x) => x.up), 'it starts above its own line');
+    } finally {
+      await context.close();
+    }
+  }
+});

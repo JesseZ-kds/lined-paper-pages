@@ -182,3 +182,16 @@ test('a highlight inside another (written by older versions): both taken off, th
   const c = l.indexOf('>c<') + 1;
   assert.equal(restyleLine(l, c, c + 1, ['highlight'], null).text, 'a ==b== c ==d== e', 'the rest of the outer one stays');
 });
+
+test('the cursor on an arrow (-> => ~>), nothing selected: a pen colour colours that arrow', () => {
+  const red = { open: '<font color="#c62828">', close: '</font>' };
+  const l = 'life begins -> at birth => foetus';
+  const at = l.indexOf('->') + 1;
+  assert.equal(restyleLine(l, at, at, ['colour'], red).text, 'life begins <font color="#c62828">-></font> at birth => foetus');
+  const at2 = l.indexOf('=>') + 2;   // (just after it counts too)
+  assert.equal(restyleLine(l, at2, at2, ['colour'], red).text, 'life begins -> at birth <font color="#c62828">=></font> foetus');
+  // already coloured: the colour is changed
+  const c = 'a <font color="#1e4fbf">-></font> b';
+  const at3 = c.indexOf('->');
+  assert.equal(restyleLine(c, at3, at3, ['colour'], red).text, 'a <font color="#c62828">-></font> b');
+});

@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-08
+
+### Added
+- **↳ arrow bullets.** A list bullet shaped like ↳: a line coming down from just under the line
+  above, turning to point at the writing.
+  - *Bullets* has a new choice, *↳ Arrow from the line above*.
+  - The new *Sub-point bullets* setting gives indented points their own bullet: ↳, arrow, dash, dot
+    or small circle, or the same as *Bullets*. So top-level points can keep their dots while
+    sub-points get ↳.
+  - Drawn with lines (crisp in the PDF), in the bullet colour. No word moves.
+- **Coloured arrows.**
+  - An arrow written in a pen colour is drawn in that colour, even when *Arrow colour* is set.
+  - With the cursor on an arrow and nothing selected, the *Pen: …* colour commands colour that
+    arrow.
+  - While editing, an arrow in a pen colour is drawn in that colour too.
+
 ## [1.21.0] - 2026-11-06
 
 ### Added

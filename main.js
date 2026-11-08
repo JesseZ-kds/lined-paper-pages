@@ -73,7 +73,10 @@ const SETTINGS = [
   { key: 'heading-ink', type: 'toggle', cls: 'lp-head-ink', def: false, name: 'Sub-headings in the heading pen',
     desc: 'Write the headings themselves in the heading underline colour, not only their underline.' },
   { key: 'bullet', type: 'select', cls: 'lp-bullet-', def: 'dot', name: 'Bullets',
-    options: { dot: '• Dot', dash: '– Dash', arrow: '→ Arrow', circle: '∘ Small circle', star: '✱ Star' } },
+    options: { dot: '• Dot', dash: '– Dash', arrow: '→ Arrow', hook: '↳ Arrow from the line above', circle: '∘ Small circle', star: '✱ Star' } },
+  { key: 'sub-bullet', type: 'select', cls: 'lp-sub-', def: 'same', name: 'Sub-point bullets',
+    options: { same: 'The same as Bullets', hook: '↳ Arrow from the line above', arrow: '→ Arrow', dash: '– Dash', dot: '• Dot', circle: '∘ Small circle' },
+    desc: 'The bullets of indented points (a list inside a list). ↳ comes down from the line above and points at the sub-point.' },
   { key: 'lp-bullet-ink', type: 'color', def: '#1f2937', name: 'Bullet colour', desc: 'Default: the colour of the writing.' },
   { key: 'checkbox', type: 'toggle', cls: 'lp-plain-checkbox', invert: true, def: true, name: 'Hand-drawn checkboxes',
     desc: 'Tasks (- [ ] and - [x]) get a box drawn with the pen, ticked in green.' },
@@ -84,7 +87,7 @@ const SETTINGS = [
   { key: 'arrows', type: 'select', cls: 'lp-arrows-', def: 'hand', name: 'Arrows',
     options: { hand: 'Hand-drawn', simple: 'Straight', bold: 'Bold (filled heads)', off: 'As typed (->)' },
     desc: 'Type -> <- <-> => <=> --> <-- or ~> in a note and it is drawn as an arrow in this style (=> double, --> long, ~> wavy).' },
-  { key: 'lp-arrow-ink', type: 'color', def: '#1f2937', name: 'Arrow colour', desc: 'Default: the colour of the writing round it.' },
+  { key: 'lp-arrow-ink', type: 'color', def: '#1f2937', name: 'Arrow colour', desc: 'Default: the colour of the writing round it. An arrow you write in a pen colour (Pen: red …, with the cursor on the arrow) keeps that colour.' },
   { key: 'lp-mark', type: 'color', def: '#c0392b', name: 'Marking pen colour',
     desc: 'For the circles, boxes, underlines and scribbles of the "Pen: circle / box / underline …" commands. Default: the heading underline colour.' },
 
@@ -824,6 +827,7 @@ function fillColoured(parent, inner, open) {
     parent.appendChild(a);
   }
   text(inner.slice(last));
+  drawArrows(parent);   // (an arrow in a colour: drawn, in that colour)
 }
 // reading view / PDF: a coloured tag whose [[link]] did not come out as a link is rebuilt from the
 // note's source (or from its own text, when the link was left there as plain text)
@@ -1247,11 +1251,13 @@ function restyleLine(line, a, b, kinds, wrap) {
   const of = (r) => kinds.includes(r.kind);
   if (a === b) {
     const r = styledRuns(line).find((x) => of(x) && a >= x.from && a <= x.to);
-    if (!r) {
+    // (the cursor on an arrow, -> => ~> …, outside any run: that arrow)
+    let arrow = null;
+    if (!r) { ARROW_RE.lastIndex = 0; for (let m; (m = ARROW_RE.exec(line));) if (a >= m.index && a <= m.index + m[0].length) { arrow = m; break; } }
+    if (arrow) { a = arrow.index; b = arrow.index + arrow[0].length; } else if (!r) {
       if (!wrap) return { text: line, a, b };
       return { text: line.slice(0, a) + wrap.open + wrap.close + line.slice(a), a: a + wrap.open.length, b: a + wrap.open.length };
-    }
-    a = r.innerFrom; b = r.innerTo;
+    } else { a = r.innerFrom; b = r.innerTo; }
   }
   while (a < b && /\s/.test(line[a])) a++;
   while (b > a && /\s/.test(line[b - 1])) b--;
