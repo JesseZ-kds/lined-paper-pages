@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-11-08
+
+### Added
+- **A line under a table's header row: your choice.** New setting *A line under a table's header
+  row*: leave an empty ruled line between a table's header row and its other rows, or not (the
+  default). An empty row typed straight under the header, as a gap, is left out either way, so the
+  setting decides.
+
+### Fixed
+- **Embedded tables line up with the notes and take no extra line.**
+  - The table's first line is on the notes' first line, level with the cue.
+  - Each row is exactly as many whole lines as its writing takes. A theme's line between rows,
+    padding or spacing between rows no longer makes the rows creep off the ruled lines, and never
+    adds a line.
+  - The table's frame (borders, spacing under it) takes no line of its own: the writing after the
+    table starts on the very next ruled line, with no extra blank line.
+  - The same for typed tables. The table keeps its look.
+
 ## [1.23.3] - 2026-11-08
 
 ### Changed

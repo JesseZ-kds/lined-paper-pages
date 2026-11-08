@@ -828,6 +828,15 @@ settings:
   margin: 0;
 }
 
+/* An empty row typed straight under a table's header, as a gap, is left out (the plugin marks it);
+   Settings → "A line under a table's header row" leaves a ruled line there instead */
+.lined-paper tbody > tr.lp-empty-row {
+  display: none !important;
+}
+body.lp-table-gap .lined-paper thead > tr:last-child > :is(th, td) {
+  padding-bottom: var(--line) !important;
+}
+
 /* A table with an empty header row (`| | |` over `|---|---|`: Markdown needs a header, so this is
    how a table without one is written) has no header: the row takes no line, and the table's first
    row is on the line the table starts on. (The plugin also marks a header holding only spaces.) */

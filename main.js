@@ -51,6 +51,8 @@ const SETTINGS = [
   { key: 'lp-hand-title', type: 'font', def: 'Caveat', name: 'Title font' },
   { key: 'auto-break', type: 'toggle', cls: 'lp-no-auto-break', invert: true, def: true, name: 'Start a new page at every # title',
     desc: 'Every # title after the note\'s own title starts a new page and is that page\'s title, as if [!nextpage] were written above it.' },
+  { key: 'table-gap', type: 'toggle', cls: 'lp-table-gap', def: false, name: 'A line under a table\'s header row',
+    desc: 'Leave an empty ruled line between a table\'s header row and its other rows. Off: the rows follow the header straight away (an empty row typed there as a gap is left out).' },
   { key: 'links', type: 'toggle', cls: 'lp-link-underline', def: false, name: 'Underline links',
     desc: 'Links are shown in their colour only, like writing. Switch this on to underline them.' },
 
@@ -596,6 +598,51 @@ function alignEmbedCopies(root, undo) {
   });
 }
 
+// Each table row exactly as many whole lines as its writing takes, never more: a row a little taller
+// (a theme's line between rows, padding: a few pixels) takes those pixels from its own line spacing, a
+// little shorter one is made up. So the rows don't creep off the lines one by one, and the table ends
+// on a ruled line. (Typed and embedded tables. The look of the table is kept.) Measured, then set.
+function evenRows(root, undo) {
+  const tables = Array.from(root.querySelectorAll('table')).filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print'));
+  if (!tables.length) return;
+  for (const t of tables) for (const tr of t.rows) {
+    if (tr._lpH) { tr.style.removeProperty('height'); tr._lpH = 0; }
+    for (const c of tr.cells) if (c._lpLh) { c.style.removeProperty('line-height'); c.style.removeProperty('height'); c._lpLh = 0; }
+  }
+  const L = px(tables[0].closest('.markdown-preview-view, .print, .lined-paper') || root, 'var(--line)');
+  if (!(L > 4)) return;
+  const plans = [];
+  for (const t of tables) {
+    // (spacing between the rows, border-spacing, counts as part of each row)
+    const cs = getComputedStyle(t);
+    const sp = cs.borderCollapse === 'separate' ? (parseFloat(String(cs.borderSpacing).split(' ').pop()) || 0) : 0;
+    for (const tr of t.rows) {
+    const h = tr.getBoundingClientRect().height + (tr.getClientRects().length ? sp : 0);
+    if (!h || !tr.getClientRects().length) continue;
+    const n = Math.max(1, Math.round(h / L));
+    const delta = h - n * L;
+    if (Math.abs(delta) <= 0.5) continue;
+    plans.push({ tr, n, delta });
+    }
+  }
+  // (each cell's own top and bottom padding, measured before anything is set: its height is without them)
+  for (const p of plans) p.pads = Array.from(p.tr.cells, (c) => { const cs = getComputedStyle(c); return (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0); });
+  for (const { tr, n, delta, pads } of plans) {
+    if (delta < 0) {
+      tr.style.setProperty('height', n * L + 'px', 'important');
+      tr._lpH = 1;
+      if (undo) undo.push({ t: 'prop', el: tr, name: 'height' });
+    } else {
+      Array.from(tr.cells).forEach((c, k) => {
+        const lines = Math.max(1, Math.round((n * L - pads[k]) / L));   // (its writing's lines: without a padding line)
+        c.style.setProperty('line-height', (L - delta / lines) + 'px', 'important');
+        c.style.setProperty('height', Math.max(0, n * L - delta - pads[k]) + 'px', 'important');
+        c._lpLh = 1;
+        if (undo) undo.push({ t: 'prop', el: c, name: 'line-height' }, { t: 'prop', el: c, name: 'height' });
+      });
+    }
+  }
+}
 // The ruled lines of the page an element is on: they are whole lines down from the top of its page
 // (the browser's own pages), or from the top of the note (the plugin's pages are made after this, on
 // whole lines; and the PDF export)
@@ -608,15 +655,29 @@ function lineGrid(el) {
   const cssPages = !document.body.classList.contains('lp-no-pages') && window.CSS && CSS.supports('column-wrap', 'wrap') && CSS.supports('column-height', '1px');
   return { top: sizer.getBoundingClientRect().top, P: cssPages ? px(view, 'var(--page-h)') : 0 };
 }
-// how much more room a block needs so that what follows it starts on a ruled line (0 if it does)
+// how much more (or, if negative, less) room a block needs so that what follows it starts on the ruled
+// line right after its last line of writing: its frame (a table's borders, padding, spacing under it)
+// does not take a line of its own. 0 if it already does.
 function toNextLine(el, L) {
   const g = lineGrid(el);
   const b = el.getBoundingClientRect();
   if (!g || !b.height) return 0;
-  let end = b.bottom + (parseFloat(getComputedStyle(el).marginBottom) || 0) - g.top;   // (with its own bottom margin)
-  if (g.P > 0) end -= Math.floor((b.top - g.top + 0.5) / g.P) * g.P;                  // (from the top of its page)
-  const extra = Math.round((Math.ceil((end - 0.5) / L) * L - end) * 64) / 64;
-  return extra > 0.5 ? extra : 0;
+  let last = null;
+  const tw = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.nodeType === 1 && n.matches(EMBED_HIDDEN) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    if (n.nodeType === 1 && !n.matches('img, svg, hr, input, .math, mjx-container')) continue;
+    const r = writtenRows(n);
+    if (r) last = Math.max(last === null ? r[1] : last, r[1]);
+  }
+  if (last === null) last = b.bottom;
+  const page = g.P > 0 ? Math.floor((b.top - g.top + 0.5) / g.P) * g.P : 0;   // (from the top of its page)
+  const lastRel = last - g.top - page;
+  const now = b.bottom + (parseFloat(getComputedStyle(el).marginBottom) || 0) - g.top - page;   // (where what follows starts now)
+  const want = Math.ceil((lastRel - 0.5) / L) * L;
+  const extra = Math.round((want - now) * 64) / 64;
+  return Math.abs(extra) > 0.5 ? extra : 0;
 }
 // The writing after a table starts on the next ruled line after the table, whatever the table is like
 // inside (its rows, a theme's borders and padding: left as they are). An embedded block is done the
@@ -626,20 +687,32 @@ function roundTables(root, undo) {
     .filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print') && !t.closest('.internal-embed, .markdown-embed'))
     .map((t) => t.closest('.table-wrapper') || t);
   if (!blocks.length) return;
-  for (const b of blocks) if (b._lpPush) { b.style.removeProperty('margin-bottom'); b._lpPush = 0; }
+  for (const b of blocks) if (b._lpPush) { b.style.removeProperty('margin-bottom'); b.style.removeProperty('margin-top'); b._lpPush = 0; }
   const L = px(blocks[0].closest('.markdown-preview-view, .print, .lined-paper') || root, 'var(--line)');
   if (!(L > 4)) return;
+  const set = (b, name, v) => {
+    b.style.setProperty(name, v + 'px', 'important');
+    b._lpPush = 1;
+    if (undo) undo.push({ t: 'prop', el: b, name });
+  };
+  // its first row on the line it is in (a theme's spacing above a table does not push it into the line)
+  const pulls = blocks.map((b) => {
+    const g = lineGrid(b);
+    const tr = b.querySelector('tr:not(.lp-empty-row)');
+    const first = tr && Array.from(b.querySelectorAll('tr')).find((r) => r.getClientRects().length);
+    if (!g || !first) return null;
+    const top = first.getBoundingClientRect().top - g.top;
+    const page = g.P > 0 ? Math.floor((top + 0.5) / g.P) * g.P : 0;
+    const off = Math.round(((((top - page) % L) + L) % L) * 64) / 64;
+    return off > 0.5 && off < L - 0.5 ? { margin: parseFloat(getComputedStyle(b).marginTop) || 0, off } : null;
+  });
+  blocks.forEach((b, i) => { if (pulls[i]) set(b, 'margin-top', pulls[i].margin - pulls[i].off); });
+  // ... and what follows on the next line after its last
   const plans = blocks.map((b) => {
     const extra = toNextLine(b, L);
     return extra ? { margin: parseFloat(getComputedStyle(b).marginBottom) || 0, extra } : null;
   });
-  blocks.forEach((b, i) => {
-    const p = plans[i];
-    if (!p) return;
-    b.style.setProperty('margin-bottom', p.margin + p.extra + 'px', 'important');
-    b._lpPush = p.extra;
-    if (undo) undo.push({ t: 'prop', el: b, name: 'margin-bottom' });
-  });
+  blocks.forEach((b, i) => { if (plans[i]) set(b, 'margin-bottom', plans[i].margin + plans[i].extra); });
 }
 
 // A table written with an empty header row (Markdown needs one, so `| | |` over `|---|---|` is how
@@ -648,6 +721,15 @@ function roundTables(root, undo) {
 // thead.lp-empty-head). An empty <th></th> is caught by the CSS alone; this also catches a header
 // holding only spaces or a <br>.
 function markEmptyHeads(root, undo) {
+  // (and an empty row typed straight under the header, as a gap: left out; the setting "A line under
+  // a table's header row" puts a gap there instead)
+  for (const tb of root.querySelectorAll('thead + tbody')) {
+    const row = tb.rows[0];
+    if (!row || row.classList.contains('lp-empty-row') || tb.rows.length < 2) continue;
+    if (row.textContent.trim() || row.querySelector('img, svg, input, .internal-embed, .math, mjx-container')) continue;
+    row.classList.add('lp-empty-row');
+    if (undo) undo.push({ t: 'cls', el: row, name: 'lp-empty-row' });
+  }
   for (const head of root.querySelectorAll('thead')) {
     if (head.classList.contains('lp-empty-head')) continue;
     if (head.textContent.trim() || head.querySelector('img, svg, input, .internal-embed, .math, mjx-container')) continue;
@@ -1622,7 +1704,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { drawArrows(el); markBullets(el, ctx); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { drawArrows(el); markBullets(el, ctx); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -1667,7 +1749,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); roundTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); evenRows(pr); roundTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1982,6 +2064,7 @@ module.exports = class LinedPaperPages extends Plugin {
       unwrapCalloutEmbeds(view, st.undo);
       tidyEmbedLines(view, st.undo);
       markEmptyHeads(view, st.undo);
+      evenRows(view, st.undo);
       roundTables(view, st.undo);
       alignEmbeds(view, st.undo);
       alignEmbedCopies(view, st.undo);

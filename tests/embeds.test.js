@@ -264,8 +264,8 @@ for (const [mode, cssPaging] of MODES) {
 }
 
 // A table, typed or embedded, in a theme whose tables have lines between rows, a heavier line under
-// the header, padding in the cells, spacing round the table: the table is left as it is inside, and
-// everything round it is on the lines
+// the header, padding in the cells, spacing round the table: the table keeps its look, each row is
+// whole lines (it does not creep off the lines), and everything round it is on the lines
 const THEME_TABLES = `.markdown-rendered table { border-collapse: separate; border-spacing: 0 2px; margin-block: 0.6em; }
   .markdown-rendered th, .markdown-rendered td { padding: 4px 10px; border-bottom: 1px solid #ccc; }
   .markdown-rendered thead tr { border-bottom: 2px solid #999; }
@@ -273,7 +273,7 @@ const THEME_TABLES = `.markdown-rendered table { border-collapse: separate; bord
   .markdown-rendered td > p { margin: 3px 0; }`;
 for (const [mode, cssPaging] of MODES) {
   for (const embedded of [true, false]) {
-    test(`${embedded ? 'an embedded' : 'a typed'} table in a theme with table borders and padding: everything round it on the lines (${mode})`, async (t) => {
+    test(`${embedded ? 'an embedded' : 'a typed'} table in a theme with table borders and padding: its rows and everything round it on the lines (${mode})`, async (t) => {
       const { title, group } = require('./lib/notes');
       // (the table's own words: X…, left as the table has them; the words outside it: T…)
       const table = '<div class="table-wrapper"><table><thead><tr><th></th><th><strong>XPermissible</strong></th><th>XRequired</th></tr></thead><tbody><tr><td><strong>XACT</strong></td><td>XAnytime</td><td>XNo</td></tr><tr><td><strong>XNSW</strong></td><td><p>XUp to 22</p></td><td>XTwo</td></tr><tr><td>XQLD</td><td>XUp to 22<br>Xweeks</td><td>XTwo</td></tr><tr><td>XSA</td><td>XLess than<br>X23 weeks</td><td>XTwo</td></tr></tbody></table></div>';
@@ -297,7 +297,7 @@ for (const [mode, cssPaging] of MODES) {
           const out = [];
           const tw = document.createTreeWalker(v, NodeFilter.SHOW_TEXT);
           for (let n = tw.nextNode(); n; n = tw.nextNode()) {
-            const m = /\bT\w+/.exec(n.data);
+            const m = /\b[TX]\w+/.exec(n.data);
             if (!m || !n.parentElement.checkVisibility() || n.parentElement.closest('h1')) continue;
             rg.setStart(n, m.index); rg.setEnd(n, m.index + 1);
             const b = rg.getBoundingClientRect();
@@ -307,12 +307,47 @@ for (const [mode, cssPaging] of MODES) {
           return out;
         });
         // every word the same height above its ruled line as the first one
+        // (the table's own words, X…: within 3px, as a theme may set the whole table a little into its line)
         const ref = r[0][1];
-        const off = r.filter(([, y]) => Math.abs(y - ref) > 1.5);
+        // (a typed table's inside is left to the theme: only what is round it is checked)
+        const off = r.filter(([w, y]) => (embedded || !w.startsWith('X')) && Math.abs(y - ref) > (w.startsWith('X') ? 3 : 1.5));
         assert.deepEqual(off, [], 'on the lines like the rest: ' + JSON.stringify(r));
       } finally {
         await context.close();
       }
     });
   }
+}
+
+// No line of its own for a table's frame, and the header row's gap as set: an empty row typed under the
+// header is left out; Settings → "A line under a table's header row" leaves one ruled line there
+for (const [mode, cssPaging] of MODES) {
+  test(`a table takes exactly its rows' lines; a line under the header row only when set (${mode})`, async (t) => {
+    const { title, group } = require('./lib/notes');
+    const table = '<table><thead><tr><th></th><th>GPermissible</th></tr></thead><tbody><tr><td></td><td></td></tr><tr><td>GACT</td><td>GAnytime</td></tr><tr><td>GNSW</td><td>GUp</td></tr><tr><td>GQLD</td><td>GUp</td></tr></tbody></table>';
+    const emb = `<p><span class="internal-embed markdown-embed inline-embed is-loaded" src="Laws#^t"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-table">${table}</div></div></div></div><div class="markdown-embed-content"></div><div class="markdown-embed-link"></div></template></span></p>`;
+    const blocks = [title('T'), group('<p>Gcue</p>', emb), group('<p>Gnext</p>', '<p>Gafter</p>')];
+    const out = {};
+    for (const cls of ['', 'lp-table-gap']) {
+      const { page, context } = await openReading({ name: 'gap', cornell: true, blocks }, { cssPaging, theme: 'theme-light ' + cls });
+      if (!page) return t.skip(`${mode} is not available in this browser`);
+      try {
+        await page.addStyleTag({ content: '.markdown-rendered tr { border-bottom: 1px solid #dde; } .markdown-rendered thead tr { border-bottom: 2px solid #99a; } .markdown-rendered table { border-collapse: collapse; }' });
+        out[cls || 'none'] = await page.evaluate(async () => {
+          const v = document.querySelector('.markdown-preview-view');
+          window.plugin.layout(v, window.plugin.states.get(v));
+          await new Promise((res) => setTimeout(res, 50));
+          const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; v.appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+          const at = (re) => [...v.querySelectorAll('p, td, th')].find((x) => re.test(x.textContent) && !x.querySelector('p, td, th')).getBoundingClientRect().top;
+          const row = (re) => Math.round((at(re) - at(/^Gcue$/)) / L);
+          return { head: row(/^GPermissible/), act: row(/^GACT/), qld: row(/^GQLD/), next: row(/^Gnext/), emptyRowShown: getComputedStyle(v.querySelectorAll('tbody tr')[0]).display !== 'none' };
+        });
+      } finally {
+        await context.close();
+      }
+    }
+    // header on the cue's line; rows one line each; the next group after the table and the usual one-line gap between groups
+    assert.deepEqual(out.none, { head: 0, act: 1, qld: 3, next: 5, emptyRowShown: false });
+    assert.deepEqual(out['lp-table-gap'], { head: 0, act: 2, qld: 4, next: 6, emptyRowShown: false });
+  });
 }

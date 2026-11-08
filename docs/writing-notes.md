@@ -395,6 +395,10 @@ Markdown needs a header row on a table, so a table without one is written with a
 (`| | |` over `|---|---|`). That empty row takes no line on the page: the table's first row is on
 the line the table starts on (typed or embedded with `![[Note#^table]]`).
 
+Each row of a table takes exactly as many ruled lines as its writing, and the writing after a table
+(typed or embedded) starts on the very next line. An empty row typed straight under the header is
+left out; to have a gap there, switch on *Settings → A line under a table's header row*.
+
 ## Coloured links and embeds
 
 Links show in their colour only, without an underline, like writing (*Settings → Underline links*
