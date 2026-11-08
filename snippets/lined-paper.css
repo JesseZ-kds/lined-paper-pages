@@ -841,35 +841,9 @@ settings:
   height: var(--line);
   padding: 0 12px !important;
   border: none !important;
-  vertical-align: top !important;
+  vertical-align: top;
   text-align: left;
 }
-/* Every row of a table is whole ruled lines tall, so its writing is on the lines and so is everything
-   under the table: nothing of a theme's tables (lines between rows, padding, spacing round the table
-   or its wrapper, a heavier line under the header) adds a part of a line. (The plugin also measures
-   the rows, and an embedded table, and evens out anything left.) */
-.lined-paper :is(table, thead, tbody, tfoot, tr) {
-  border: 0 !important;
-  box-shadow: none !important;
-  outline: 0 !important;
-}
-.lined-paper table {
-  margin: 0 !important;
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-}
-.lined-paper :is(.table-wrapper, .el-table, .table-container, .table-view-table) {
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-.lined-paper :is(th, td) > :is(p, div, span.table-cell-wrapper) {
-  margin: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
 /* Pictures: 6 lines tall, never stretched (kept in proportion, narrower than the space if need be).
    They sit on plain paper, so the ruled lines do not run through a transparent picture (much easier
    to read on a printed page), and the PDF keeps every pixel of the original (the browser embeds the
@@ -3606,6 +3580,10 @@ body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.d
 .lined-paper .internal-embed[src*="#^"] :is(.markdown-preview-sizer > div, .markdown-embed-content > div, table, .table-wrapper, .el-table, p, ul, ol, pre, blockquote):not(.callout) {
   margin-block-start: 0 !important;
   padding-block-start: 0 !important;
+}
+/* (an embed holds everything of its own, margins too: what it takes on the page is its box) */
+.lined-paper .internal-embed.internal-embed.internal-embed[src*="#^"] {
+  display: flow-root !important;
 }
 .lined-paper .internal-embed.internal-embed.internal-embed[src*="#^"] {
   margin-top: var(--lp-embed-pull, 0px) !important;   /* (over the frameless embed's margin: 0) */

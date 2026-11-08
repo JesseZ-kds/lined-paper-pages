@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.23.3] - 2026-11-08
+
+### Changed
+- **Embeds and tables are left as they are inside; the lines round them are put right.**
+  - Every embedded block (`![[Note#^id]]`: a table, a paragraph, a list …) is treated the same.
+    It starts on its line, and the writing after it starts on the next ruled line after it.
+  - So does the writing after a typed table.
+  - Their inside keeps its own look and spacing; 1.23.2's changes to tables (borders and spacing
+    taken off, rows made whole lines) are undone.
+  - The next line is found from the page's own ruled lines, so a theme's spacing round a table or
+    inside an embed cannot push the rest of the page off the lines.
+
 ## [1.23.2] - 2026-11-08
 
 ### Fixed
