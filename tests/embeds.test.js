@@ -262,3 +262,54 @@ for (const [mode, cssPaging] of MODES) {
     });
   }
 }
+
+// A table, typed or embedded, in a theme whose tables have lines between rows, a heavier line under
+// the header, padding in the cells, spacing round the table: every row's writing is on the lines,
+// and so is everything under it
+const THEME_TABLES = `.markdown-rendered table { border-collapse: separate; border-spacing: 0 2px; margin-block: 0.6em; }
+  .markdown-rendered th, .markdown-rendered td { padding: 4px 10px; border-bottom: 1px solid #ccc; }
+  .markdown-rendered thead tr { border-bottom: 2px solid #999; }
+  .markdown-rendered .table-wrapper { margin: 9px 0; padding-bottom: 7px; }
+  .markdown-rendered td > p { margin: 3px 0; }`;
+for (const [mode, cssPaging] of MODES) {
+  for (const embedded of [true, false]) {
+    test(`${embedded ? 'an embedded' : 'a typed'} table in a theme with table borders and padding: its rows and everything under it on the lines (${mode})`, async (t) => {
+      const { title, group } = require('./lib/notes');
+      const table = '<div class="table-wrapper"><table><thead><tr><th></th><th><strong>TPermissible</strong></th><th>TRequired</th></tr></thead><tbody><tr><td><strong>TACT</strong></td><td>TAnytime</td><td>TNo</td></tr><tr><td><strong>TNSW</strong></td><td><p>TUp to 22</p></td><td>TTwo</td></tr><tr><td>TQLD</td><td>TUp to 22</td><td>TTwo</td></tr></tbody></table></div>';
+      const notes = embedded
+        ? `<p><span class="internal-embed markdown-embed inline-embed is-loaded" src="Laws#^t"><template class="emb"><div class="embed-title markdown-embed-title"></div><div class="markdown-embed-content"><div class="markdown-preview-view markdown-rendered"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"></div><div class="el-table">${table}</div><div class="mod-footer"></div></div></div></div><div class="markdown-embed-link"></div></template></span></p>`
+        : table;
+      const blocks = [title('T'), group('<p>TUntil when do they need special approval?</p>', notes), group('<p>TInformed consent</p>', '<ul><li>TMust be chosen freely</li></ul>'), group('<p>TConscientious objection</p>', '<ul><li>TDoctors can abstain</li></ul>')];
+      const { page, context } = await openReading({ name: 'tables', cornell: true, blocks }, { cssPaging });
+      if (!page) return t.skip(`${mode} is not available in this browser`);
+      try {
+        await page.addStyleTag({ content: THEME_TABLES });
+        const r = await page.evaluate(async () => {
+          const v = document.querySelector('.markdown-preview-view');
+          window.plugin.layout(v, window.plugin.states.get(v));
+          await new Promise((res) => setTimeout(res, 50));
+          const d = document.createElement('div'); d.style.cssText = 'position:absolute;height:var(--line)'; v.appendChild(d); const L = d.getBoundingClientRect().height; d.remove();
+          const top = v.querySelector('.markdown-preview-sizer').getBoundingClientRect().top;
+          const rg = document.createRange();
+          const out = [];
+          const tw = document.createTreeWalker(v, NodeFilter.SHOW_TEXT);
+          for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+            const m = /T\w+/.exec(n.data);
+            if (!m || !n.parentElement.checkVisibility() || n.parentElement.closest('h1')) continue;
+            rg.setStart(n, m.index); rg.setEnd(n, m.index + 1);
+            const b = rg.getBoundingClientRect();
+            if (!b.height) continue;
+            out.push([m[0], +(((b.bottom - top) % L + L) % L).toFixed(1)]);
+          }
+          return out;
+        });
+        // every word the same height above its ruled line as the first one
+        const ref = r[0][1];
+        const off = r.filter(([, y]) => Math.abs(y - ref) > 1.5);
+        assert.deepEqual(off, [], 'on the lines like the rest: ' + JSON.stringify(r));
+      } finally {
+        await context.close();
+      }
+    });
+  }
+}

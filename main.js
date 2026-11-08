@@ -541,6 +541,27 @@ function alignEmbeds(root, undo) {
       if (undo) undo.push({ t: 'prop', el: e, name: '--lp-embed-pull' });
     }
   });
+  // ... and the writing under it starts on the next ruled line after its last line: whatever of
+  // Obsidian's is under that inside the embed (spacing, an empty element), or a part of a line, is
+  // taken off (or made up) with its bottom margin
+  for (const e of embeds) e.style.removeProperty('--lp-embed-push');
+  const L = embeds.length ? px(embeds[0].closest('.markdown-preview-view, .print, .lined-paper') || root, 'var(--line)') : 0;
+  if (!(L > 4)) return;
+  const pushes = embeds.map((e) => {
+    let first = null, last = null;
+    walk(e, (n) => { const r = writtenRows(n); if (r) { if (first === null) first = r[0]; last = Math.max(last === null ? r[1] : last, r[1]); } return true; });
+    if (first === null) return 0;
+    const bottom = e.getBoundingClientRect().bottom;
+    const rows = Math.max(1, Math.ceil((last - first - 0.5) / L));
+    const want = first + rows * L;          // (where the next line starts)
+    const push = Math.round((want - bottom) * 64) / 64;
+    return Math.abs(push) > 0.5 ? push : 0;
+  });
+  embeds.forEach((e, i) => {
+    if (!pushes[i]) return;
+    e.style.setProperty('--lp-embed-push', pushes[i] + 'px');
+    if (undo) undo.push({ t: 'prop', el: e, name: '--lp-embed-push' });
+  });
 }
 
 // An embedded callout (the copy shown for `![[Note#^callout]]`) that is the first thing written in its
@@ -582,6 +603,33 @@ function alignEmbedCopies(root, undo) {
     c._lpPull = p.pull;
     if (undo) undo.push({ t: 'prop', el: c, name: 'margin-top' });
   });
+}
+
+// Every table row whole ruled lines tall (measured: a theme can still add a part of a line, with a
+// border, padding, or a cell that holds a paragraph): a row a little off is made exactly one line, or
+// as many whole lines as its writing takes. So the rows' writing is on the lines, and everything
+// under the table too. Measured, then set.
+function snapTables(root, undo) {
+  const tables = Array.from(root.querySelectorAll('table')).filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print'));
+  if (!tables.length) return;
+  const L = px(tables[0].closest('.markdown-preview-view, .print, .lined-paper') || root, 'var(--line)');
+  if (!(L > 4)) return;
+  for (const t of tables) for (const tr of t.rows) if (tr._lpH) { tr.style.removeProperty('height'); tr._lpH = 0; }
+  const plans = [];
+  for (const t of tables) {
+    for (const tr of t.rows) {
+      const h = tr.getBoundingClientRect().height;
+      if (!h) continue;
+      let n = Math.max(1, Math.round(h / L));
+      if (n * L < h - 0.5) n = Math.ceil((h - 0.5) / L);
+      if (Math.abs(n * L - h) > 0.5) plans.push([tr, n * L]);
+    }
+  }
+  for (const [tr, target] of plans) {
+    tr.style.setProperty('height', target + 'px', 'important');
+    tr._lpH = target;
+    if (undo) undo.push({ t: 'prop', el: tr, name: 'height' });
+  }
 }
 
 // A table written with an empty header row (Markdown needs one, so `| | |` over `|---|---|` is how
@@ -1564,7 +1612,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { drawArrows(el); markBullets(el, ctx); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { drawArrows(el); markBullets(el, ctx); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); snapTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -1609,7 +1657,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); snapTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -1924,6 +1972,7 @@ module.exports = class LinedPaperPages extends Plugin {
       unwrapCalloutEmbeds(view, st.undo);
       tidyEmbedLines(view, st.undo);
       markEmptyHeads(view, st.undo);
+      snapTables(view, st.undo);
       alignEmbeds(view, st.undo);
       alignEmbedCopies(view, st.undo);
       fitTitles(view, st.undo);
@@ -2143,6 +2192,17 @@ module.exports = class LinedPaperPages extends Plugin {
         const shape = (el, d) => Array.from(el.childNodes).slice(0, 12).map((c) => c.nodeType === 3 ? (VISIBLE.test(c.data) ? 'text' : JSON.stringify(c.data.replace(/[^\s\u200b-\u200d\u2060\ufeff]/g, '')).slice(0, 12)) : c.nodeType !== 1 ? '' :
           c.tagName.toLowerCase() + (c.className && typeof c.className === 'string' ? '.' + c.className.trim().split(/\s+/).slice(0, 2).join('.') : '') + (getComputedStyle(c).display === 'none' ? '!' : '') + (d < 7 && c.childNodes.length ? '(' + shape(c, d + 1) + ')' : '')).filter(Boolean).join(' ');
         return { pull: e.style.getPropertyValue('--lp-embed-pull') || '0', ...at(e), line: shape(line, 0).slice(0, 1500) };
+      }),
+      // each table: its rows' heights in lines, and what its cells add (padding, borders)
+      tables: Array.from(view.querySelectorAll('table')).slice(0, 10).map((t) => {
+        const cell = t.querySelector('td, th');
+        const cs = cell ? getComputedStyle(cell) : null;
+        return {
+          ...at(t), embedded: !!t.closest('.internal-embed'),
+          rows: Array.from(t.rows).map((tr) => +(tr.getBoundingClientRect().height / L).toFixed(2)),
+          cell: cs && [cs.paddingTop, cs.paddingBottom, cs.borderTopWidth, cs.borderBottomWidth, cs.lineHeight, cs.verticalAlign].join(' '),
+          wrap: (function up(el, d) { return d > 4 || !el || el === view ? '' : up(el.parentElement, d + 1) + ' > ' + el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/)[0] : ''); })(t.parentElement, 0),
+        };
       }),
       sections: sizer ? Array.from(sizer.children).map((c) => c.className.slice(0, 40)).slice(0, 200) : [],
     };

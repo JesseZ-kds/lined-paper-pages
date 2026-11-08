@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.23.2] - 2026-11-08
+
+### Fixed
+- **Tables are on the lines, and so is everything under them.** A table's rows (typed or embedded
+  with `![[Note#^table]]`) could drift off the ruled lines, and the writing under the table landed
+  between them. A theme's table borders, cell padding, the heavier line under the header and the
+  spacing round a table each added a part of a line.
+  - Those are taken off.
+  - The plugin measures every row and makes it exactly one line, or as many whole lines as its
+    writing takes.
+  - The writing under an embedded block starts on the next line after its last one.
+- The layout report lists the note's tables: each row's height in lines and what the cells add.
+
 ## [1.23.1] - 2026-11-08
 
 ### Fixed
