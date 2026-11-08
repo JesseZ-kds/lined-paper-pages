@@ -356,6 +356,17 @@ indented points of a list) can be *↳ Arrow from the line above*: a line coming
 above, turning to point at the point, as in hand-written notes where a point follows from the one
 above it.
 
+**A different bullet for each kind of point:** a list item can start with `-`, `*` or `+`, and each
+can have its own bullet (*Settings → Pen and paper*: *Bullets* for `-`, *Bullets typed with \** and
+*Bullets typed with +*: dot, dash, arrow, ↳, small circle or star). For example, with `+` as ↳ and
+`*` as an arrow:
+
+```
+- Judaism: life begins at birth
+  + the foetus is special          (↳ follows from the line above)
+  * until forty days it is water   (→ leads on)
+```
+
 ## Pen marks
 
 Mark words the way you would on paper. Select them and run a *Pen* command (or type the tag):

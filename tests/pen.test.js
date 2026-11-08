@@ -44,7 +44,7 @@ for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination'
 }
 
 test('pen and paper options: the pen, the paper, bullets, checkboxes, marks', async () => {
-  const { page, context } = await openReading(note(false), { theme: 'theme-light ' + ALL + ' lp-bullet-dash' });
+  const { page, context } = await openReading(note(false), { theme: 'theme-light ' + ALL.replace('lp-bullet-arrow', 'lp-bullet-dash') });
   try {
     const r = await page.evaluate(() => {
       const view = document.querySelector('.markdown-preview-view');
@@ -64,7 +64,7 @@ test('pen and paper options: the pen, the paper, bullets, checkboxes, marks', as
       };
     });
     assert.deepEqual(r, {
-      ink: '#4b4f56', paper: '#fdf6c0', bullet: '"→  "', task: 'none', heading: 'wavy', strike: 'wavy',
+      ink: '#4b4f56', paper: '#fdf6c0', bullet: '"–  "', task: 'none', heading: 'wavy', strike: 'wavy',
       circle: 'solid', box: 'solid', checkbox: 'none', tick: '"✓"', untick: 'none',
     });
   } finally {
@@ -332,3 +332,49 @@ test('↳ bullets: on the points chosen, coming down from the line above', async
     }
   }
 });
+
+// a point's bullet by the character it was typed with: - (Bullets), * and + (their own settings)
+const MARK_SRC = ['>> [!cue]', '>> Mcue', '>', '>> [!notes]', '>> - Mjudaism birth', '>>   + Mspecial foetus', '>>   * Mforty water', '>> ---', '>> ```', '>> - not a point', '>> ```', '>> - Mchristianity conception', '>>   + Mnew soul'].join('\n');
+const MARK_HTML = '<ul><li>Mjudaism birth<ul><li>Mspecial foetus</li><li>Mforty water</li></ul></li></ul><hr><pre><code>- not a point</code></pre><ul><li>Mchristianity conception<ul><li>Mnew soul</li></ul></li></ul>';
+const markPrepare = (src) => `(() => { const src = ${JSON.stringify(src)}; const el = document.querySelector('blockquote').closest('.markdown-preview-sizer > div'); for (const f of window.__processors) f(el, { getSectionInfo: () => ({ text: src, lineStart: 0, lineEnd: src.split('\\n').length - 1 }) }); const v = document.querySelector('.markdown-preview-view'); window.plugin.layout(v, window.plugin.states.get(v)); })()`;
+
+test('bullets by the character typed: each point marked -, * or + from the note source (not a rule, not code)', async () => {
+  const { title, group } = require('./lib/notes');
+  const { page, context } = await openReading({ name: 'marks', cornell: true, blocks: [title('M'), group('<p>Mcue</p>', MARK_HTML)] }, { theme: 'theme-light lp-star-arrow lp-plus-hook' });
+  try {
+    await page.evaluate(markPrepare(MARK_SRC));
+    const r = await page.evaluate(() => [...document.querySelectorAll('li')].map((li) => {
+      const b = getComputedStyle(li, '::before');
+      return [li.className, getComputedStyle(li).listStyleType, b.content === 'none' ? '' : (b.borderLeftStyle === 'solid' ? 'hook' : 'arrow')];
+    }));
+    assert.deepEqual(r, [
+      ['lp-mark-dash', 'disc', ''],
+      ['lp-mark-plus', 'none', 'hook'],
+      ['lp-mark-star', 'none', 'arrow'],
+      ['lp-mark-dash', 'disc', ''],
+      ['lp-mark-plus', 'none', 'hook'],
+    ]);
+  } finally {
+    await context.close();
+  }
+});
+
+for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination', true]]) {
+  test(`bullets by the character typed: no word moves, reading view = PDF (${mode})`, async (t) => {
+    const { title, group } = require('./lib/notes');
+    const blocks = [title('M'), group('<p>Mcue</p>', MARK_HTML)];
+    const lines = [0, 0, 0];   // (the title, then the group: its source is MARK_SRC)
+    const plain = await render({ name: 'marks0', cornell: true, blocks }, { cssPaging });
+    if (plain.cssPaged === null) return t.skip(`${mode} is not available in this browser`);
+    const r = await render({ name: 'marks1', cornell: true, blocks }, {
+      cssPaging, theme: 'theme-light lp-bullet-arrow lp-star-hook lp-plus-circle',
+      prepare: markPrepare(MARK_SRC), exportCtx: { text: MARK_SRC, lines },
+    });
+    assert.deepEqual(r.errors, []);
+    const at = (x) => x.reading.words.filter((w) => /^M/.test(w.w)).map((w) => `${w.w}@${Math.round(w.x)},${Math.round(w.y)}`);
+    assert.deepEqual(at(r), at(plain), 'every word where it was');
+    // (a bullet drawn as a character is text in the PDF, a list marker in reading view: not compared)
+    const c = compare(r.reading, { ...r.pdf, words: r.pdf.words.filter((w) => !/^[∘–•✱]$/.test(w.w)) });
+    assert.ok(c.ok, 'reading view = PDF: ' + describeMismatch(c));
+  });
+}

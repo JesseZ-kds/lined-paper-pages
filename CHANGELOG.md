@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-08
+
+### Added
+- **A different bullet for each kind of point, by the character you type.** Markdown lists can start
+  with `-`, `*` or `+`, and each now has its own bullet, so one note can mix them:
+
+  ```
+  - a point
+    + a point that follows from the line above (↳)
+    * a point that leads on (→)
+  ```
+
+  - New settings in *Pen and paper*: *Bullets typed with \** and *Bullets typed with +*, each with
+    dot, dash, arrow, ↳, small circle, star, or the same as *Bullets*.
+  - *Bullets* is for points typed with `-`.
+  - Shown in reading view, the PDF and while editing. A `*` or `+` choice wins over *Sub-point
+    bullets*.
+
+### Changed
+- **The arrow bullet (→) is drawn with lines**, like ↳, in the bullet colour, instead of a small
+  character from the font.
+
 ## [1.22.0] - 2026-11-08
 
 ### Added

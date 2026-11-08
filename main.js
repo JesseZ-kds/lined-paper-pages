@@ -72,8 +72,14 @@ const SETTINGS = [
     desc: 'How ## … ###### headings are underlined (in the heading pen colour: Colours → Heading underline).' },
   { key: 'heading-ink', type: 'toggle', cls: 'lp-head-ink', def: false, name: 'Sub-headings in the heading pen',
     desc: 'Write the headings themselves in the heading underline colour, not only their underline.' },
-  { key: 'bullet', type: 'select', cls: 'lp-bullet-', def: 'dot', name: 'Bullets',
+  { key: 'bullet', type: 'select', cls: 'lp-bullet-', def: 'dot', name: 'Bullets', desc: 'Points typed with - (and with * or +, unless they have their own below).',
     options: { dot: '• Dot', dash: '– Dash', arrow: '→ Arrow', hook: '↳ Arrow from the line above', circle: '∘ Small circle', star: '✱ Star' } },
+  { key: 'bullet-star', type: 'select', cls: 'lp-star-', def: 'same', name: 'Bullets typed with *',
+    options: { same: 'The same as Bullets', dot: '• Dot', dash: '– Dash', arrow: '→ Arrow', hook: '↳ Arrow from the line above', circle: '∘ Small circle', star: '✱ Star' },
+    desc: 'A point typed with * instead of - gets this bullet, so one note can have several kinds: - point, * point, + point.' },
+  { key: 'bullet-plus', type: 'select', cls: 'lp-plus-', def: 'same', name: 'Bullets typed with +',
+    options: { same: 'The same as Bullets', dot: '• Dot', dash: '– Dash', arrow: '→ Arrow', hook: '↳ Arrow from the line above', circle: '∘ Small circle', star: '✱ Star' },
+    desc: 'A point typed with + gets this bullet.' },
   { key: 'sub-bullet', type: 'select', cls: 'lp-sub-', def: 'same', name: 'Sub-point bullets',
     options: { same: 'The same as Bullets', hook: '↳ Arrow from the line above', arrow: '→ Arrow', dash: '– Dash', dot: '• Dot', circle: '∘ Small circle' },
     desc: 'The bullets of indented points (a list inside a list). ↳ comes down from the line above and points at the sub-point.' },
@@ -654,6 +660,69 @@ function unwrapCalloutEmbeds(root, undo) {
       if (undo) undo.push({ t: 'cls', el: h, name: 'lp-embed-unwrapped' });
     }
   }
+}
+
+// ---------- bullets by the character typed: -  *  + ----------
+// Markdown lists can start with -, * or +, and Obsidian shows them all alike. Each gets its own bullet
+// here (Settings → Pen and paper: Bullets, Bullets typed with *, Bullets typed with +): every list
+// item is marked lp-mark-dash / lp-mark-star / lp-mark-plus by the character it was typed with,
+// found in the note's source (reading view and the PDF: the source Obsidian hands a post-processor;
+// while editing: an editor extension marks the line).
+const BULLET_LINE = /^\s*(?:>\s*)*([-*+])[ \t]/;
+const RULE_LINE = /^\s*(?:>\s*)*([-*_])(?:[ \t]*\1){2,}[ \t]*$/;   // (---, ***: a rule, not a bullet)
+const MARK_CLASS = { '-': 'lp-mark-dash', '*': 'lp-mark-star', '+': 'lp-mark-plus' };
+function markBullets(el, ctx) {
+  let info = null;
+  try { info = ctx && ctx.getSectionInfo && ctx.getSectionInfo(el); } catch (e) { info = null; }
+  if (!info || typeof info.text !== 'string') return;
+  const marks = [];
+  let fence = false;
+  for (const l of info.text.split('\n').slice(info.lineStart, info.lineEnd + 1)) {
+    if (/^\s*(?:>\s*)*(```|~~~)/.test(l)) { fence = !fence; continue; }
+    if (fence || RULE_LINE.test(l)) continue;
+    const m = BULLET_LINE.exec(l);
+    if (m) marks.push(m[1]);
+  }
+  // (each bullet item in order; only when they pair up one to one)
+  const lis = Array.from(el.querySelectorAll('ul > li')).filter((li) => !li.closest('.internal-embed, .markdown-embed, .lp-embed-copy'));
+  if (!lis.length || lis.length !== marks.length) return;
+  lis.forEach((li, i) => {
+    for (const c of Object.values(MARK_CLASS)) if (c !== MARK_CLASS[marks[i]]) li.classList.remove(c);
+    li.classList.add(MARK_CLASS[marks[i]]);
+  });
+}
+// editing view: each list line marked by its bullet character (not in code)
+function bulletEditorExtension() {
+  let V, S, Lang;
+  try { V = require('@codemirror/view'); S = require('@codemirror/state'); } catch (e) { return null; }
+  try { Lang = require('@codemirror/language'); } catch (e) { Lang = null; }
+  if (!V || !V.ViewPlugin || !V.Decoration || !S || !S.RangeSetBuilder) return null;
+  const deco = Object.fromEntries(Object.entries(MARK_CLASS).map(([k, c]) => [k, V.Decoration.line({ class: c })]));
+  const inCode = (state, pos) => {
+    if (!Lang || !Lang.syntaxTree) return false;
+    for (let n = Lang.syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) if (/codeblock|code-block|fenced/i.test(n.type.name)) return true;
+    return false;
+  };
+  const build = (view) => {
+    const b = new S.RangeSetBuilder();
+    if (!view.dom.closest('.lined-paper')) return b.finish();
+    let seen = -1;
+    for (const { from, to } of view.visibleRanges) {
+      for (let pos = from; pos <= to;) {
+        const line = view.state.doc.lineAt(pos);
+        pos = line.to + 1;
+        if (line.from <= seen) continue;
+        seen = line.from;
+        const m = BULLET_LINE.exec(line.text);
+        if (m && !RULE_LINE.test(line.text) && !inCode(view.state, line.from)) b.add(line.from, line.from, deco[m[1]]);
+      }
+    }
+    return b.finish();
+  };
+  return V.ViewPlugin.fromClass(class {
+    constructor(view) { this.decorations = build(view); }
+    update(u) { if (u.docChanged || u.viewportChanged) this.decorations = build(u.view); }
+  }, { decorations: (v) => v.decorations });
 }
 
 // ---------- arrows: ->  <-  <->  =>  <=>  -->  <--  ~> ----------
@@ -1481,6 +1550,8 @@ module.exports = class LinedPaperPages extends Plugin {
     // coloured text with links: editing view
     const colourExt = colourEditorExtension(this);
     if (colourExt && this.registerEditorExtension) this.registerEditorExtension(colourExt);
+    const bulletExt = bulletEditorExtension();
+    if (bulletExt && this.registerEditorExtension) this.registerEditorExtension(bulletExt);
     const arrowExt = arrowEditorExtension();
     if (arrowExt && this.registerEditorExtension) this.registerEditorExtension(arrowExt);
     this.registerMarkdownPostProcessor((el, ctx) => {
@@ -1493,7 +1564,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { drawArrows(el); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { drawArrows(el); markBullets(el, ctx); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -2610,6 +2681,7 @@ module.exports.sectionDates = sectionDates;
 module.exports.wrapSelection = wrapSelection;
 module.exports.restyleLine = restyleLine;
 module.exports.drawArrows = drawArrows;
+module.exports.markBullets = markBullets;
 module.exports.noteThemeClasses = noteThemeClasses;
 module.exports.frontmatterDate = frontmatterDate;
 // ---------- the settings page: Settings → Lined Paper Pages ----------

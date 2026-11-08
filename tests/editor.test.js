@@ -164,11 +164,12 @@ test('editing view: arrows (-> => ~> …) are drawn, the text shows again with t
       const module = { exports: {} };
       new Function('require', 'module', src)((n) => mods[n], module);
       const pl = new module.exports(); pl.scheduleScan = () => {}; pl.onload();
-      const doc = ['# Arrows', '', 'cause -> effect => result ~> more', 'code `a -> b` stays', '', 'end <font color="#c62828">-></font> red'].join('\n');
+      const doc = ['# Arrows', '', 'cause -> effect => result ~> more', 'code `a -> b` stays', '', 'end <font color="#c62828">-></font> red', '', '- dash point', '  + plus point', '  * star point', '', '---'].join('\n');
       const v = new CM.view.EditorView({ doc, extensions: [CM.markdown(), window.__ext], parent: document.getElementById('host'), selection: { anchor: doc.length } });
       const line = (n) => v.contentDOM.querySelectorAll('.cm-line')[n];
       const out = { drawn: [...line(2).querySelectorAll('.lp-arrow')].map((a) => a.dataset.arrow), inCode: line(3).querySelectorAll('.lp-arrow').length };
       out.coloured = [...line(5).querySelectorAll('.lp-colour .lp-arrow svg')].map((x) => getComputedStyle(x).stroke === getComputedStyle(x.closest('.lp-colour')).color);
+      out.marks = [...v.contentDOM.querySelectorAll('.cm-line')].map((l) => (l.className.match(/lp-mark-\w+/) || [''])[0]).filter(Boolean);
       v.dispatch({ selection: { anchor: v.state.doc.line(3).from + 7 } });   // (on the ->)
       out.cursorOn = [...line(2).querySelectorAll('.lp-arrow')].map((a) => a.dataset.arrow);
       return out;
@@ -177,6 +178,7 @@ test('editing view: arrows (-> => ~> …) are drawn, the text shows again with t
     assert.equal(r.inCode, 0, 'not in inline code');
     assert.deepEqual(r.cursorOn, ['dr', 'wave'], 'the -> under the cursor shows as typed');
     assert.deepEqual(r.coloured, [true], 'an arrow in a pen colour: drawn, in that colour');
+    assert.deepEqual(r.marks, ['lp-mark-dash', 'lp-mark-plus', 'lp-mark-star'], 'each list line marked by its bullet character (not the --- rule)');
     assert.deepEqual(errors, []);
   } finally {
     await context.close();

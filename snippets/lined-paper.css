@@ -3200,7 +3200,6 @@ body.lp-head-ink .lined-paper :is(h2, h3, h4, h5, h6, .cm-header-2, .cm-header-3
   color: var(--lp-bullet-ink, currentColor);
 }
 body.lp-bullet-dash .lined-paper ul > li { list-style-type: "–  "; }
-body.lp-bullet-arrow .lined-paper ul > li { list-style-type: "→  "; }
 body.lp-bullet-circle .lined-paper ul > li { list-style-type: "∘  "; }
 body.lp-bullet-star .lined-paper ul > li { list-style-type: "✱  "; }
 /* (while editing: the bullet Obsidian draws) */
@@ -3221,7 +3220,9 @@ body.lp-bullet-star .lined-paper .list-bullet::after { content: "✱" !important
    the line above, turning to point at the writing. Drawn with lines (crisp in the PDF), in the bullet
    colour. */
 body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item),
-body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item) {
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item),
+body.lp-star-hook .lined-paper ul > li.lp-mark-star:not(.task-list-item),
+body.lp-plus-hook .lined-paper ul > li.lp-mark-plus:not(.task-list-item) {
   list-style-type: none;
   position: relative;
   --hook-ink: var(--lp-bullet-ink, var(--ink));
@@ -3229,7 +3230,9 @@ body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item) {
   --hook-y: calc(var(--line) - var(--shift) - 0.3em);                /* (the middle of the writing) */
 }
 body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item)::before,
-body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before {
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before,
+body.lp-star-hook .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before,
+body.lp-plus-hook .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before {
   content: "";
   position: absolute;
   left: -1.08em;
@@ -3245,7 +3248,9 @@ body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before {
   print-color-adjust: exact;
 }
 body.lp-bullet-hook .lined-paper ul > li:not(.task-list-item)::after,
-body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after {
+body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after,
+body.lp-star-hook .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after,
+body.lp-plus-hook .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after {
   content: "";
   position: absolute;
   left: calc(-1.08em + 0.64em - 0.33em);
@@ -3261,14 +3266,91 @@ body.lp-sub-hook .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after {
   print-color-adjust: exact;
 }
 /* Sub-point bullets other than ↳ (a list inside a list) */
-body:is(.lp-sub-dash, .lp-sub-arrow, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before,
-body:is(.lp-sub-dash, .lp-sub-arrow, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after {
+body:is(.lp-sub-dash, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before,
+body:is(.lp-sub-dash, .lp-sub-dot, .lp-sub-circle) .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after {
   content: none;
 }
 body.lp-sub-dash .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: "–  "; }
-body.lp-sub-arrow .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: "→  "; }
 body.lp-sub-dot .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: disc; }
 body.lp-sub-circle .lined-paper :is(ul, ol) ul > li:not(.task-list-item) { list-style-type: "∘  "; }
+/* → an arrow bullet, drawn with lines like ↳ (Bullets, Sub-point bullets, or a bullet typed with * / +) */
+body.lp-bullet-arrow .lined-paper ul > li:not(.task-list-item),
+body.lp-sub-arrow .lined-paper :is(ul, ol) ul > li:not(.task-list-item),
+body.lp-star-arrow .lined-paper ul > li.lp-mark-star:not(.task-list-item),
+body.lp-plus-arrow .lined-paper ul > li.lp-mark-plus:not(.task-list-item) {
+  list-style-type: none;
+  position: relative;
+  --hook-ink: var(--lp-bullet-ink, var(--ink));
+  --hook-y: calc(var(--line) - var(--shift) - 0.3em);
+}
+body.lp-bullet-arrow .lined-paper ul > li:not(.task-list-item)::before,
+body.lp-sub-arrow .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::before,
+body.lp-star-arrow .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before,
+body.lp-plus-arrow .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before {
+  content: "";
+  position: absolute;
+  left: -1.12em;
+  top: calc(var(--hook-y) - 0.85px);
+  width: 0.66em;
+  height: 0;
+  border: none;
+  border-top: 1.7px solid var(--hook-ink);
+  border-radius: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+body.lp-bullet-arrow .lined-paper ul > li:not(.task-list-item)::after,
+body.lp-sub-arrow .lined-paper :is(ul, ol) ul > li:not(.task-list-item)::after,
+body.lp-star-arrow .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after,
+body.lp-plus-arrow .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after {
+  content: "";
+  position: absolute;
+  left: calc(-1.12em + 0.66em - 0.33em);
+  top: calc(var(--hook-y) - 0.17em - 0.8px);
+  width: 0.34em;
+  height: 0.34em;
+  border: none;
+  border-top: 1.7px solid var(--hook-ink);
+  border-right: 1.7px solid var(--hook-ink);
+  transform: rotate(45deg);
+  box-sizing: border-box;
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* Bullets by the character typed: a point typed with * or + has its own bullet (Settings → Pen and
+   paper → Bullets typed with * / +). The plugin marks each item by its character (lp-mark-star,
+   lp-mark-plus). These win over Bullets and Sub-point bullets. */
+body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: disc; }
+body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-dot .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
+body.lp-star-dot .lined-paper .lp-mark-star .list-bullet::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: "–  "; }
+body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-dash .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
+body.lp-star-dash .lined-paper .lp-mark-star .list-bullet::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-arrow .lined-paper .lp-mark-star .list-bullet::after { content: "→" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: "∘  "; }
+body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-circle .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
+body.lp-star-circle .lined-paper .lp-mark-star .list-bullet::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item) { list-style-type: "✱  "; }
+body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item)::before, body.lp-star-star .lined-paper ul > li.lp-mark-star:not(.task-list-item)::after { content: none; }
+body.lp-star-star .lined-paper .lp-mark-star .list-bullet::after { content: "✱" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-star-hook .lined-paper .lp-mark-star .list-bullet::after { content: "↳" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: disc; }
+body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-dot .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
+body.lp-plus-dot .lined-paper .lp-mark-plus .list-bullet::after { content: "•" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: "–  "; }
+body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-dash .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
+body.lp-plus-dash .lined-paper .lp-mark-plus .list-bullet::after { content: "–" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-arrow .lined-paper .lp-mark-plus .list-bullet::after { content: "→" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: "∘  "; }
+body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-circle .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
+body.lp-plus-circle .lined-paper .lp-mark-plus .list-bullet::after { content: "∘" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item) { list-style-type: "✱  "; }
+body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::before, body.lp-plus-star .lined-paper ul > li.lp-mark-plus:not(.task-list-item)::after { content: none; }
+body.lp-plus-star .lined-paper .lp-mark-plus .list-bullet::after { content: "✱" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
+body.lp-plus-hook .lined-paper .lp-mark-plus .list-bullet::after { content: "↳" !important; width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; color: var(--lp-bullet-ink, var(--ink)); font-size: inherit; line-height: inherit; }
 /* (while editing: Obsidian's bullet as ↳) */
 body.lp-bullet-hook .lined-paper .list-bullet::after {
   content: "↳" !important;
