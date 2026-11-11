@@ -84,39 +84,43 @@ see [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys). The [exa
 
 ## Keyboard shortcuts
 
-Every command is in the command palette (Ctrl/Cmd + P, type "Lined Paper"). To give one a
-shortcut: **Settings → Hotkeys**, search "Lined Paper", click the ⊕ next to the command and press
-the keys. Suggested shortcuts (none are set for you; check a combination is free first):
+The commands come with hotkeys, one family of keys per kind of command, and each command's name says
+its family (*Insert:*, *Pen:*, *Highlight:*, *Mark:*). **Mod** is Ctrl (Cmd on a Mac). A hotkey you set
+yourself in **Settings → Hotkeys** (search "Lined Paper") always wins; the *Paper:* and *Note:*
+commands have none, give them one there if you like.
 
-| Command | Suggested shortcut |
-| --- | --- |
-| Make this note Cornell notes | Ctrl/Cmd + Alt + C |
-| Make this note lined paper | Ctrl/Cmd + Alt + L |
-| Make this note a plain note again | — |
-| Insert Cornell page | Ctrl/Cmd + Alt + P |
-| Insert title (today's date in the date property) | Ctrl/Cmd + Alt + T |
-| Insert cue + notes | Ctrl/Cmd + Alt + N |
-| Insert essential question | Ctrl/Cmd + Alt + Q |
-| Insert summary | Ctrl/Cmd + Alt + S |
-| Insert full-width lines (`[!wide]`) | Ctrl/Cmd + Alt + W |
-| Insert divider line | Ctrl/Cmd + Alt + D |
-| Insert page break | Ctrl/Cmd + Alt + Enter |
-| Pen: blue / red / green / purple / orange | Ctrl/Cmd + Alt + 1 … 5 |
-| Pen: highlighter | Ctrl/Cmd + Alt + H |
-| Highlighter: yellow / green / pink / blue / orange | Ctrl/Cmd + Shift + Alt + 1 … 5 |
-| Remove all colours, highlights and marks | Ctrl/Cmd + Alt + 0 |
-| Insert arrow / double arrow / wavy arrow | Ctrl/Cmd + Alt + → (your choice) |
-| Remove pen colour / Remove highlight / Remove pen marks | — |
-| Pen: circle / box / underline / wavy underline / scribble out | — (your choice) |
-| Pen: cross out | Ctrl/Cmd + Alt + X |
-| Insert checkbox (task) | Ctrl/Cmd + Alt + K |
-| Set this note's date | Ctrl/Cmd + Alt + Y |
-| Switch the paper between light and dark | Ctrl/Cmd + Alt + M |
-| Switch this note's paper between light and dark | — |
-| Re-paginate reading view | — |
+| Insert: (Alt + …) | | Pen: (Mod + Alt + …) | |
+| --- | --- | --- | --- |
+| Cue + notes | Alt + N | Red | Mod + Alt + R |
+| Summary | Alt + C | Blue | Mod + Alt + B |
+| Essential question | Alt + Q | Green | Mod + Alt + G |
+| Title | Alt + T | Orange | Mod + Alt + O |
+| Divider line | Alt + D | Purple | Mod + Alt + P |
+| Page break | Alt + P | Remove colour | Mod + Alt + X |
+| Full-width lines | Alt + W | | |
+| Cornell page | Alt + L | | |
+| Checkbox (task) | Alt + K | | |
+| Arrow `->` | Alt + A | | |
+| Double arrow `=>` | Alt + E | | |
+| Wavy arrow `~>` | Alt + V | | |
 
-The *Insert* and *Pen* commands work in editing view (where there is a cursor); switch with
-Ctrl/Cmd + E (*Toggle reading view*). Details: [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys).
+| Highlight: (Alt + Shift + …) | | Mark: (Mod + Alt + Shift + …) | |
+| --- | --- | --- | --- |
+| Yellow | Alt + Shift + Y | Circle | Mod + Alt + Shift + C |
+| Orange | Alt + Shift + O | Box | Mod + Alt + Shift + B |
+| Blue | Alt + Shift + B | Underline | Mod + Alt + Shift + U |
+| Green | Alt + Shift + G | Wavy underline | Mod + Alt + Shift + W |
+| Pink | Alt + Shift + P | Scribble out | Mod + Alt + Shift + S |
+| Your highlighter (`==`) | Alt + Shift + H | Cross out (`~~`) | Mod + Alt + Shift + K |
+| Remove highlight | Alt + Shift + X | Remove marks | Mod + Alt + Shift + X |
+| | | Remove all colours, highlights and marks | Mod + Alt + Shift + A |
+
+**Paper:** make this note lined paper / Cornell notes / a plain note again, switch between light and
+dark (also the ☀/☾ button), follow Obsidian's light / dark theme, switch this note between light and
+dark. **Note:** set the date.
+
+The *Insert*, *Pen*, *Highlight* and *Mark* commands work in editing view (where there is a cursor);
+switch with Ctrl/Cmd + E (*Toggle reading view*). Details: [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys).
 
 ## Documentation
 

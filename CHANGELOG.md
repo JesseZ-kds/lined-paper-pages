@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-11-11
+
+### Added
+- **Hotkeys, by family.** The commands come with hotkeys. **Mod** is Ctrl, or Cmd on a Mac.
+
+  | Family | Keys |
+  | --- | --- |
+  | Insert | Alt + letter |
+  | Pen | Mod + Alt + letter |
+  | Highlight | Alt + Shift + letter |
+  | Mark | Mod + Alt + Shift + letter |
+
+  - No two are the same, and none is one of Obsidian's own.
+  - A hotkey you set yourself wins.
+  - The full list is in the README.
+
+### Changed
+- **Command names say their family:** *Insert: summary*, *Pen: red*, *Highlight: pink*, *Mark:
+  circle*, *Paper: make this note Cornell notes*, *Note: set the date*. The command IDs are
+  unchanged, so hotkeys you have already set keep working.
+
 ## [1.24.1] - 2026-11-08
 
 ### Fixed

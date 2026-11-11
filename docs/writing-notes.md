@@ -41,8 +41,11 @@ Cornell notes** (or **Make this note lined paper**) to set it.
 
 ## Commands and hotkeys
 
-Open the command palette (Ctrl/Cmd + P) and type "Lined Paper", or give a command a hotkey in
-**Settings → Hotkeys** (search "Lined Paper").
+Every command has a name that says its kind, and the kinds have their own families of hotkeys
+(**Mod** = Ctrl, Cmd on a Mac): **Insert:** Alt + letter, **Pen:** Mod + Alt + letter,
+**Highlight:** Alt + Shift + letter, **Mark:** Mod + Alt + Shift + letter. The full list is in the
+[README](../README.md#keyboard-shortcuts); change any in *Settings → Hotkeys* (search "Lined Paper").
+The **Paper:** and **Note:** commands have no hotkey of their own.
 
 | Command | What it does |
 | --- | --- |

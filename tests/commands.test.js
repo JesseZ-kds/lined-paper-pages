@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -194,4 +194,31 @@ test('the cursor on an arrow (-> => ~>), nothing selected: a pen colour colours 
   const c = 'a <font color="#1e4fbf">-></font> b';
   const at3 = c.indexOf('->');
   assert.equal(restyleLine(c, at3, at3, ['colour'], red).text, 'a <font color="#c62828">-></font> b');
+});
+
+test('hotkeys: one family per kind of command, named after it, no two the same', () => {
+  const cmds = [];
+  addPaperCommands({ app: {}, settings: {}, addCommand: (c) => cmds.push(c), addRibbonIcon: () => {} });
+  const byId = Object.fromEntries(cmds.map((c) => [c.id, c]));
+  // every hotkey is for a command that exists, and has it
+  for (const id of Object.keys(HOTKEYS)) {
+    assert.ok(byId[id], `${id} is a command`);
+    assert.deepEqual(byId[id].hotkeys, HOTKEYS[id], `${id} has its hotkey`);
+  }
+  // no two the same
+  const keys = Object.values(HOTKEYS).map((h) => h[0].modifiers.join('+') + '+' + h[0].key);
+  assert.equal(new Set(keys).size, keys.length, 'no two the same: ' + keys.join(' '));
+  // each family: its keys and the start of its commands' names
+  const family = { 'Alt': 'Insert: ', 'Mod+Alt': 'Pen: ', 'Alt+Shift': 'Highlight: ', 'Mod+Alt+Shift': 'Mark: ' };
+  for (const [id, h] of Object.entries(HOTKEYS)) {
+    const want = family[h[0].modifiers.join('+')];
+    assert.ok(want && byId[id].name.startsWith(want), `${id} (${h[0].modifiers.join('+')}+${h[0].key}): "${byId[id].name}" starts with "${want}"`);
+  }
+  // the commands without a hotkey are named by kind too
+  for (const c of cmds) assert.match(c.name, /^(Insert|Pen|Highlight|Mark|Paper|Note): /, c.name);
+  // the ones in the user's own list
+  const k = (id) => HOTKEYS[id][0].modifiers.join('+') + '+' + HOTKEYS[id][0].key;
+  assert.deepEqual(['insert-cue-notes', 'insert-summary', 'insert-question', 'insert-title', 'insert-divider', 'insert-nextpage'].map(k), ['Alt+n', 'Alt+c', 'Alt+q', 'Alt+t', 'Alt+d', 'Alt+p']);
+  assert.deepEqual(['colour-red', 'colour-blue', 'colour-green', 'colour-orange', 'colour-purple'].map(k), ['Mod+Alt+r', 'Mod+Alt+b', 'Mod+Alt+g', 'Mod+Alt+o', 'Mod+Alt+p']);
+  assert.deepEqual(['highlighter-orange', 'highlighter-yellow', 'highlighter-blue', 'highlighter-green', 'highlighter-pink'].map(k), ['Alt+Shift+o', 'Alt+Shift+y', 'Alt+Shift+b', 'Alt+Shift+g', 'Alt+Shift+p']);
 });

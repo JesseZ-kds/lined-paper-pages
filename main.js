@@ -1424,6 +1424,26 @@ const TEMPLATES = {
 };
 // the pens (lined-paper.css "PEN COLOURS": each shown as var(--pen-…), lighter in dark theme)
 const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], ['purple', '#6a1b9a'], ['orange', '#d84315']];
+// Default hotkeys, by family (a hotkey you set yourself in Settings → Hotkeys wins). Mod = Ctrl
+// (Cmd on a Mac). None of them is one of Obsidian's own, and no two are the same.
+//   Insert:     Alt + letter
+//   Pen:        Mod + Alt + letter
+//   Highlight:  Alt + Shift + letter
+//   Mark:       Mod + Alt + Shift + letter
+// (the Paper: and Note: commands have none: give them one in Settings → Hotkeys)
+const HK = (mods) => (key) => [{ modifiers: mods, key }];
+const ALT = HK(['Alt']), PEN = HK(['Mod', 'Alt']), HL = HK(['Alt', 'Shift']), MARK = HK(['Mod', 'Alt', 'Shift']);
+const HOTKEYS = {
+  'insert-cue-notes': ALT('n'), 'insert-summary': ALT('c'), 'insert-question': ALT('q'), 'insert-title': ALT('t'),
+  'insert-divider': ALT('d'), 'insert-nextpage': ALT('p'), 'insert-wide': ALT('w'), 'insert-cornell-page': ALT('l'),
+  'insert-task': ALT('k'), 'insert-arrow': ALT('a'), 'insert-arrow-double': ALT('e'), 'insert-arrow-wavy': ALT('v'),
+  'colour-red': PEN('r'), 'colour-blue': PEN('b'), 'colour-green': PEN('g'), 'colour-orange': PEN('o'), 'colour-purple': PEN('p'),
+  'remove-colour': PEN('x'),
+  'highlighter-yellow': HL('y'), 'highlighter-orange': HL('o'), 'highlighter-blue': HL('b'), 'highlighter-green': HL('g'),
+  'highlighter-pink': HL('p'), 'highlighter': HL('h'), 'remove-highlight': HL('x'),
+  'pen-circle': MARK('c'), 'pen-box': MARK('b'), 'pen-underline': MARK('u'), 'pen-wavy': MARK('w'), 'pen-scribble': MARK('s'),
+  'cross-out': MARK('k'), 'remove-marks': MARK('x'), 'remove-all-styles': MARK('a'),
+};
 // the highlighters of the "Highlighter: …" commands, <mark class="hl-…">
 const HIGHLIGHTERS = ['yellow', 'green', 'pink', 'blue', 'orange'];
 // the marks of the "Pen: …" commands, <span class="pen-…">
@@ -1564,6 +1584,8 @@ function wrapSelection(editor, open, close) {
 }
 
 function addPaperCommands(plugin) {
+  // (each command with its default hotkeys, if it has some: HOTKEYS)
+  const add = (cmd) => plugin.addCommand(HOTKEYS[cmd.id] ? { ...cmd, hotkeys: HOTKEYS[cmd.id] } : cmd);
   const app = plugin.app;
   const setPaper = (kind, label) => (checking) => {
     const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
@@ -1577,9 +1599,9 @@ function addPaperCommands(plugin) {
     }
     return true;
   };
-  plugin.addCommand({ id: 'make-lined-paper', name: 'Make this note lined paper', checkCallback: setPaper('lined', 'lined paper') });
-  plugin.addCommand({ id: 'make-cornell', name: 'Make this note Cornell notes', checkCallback: setPaper('cornell', 'Cornell notes') });
-  plugin.addCommand({ id: 'make-plain', name: 'Make this note a plain note again', checkCallback: setPaper('off', 'plain note') });
+  add({ id: 'make-lined-paper', name: 'Paper: make this note lined paper', checkCallback: setPaper('lined', 'lined paper') });
+  add({ id: 'make-cornell', name: 'Paper: make this note Cornell notes', checkCallback: setPaper('cornell', 'Cornell notes') });
+  add({ id: 'make-plain', name: 'Paper: make this note a plain note again', checkCallback: setPaper('off', 'plain note') });
 
   // light / dark paper: for every note (the setting), or for this note (its cssclasses)
   const activePage = () => {
@@ -1594,10 +1616,10 @@ function addPaperCommands(plugin) {
     await plugin.setSetting('paper-theme', dark ? 'dark' : 'light');
     new Notice('Lined Paper Pages: ' + (dark ? 'dark' : 'light') + ' paper');
   };
-  plugin.addCommand({ id: 'toggle-paper-theme', name: 'Switch the paper between light and dark', callback: () => plugin.togglePaperTheme() });
-  plugin.addCommand({ id: 'paper-theme-auto', name: 'Paper follows Obsidian\'s light / dark theme again', callback: () => plugin.setSetting('paper-theme', undefined) });
-  plugin.addCommand({
-    id: 'toggle-note-paper-theme', name: 'Switch this note\'s paper between light and dark',
+  add({ id: 'toggle-paper-theme', name: 'Paper: switch between light and dark', callback: () => plugin.togglePaperTheme() });
+  add({ id: 'paper-theme-auto', name: 'Paper: follow Obsidian\'s light / dark theme again', callback: () => plugin.setSetting('paper-theme', undefined) });
+  add({
+    id: 'toggle-note-paper-theme', name: 'Paper: switch this note between light and dark',
     checkCallback: (checking) => {
       const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
       if (!file || file.extension !== 'md') return false;
@@ -1612,8 +1634,8 @@ function addPaperCommands(plugin) {
       return true;
     },
   });
-  plugin.addCommand({
-    id: 'set-date', name: 'Set this note\'s date',
+  add({
+    id: 'set-date', name: 'Note: set the date',
     checkCallback: (checking) => {
       const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
       if (!file || file.extension !== 'md') return false;
@@ -1627,7 +1649,7 @@ function addPaperCommands(plugin) {
   });
   if (plugin.addRibbonIcon) plugin.addRibbonIcon('sun-moon', 'Lined Paper: light / dark paper', () => plugin.togglePaperTheme());
 
-  const insert = (id, name, key) => plugin.addCommand({
+  const insert = (id, name, key) => add({
     id, name,
     editorCallback: (editor, view) => {
       // (a title's date goes in the note's date property, shown in the title bar's corner)
@@ -1635,36 +1657,36 @@ function addPaperCommands(plugin) {
       insertBlock(editor, TEMPLATES[key]((view && view.file && view.file.basename) || 'Title'));
     },
   });
-  insert('insert-title', 'Insert title (and today\'s date as the date property)', 'title');
-  insert('insert-cornell-page', 'Insert Cornell page (title, question, cue + notes, summary; today\'s date as the date property)', 'cornell');
-  insert('insert-cue-notes', 'Insert cue + notes', 'group');
-  insert('insert-question', 'Insert essential question', 'question');
-  insert('insert-summary', 'Insert summary', 'summary');
-  insert('insert-wide', 'Insert full-width lines ([!wide])', 'wide');
-  insert('insert-divider', 'Insert divider line', 'divider');
-  insert('insert-nextpage', 'Insert page break', 'nextpage');
+  insert('insert-title', 'Insert: title (today\'s date in the date property)', 'title');
+  insert('insert-cornell-page', 'Insert: Cornell page (title, question, cue + notes, summary)', 'cornell');
+  insert('insert-cue-notes', 'Insert: cue + notes', 'group');
+  insert('insert-question', 'Insert: essential question', 'question');
+  insert('insert-summary', 'Insert: summary', 'summary');
+  insert('insert-wide', 'Insert: full-width lines ([!wide])', 'wide');
+  insert('insert-divider', 'Insert: divider line', 'divider');
+  insert('insert-nextpage', 'Insert: page break', 'nextpage');
 
   const wrap = wrapSelection;
 
   // (a new colour, highlighter or mark takes the place of the one there: never one inside another)
   for (const [name, hex] of COLOURS) {
-    plugin.addCommand({
+    add({
       id: 'colour-' + name, name: `Pen: ${name}`,
       editorCallback: (editor) => restyleSelection(editor, ['colour'], { open: `<font color="${hex}">`, close: '</font>' }),
     });
   }
-  plugin.addCommand({ id: 'highlighter', name: 'Pen: highlighter', editorCallback: (editor) => restyleSelection(editor, ['highlight'], { open: '==', close: '==' }) });
+  add({ id: 'highlighter', name: 'Highlight: your highlighter (==, Settings → Highlighter)', editorCallback: (editor) => restyleSelection(editor, ['highlight'], { open: '==', close: '==' }) });
   // highlighters of other colours, in the same note
   for (const c of HIGHLIGHTERS) {
-    plugin.addCommand({ id: 'highlighter-' + c, name: 'Highlighter: ' + c, editorCallback: (editor) => restyleSelection(editor, ['highlight'], { open: `<mark class="hl-${c}">`, close: '</mark>' }) });
+    add({ id: 'highlighter-' + c, name: 'Highlight: ' + c, editorCallback: (editor) => restyleSelection(editor, ['highlight'], { open: `<mark class="hl-${c}">`, close: '</mark>' }) });
   }
   // marks drawn over the writing with the marking pen (lined-paper.css "PEN AND PAPER")
   for (const [id, name] of PEN_MARKS) {
-    plugin.addCommand({ id: 'pen-' + id, name: 'Pen: ' + name, editorCallback: (editor) => restyleSelection(editor, ['mark'], { open: `<span class="pen-${id}">`, close: '</span>' }) });
+    add({ id: 'pen-' + id, name: 'Mark: ' + name, editorCallback: (editor) => restyleSelection(editor, ['mark'], { open: `<span class="pen-${id}">`, close: '</span>' }) });
   }
   // arrows (drawn by the plugin: Settings → Pen and paper → Arrows)
-  for (const [id, name, text] of [['insert-arrow', 'Insert arrow (->)', '->'], ['insert-arrow-double', 'Insert double arrow (=>)', '=>'], ['insert-arrow-wavy', 'Insert wavy arrow (~>)', '~>']]) {
-    plugin.addCommand({ id, name, editorCallback: (editor) => {
+  for (const [id, name, text] of [['insert-arrow', 'Insert: arrow (->)', '->'], ['insert-arrow-double', 'Insert: double arrow (=>)', '=>'], ['insert-arrow-wavy', 'Insert: wavy arrow (~>)', '~>']]) {
+    add({ id, name, editorCallback: (editor) => {
       const cur = editor.getCursor();
       const line = editor.getLine(cur.line);
       const before = cur.ch > 0 && !/\s/.test(line[cur.ch - 1]) ? ' ' : '';
@@ -1674,12 +1696,12 @@ function addPaperCommands(plugin) {
     } });
   }
   // taking them off again: of the selection, or of the run the cursor is in
-  plugin.addCommand({ id: 'remove-colour', name: 'Remove pen colour', editorCallback: (editor) => restyleSelection(editor, ['colour'], null) });
-  plugin.addCommand({ id: 'remove-highlight', name: 'Remove highlight', editorCallback: (editor) => restyleSelection(editor, ['highlight'], null) });
-  plugin.addCommand({ id: 'remove-marks', name: 'Remove pen marks (circle, box, underline …)', editorCallback: (editor) => restyleSelection(editor, ['mark'], null) });
-  plugin.addCommand({ id: 'remove-all-styles', name: 'Remove all colours, highlights and marks', editorCallback: (editor) => restyleSelection(editor, ['colour', 'highlight', 'mark'], null) });
-  plugin.addCommand({ id: 'cross-out', name: 'Pen: cross out', editorCallback: (editor) => wrap(editor, '~~', '~~') });
-  plugin.addCommand({ id: 'insert-task', name: 'Insert checkbox (task)', editorCallback: (editor) => {
+  add({ id: 'remove-colour', name: 'Pen: remove colour', editorCallback: (editor) => restyleSelection(editor, ['colour'], null) });
+  add({ id: 'remove-highlight', name: 'Highlight: remove', editorCallback: (editor) => restyleSelection(editor, ['highlight'], null) });
+  add({ id: 'remove-marks', name: 'Mark: remove marks (circle, box, underline …)', editorCallback: (editor) => restyleSelection(editor, ['mark'], null) });
+  add({ id: 'remove-all-styles', name: 'Mark: remove all colours, highlights and marks', editorCallback: (editor) => restyleSelection(editor, ['colour', 'highlight', 'mark'], null) });
+  add({ id: 'cross-out', name: 'Mark: cross out (~~)', editorCallback: (editor) => wrap(editor, '~~', '~~') });
+  add({ id: 'insert-task', name: 'Insert: checkbox (task)', editorCallback: (editor) => {
     const cur = editor.getCursor();
     const line = editor.getLine(cur.line);
     if (/^\s*[-*+] \[.\] /.test(line)) return;
@@ -2858,6 +2880,8 @@ module.exports.addPageDate = addPageDate;
 module.exports.sectionDates = sectionDates;
 module.exports.wrapSelection = wrapSelection;
 module.exports.restyleLine = restyleLine;
+module.exports.HOTKEYS = HOTKEYS;
+module.exports.addPaperCommands = addPaperCommands;
 module.exports.drawArrows = drawArrows;
 module.exports.markBullets = markBullets;
 module.exports.noteThemeClasses = noteThemeClasses;
