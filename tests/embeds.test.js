@@ -417,3 +417,21 @@ test('a definition page: "Add a revised definition" under its last version, taki
     await context.close();
   }
 });
+
+test('the "Add a revised" button shows while the page is still a plain quote block (before Obsidian makes it a callout), under the last version only', async () => {
+  const { title, block } = require('./lib/notes');
+  const { page, context } = await openReading({ name: 'def2', cornell: false, blocks: [title('hello'), block('<blockquote><p>[!info] hello<br>A greeting.</p></blockquote>'), block('<blockquote><p>[!info] hello<br>A newer greeting.</p></blockquote>')] });
+  try {
+    const r = await page.evaluate(() => {
+      const els = [...document.querySelectorAll('.markdown-preview-sizer > div')].filter((d) => d.querySelector(':scope > blockquote'));
+      const src = '---\nformat: def\n---\n> [!info] hello\n> A greeting.\n\n^def\n\n> [!info] hello\n> A newer greeting.\n\n^revised\n';
+      const ctx = (s, e) => ({ frontmatter: { format: 'def' }, sourcePath: 'Definitions/hello.md', getSectionInfo: () => ({ text: src, lineStart: s, lineEnd: e }) });
+      for (const f of window.__processors) f(els[0], ctx(3, 4));
+      for (const f of window.__processors) f(els[1], ctx(8, 9));
+      return els.map((el) => el.querySelectorAll('.lp-revise').length);
+    });
+    assert.deepEqual(r, [0, 1], 'only under the last version');
+  } finally {
+    await context.close();
+  }
+});

@@ -223,11 +223,12 @@ test('hotkeys: one family per kind of command, named after it, no two the same',
   assert.deepEqual(['highlighter-orange', 'highlighter-yellow', 'highlighter-blue', 'highlighter-green', 'highlighter-pink'].map(k), ['Alt+Shift+o', 'Alt+Shift+y', 'Alt+Shift+b', 'Alt+Shift+g', 'Alt+Shift+p']);
 });
 
-test('a definition / quote page: its format and date (no "from"), a plain note (not lined paper), its block id; a quote titled with its source', () => {
-  assert.equal(formatNoteText('def', { name: 'Conscientious objection', text: 'A doctor may refuse on moral grounds.', date: '2026-11-11' }),
-    '---\nformat: def\ndate: 2026-11-11\naliases:\n  - "conscientious objection"\n  - "Conscientious Objection"\n---\n> [!info] Conscientious objection\n> A doctor may refuse on moral grounds.\n\n^def\n');
-  assert.equal(formatNoteText('quote', { author: 'Catechism of the Catholic Church, 2270', link: 'https://www.vatican.va/archive/ENG0015/__P7Z.HTM', text: 'Human life must be respected\nand protected absolutely.', date: '2026-11-11' }),
-    '---\nformat: quote\ndate: 2026-11-11\nsource: "Catechism of the Catholic Church, 2270"\nlink: "https://www.vatican.va/archive/ENG0015/__P7Z.HTM"\naliases:\n  - "catechism of the catholic church, 2270"\n  - "Catechism of the catholic church, 2270"\n  - "Catechism Of The Catholic Church, 2270"\n---\n> [!quote] [Catechism of the Catholic Church, 2270](https://www.vatican.va/archive/ENG0015/__P7Z.HTM)\n> Human life must be respected\n> and protected absolutely.\n\n^quote\n');
+test('a definition page: its format, date and aliases; its name written small, its definition ending with a full stop; a quote kept as it is, titled with its source', () => {
+  assert.equal(formatNoteText('def', { name: 'Hello', text: 'A greeting', date: '2026-11-11' }),
+    '---\nformat: def\ndate: 2026-11-11\naliases:\n  - "Hello"\n  - "hellos"\n  - "Hellos"\n---\n> [!info] hello\n> A greeting.\n\n^def\n');
+  assert.match(formatNoteText('def', { name: 'IVF', text: 'Fertilisation outside the body!', date: '2026-11-11' }), /> \[!info\] IVF\n> Fertilisation outside the body!\n/, 'an abbreviation stays; an ending already there is kept');
+  assert.equal(formatNoteText('quote', { author: 'Catechism of the Catholic Church, 2270', link: 'https://www.vatican.va/archive/ENG0015/__P7Z.HTM', text: 'Human life must be respected\nand protected absolutely', date: '2026-11-11' }),
+    '---\nformat: quote\ndate: 2026-11-11\nlink: "https://www.vatican.va/archive/ENG0015/__P7Z.HTM"\naliases:\n  - "catechism of the catholic church, 2270"\n  - "Catechism of the catholic church, 2270"\n  - "Catechism Of The Catholic Church, 2270"\n---\n> [!quote] [Catechism of the Catholic Church, 2270](https://www.vatican.va/archive/ENG0015/__P7Z.HTM)\n> Human life must be respected\n> and protected absolutely\n\n^quote\n');
   assert.match(formatNoteText('quote', { author: 'Yevamot 69b', date: '2026-11-11' }), /\n> \[!quote\] Yevamot 69b\n> \n\n\^quote\n$/, 'no link: the source as it is');
 });
 
@@ -249,12 +250,19 @@ test('definitions: Mod+F embeds, Mod+Shift+F links', () => {
   assert.equal(k('insert-definition-link'), 'Mod+Shift+f');
 });
 
-test('aliases: the name in other capitals, and its abbreviations (given, or in brackets after it)', () => {
-  assert.deepEqual(nameAndAliases('In vitro fertilisation (IVF)', 'test-tube conception'), {
-    name: 'In vitro fertilisation',
-    aliases: ['in vitro fertilisation', 'In Vitro Fertilisation', 'IVF', 'test-tube conception'],
+test('aliases: other capitals, plural / singular, British / American spellings, hyphen / space, abbreviations', () => {
+  const a = (n, extra = '') => nameAndAliases(n, extra, { small: true });
+  assert.deepEqual(a('hello'), { name: 'hello', aliases: ['Hello', 'hellos', 'Hellos'] });
+  assert.deepEqual(a('In vitro fertilisation (IVF)', 'test-tube conception'), {
+    name: 'in vitro fertilisation',
+    aliases: ['In vitro fertilisation', 'In Vitro Fertilisation', 'in vitro fertilization', 'In vitro fertilization', 'in vitro fertilisations', 'In vitro fertilisations', 'IVF', 'test-tube conception'],
   });
-  assert.deepEqual(nameAndAliases('abortion', ''), { name: 'abortion', aliases: ['Abortion'] });
-  assert.deepEqual(nameAndAliases('DNA', 'deoxyribonucleic acid'), { name: 'DNA', aliases: ['dna', 'Dna', 'deoxyribonucleic acid'] });
-  assert.match(formatNoteText('def', { name: 'In vitro fertilisation (IVF)', date: '2026-11-11' }), /^---\nformat: def\ndate: 2026-11-11\naliases:\n  - "in vitro fertilisation"\n  - "In Vitro Fertilisation"\n  - "IVF"\n---\n> \[!info\] In vitro fertilisation\n/);
+  assert.deepEqual(a('Foetus').aliases, ['Foetus', 'fetus', 'Fetus', 'foetuses', 'Foetuses']);
+  assert.deepEqual(a('colour').aliases, ['Colour', 'color', 'Color', 'colours', 'Colours']);
+  assert.deepEqual(a('centre').aliases, ['Centre', 'center', 'Center', 'centres', 'Centres']);
+  assert.deepEqual(a('analysis').aliases, ['Analysis', 'analyses', 'Analyses']);
+  assert.deepEqual(a('Test-tube baby').aliases, ['Test-tube baby', 'Test-Tube Baby', 'test tube baby', 'Test tube baby', 'test-tube babies', 'Test-tube babies']);
+  assert.deepEqual(a('DNA', 'deoxyribonucleic acid').aliases, ['dna', 'Dna', 'deoxyribonucleic acid'], 'an abbreviation: only its capitals');
+  // a quote's source: only its capitals
+  assert.deepEqual(nameAndAliases('Yevamot 69b').aliases, ['yevamot 69b']);
 });

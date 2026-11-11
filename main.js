@@ -1491,30 +1491,63 @@ const isoToday = () => (globalThis.moment ? globalThis.moment().format('YYYY-MM-
 // a name that can be a file name
 const fileName = (s) => String(s || '').replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
 const yaml = (s) => JSON.stringify(String(s));
-// The other ways a definition / quote may be written, for its aliases: the same words with other
-// capitals (all small, the first letter capital, every word capital), and its abbreviations (given,
-// or in brackets after the name: "In vitro fertilisation (IVF)"). Not the name itself; no repeats.
-function nameAndAliases(name, extra = '') {
+// The other ways a definition / quote may be written, for its aliases, so links and search find it
+// however it is written: other capitals (hello, Hello, Hello World), the plural / singular, British /
+// American spellings (fertilisation / fertilization, colour / color, centre / center, foetus /
+// fetus, haemorrhage / hemorrhage), a hyphen or a space (test-tube / test tube), and its
+// abbreviations (given, or in brackets after the name: "In vitro fertilisation (IVF)"). A
+// definition's name is written small (but an abbreviation, IVF, stays as it is). No repeats.
+const SPELLINGS = [
+  [/isation\b/g, 'ization'], [/ization\b/g, 'isation'], [/ise(d|s)?\b/g, 'ize$1'], [/ize(d|s)?\b/g, 'ise$1'],
+  [/(\w{3,})our\b/g, '$1or'], [/(\w{3,}[^aeiou\s])or\b/g, '$1our'], [/(\w{2,})tre\b/g, '$1ter'], [/(\w{2,})ter\b/g, '$1tre'],
+  [/(\w)oe(\w)/g, '$1e$2'], [/(\w)ae(\w)/g, '$1e$2'], [/-/g, ' '], [/^([^\s-]+) ([^\s-]+)$/, '$1-$2'],
+];
+function spellings(low) {
+  const out = new Set();
+  for (const [re, to] of SPELLINGS) { const v = low.replace(re, to); if (v !== low) out.add(v); }
+  // the plural / singular (of the last word)
+  const m = /^(.*?)(\p{L}+)$/u.exec(low);
+  if (m) {
+    const w = m[2];
+    if (/is$/.test(w)) out.add(m[1] + w.slice(0, -2) + 'es');
+    else if (/(ss|us)$/.test(w)) out.add(m[1] + w + 'es');
+    else if (/ies$/.test(w)) out.add(m[1] + w.slice(0, -3) + 'y');
+    else if (/[^aeiou]y$/.test(w)) out.add(m[1] + w.slice(0, -1) + 'ies');
+    else if (/(ch|sh|x)es$/.test(w)) out.add(m[1] + w.slice(0, -2));
+    else if (/s$/.test(w)) out.add(m[1] + w.slice(0, -1));
+    else if (/(ch|sh|x)$/.test(w)) out.add(m[1] + w + 'es');
+    else out.add(m[1] + w + 's');
+  }
+  return [...out];
+}
+const isAbbr = (w) => /^[\p{Lu}\d]{2,}s?$/u.test(w);
+function nameAndAliases(name, extra = '', { small = false, spelling = small } = {}) {
   let base = String(name || '').trim();
   const abbr = [];
   const m = /^(.*\S)\s*\(([^()]+)\)\s*$/.exec(base);
   if (m) { base = m[1]; abbr.push(m[2].trim()); }
   for (const a of String(extra || '').split(/[,;\n]/)) if (a.trim()) abbr.push(a.trim());
+  if (small) base = base.split(/(\s+)/).map((w) => (isAbbr(w) ? w : w.toLowerCase())).join('');
   const low = base.toLowerCase();
-  const forms = [low, low.charAt(0).toUpperCase() + low.slice(1), low.replace(/(^|[\s-])(\p{L})/gu, (x, a, b) => a + b.toUpperCase())];
+  const cases = (s) => [s, s.charAt(0).toUpperCase() + s.slice(1), s.replace(/(^|[\s-])(\p{L})/gu, (x, a, b) => a + b.toUpperCase())];
+  // (a quote's source is a name, and an abbreviation a name of its own: only their capitals)
+  const forms = [...cases(low), ...(spelling && !isAbbr(base) ? spellings(low).flatMap((v) => cases(v).slice(0, 2)) : [])];
   const out = [];
   for (const a of [...forms, ...abbr]) if (a && a !== base && !out.includes(a)) out.push(a);
   return { name: base, aliases: out };
 }
 function formatNoteText(kind, { name = '', text = '', author = '', link = '', aliases = '', date = isoToday() } = {}) {
   const f = FORMATS[kind];
-  const na = nameAndAliases(kind === 'quote' ? author : name, aliases);
+  const na = nameAndAliases(kind === 'quote' ? author : name, aliases, { small: kind === 'def' });
   const title = kind === 'quote' ? (link ? `[${na.name || link}](${link})` : na.name) : na.name;
   const fm = ['---', `format: ${kind}`, `date: ${date}`];
-  if (kind === 'quote') { if (na.name) fm.push(`source: ${yaml(na.name)}`); if (link) fm.push(`link: ${yaml(link)}`); }
+  if (kind === 'quote' && link) fm.push(`link: ${yaml(link)}`);
   if (na.aliases.length) fm.push('aliases:', ...na.aliases.map((a) => '  - ' + yaml(a)));
   fm.push('---');
-  const body = String(text || '').split('\n').map((l) => '> ' + l).join('\n');
+  // (a definition ends with a full stop; a quote is kept as it is)
+  let said = String(text || '').replace(/\s+$/, '');
+  if (kind === 'def' && said && !/[.!?…:;)"'”’\]]$/.test(said)) said += '.';
+  const body = said.split('\n').map((l) => '> ' + l).join('\n');
   return `${fm.join('\n')}\n> [!${f.callout}] ${title}\n${body}\n\n^${f.id}\n`;
 }
 // the note with a revised version added under it: the same title, the next ^revised id. Returns the
@@ -1852,7 +1885,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { drawArrows(el); markBullets(el, ctx); dropBlankLines(el); if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -2298,14 +2331,22 @@ module.exports = class LinedPaperPages extends Plugin {
   // lined-paper.css then does the pagination and this plugin must not move anything
   // the date property of the note shown in `el` (a reading view, or the PDF export: the open note)
   reviseButton(el, ctx) {
-    const fm = ctx && ctx.frontmatter;
+    if (!ctx || el.closest('.print, .internal-embed, .markdown-embed') || el.querySelector(':scope > .lp-revise')) return;
+    let fm = ctx.frontmatter;
+    if (!fm && ctx.sourcePath && this.app.metadataCache) {
+      const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+      fm = file && (this.app.metadataCache.getFileCache(file) || {}).frontmatter;
+    }
     const f = fm && FORMATS[fm.format];
-    if (!f || el.closest('.print') || el.querySelector(':scope > .lp-revise')) return;
-    const c = el.querySelector(':scope > .callout[data-callout="info"], :scope > .callout[data-callout="quote"]');
-    if (!c) return;
-    // (only under the last one: nothing written after it but block ids)
+    if (!f) return;
+    // (by the note's text, not the page: Obsidian makes the callout from > [!info] after this has run;
+    // only under the last version: nothing written after it but block ids)
     const info = ctx.getSectionInfo && ctx.getSectionInfo(el);
-    if (info && info.text.split('\n').slice(info.lineEnd + 1).some((l) => l.trim() && !/^\^[\w-]+\s*$/.test(l.trim()))) return;
+    if (info) {
+      const lines = info.text.split('\n');
+      if (!/^\s*>\s*\[!(info|quote)\]/i.test(lines[info.lineStart] || '')) return;
+      if (lines.slice(info.lineEnd + 1).some((l) => l.trim() && !/^\^[\w-]+\s*$/.test(l.trim()))) return;
+    } else if (!el.querySelector(':scope > .callout[data-callout="info"], :scope > .callout[data-callout="quote"], :scope > blockquote')) return;
     const wrap = document.createElement('div');
     wrap.className = 'lp-revise';
     const b = document.createElement('button');
@@ -2332,7 +2373,7 @@ module.exports = class LinedPaperPages extends Plugin {
         const folder = String(set === undefined ? (kind === 'def' ? 'Definitions' : 'Quotes') : set).trim().replace(/^\/+|\/+$/g, '');
         if (folder && !app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder).catch(() => {});
         const at = (b) => (folder ? folder + '/' : '') + b + '.md';
-        let base = fileName(nameAndAliases(kind === 'def' ? v.name : v.author).name) || f.label;
+        let base = fileName(nameAndAliases(kind === 'def' ? v.name : v.author, '', { small: kind === 'def' }).name) || f.label;
         let file = app.vault.getAbstractFileByPath(at(base));
         if (file && kind === 'quote') { let i = 2; while (app.vault.getAbstractFileByPath(at(`${base} ${i}`))) i++; base = `${base} ${i}`; file = null; }
         if (file) new Notice(`Lined Paper Pages: "${base}" already has a page: it is embedded as it is`);

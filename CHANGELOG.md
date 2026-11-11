@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-11-11
+
+### Added
+- **Aliases for small changes of letters, made automatically:**
+  - other capitals (hello, Hello, Hello World);
+  - the plural or singular (abortion, abortions; analysis, analyses);
+  - British and American spellings (fertilisation, fertilization; colour, color; centre, center;
+    foetus, fetus; haemorrhage, hemorrhage);
+  - a hyphen or a space (test-tube baby, test tube baby).
+
+  A quote's source and an abbreviation only get their capitals.
+- **Definitions:** the title is written small (an abbreviation like IVF stays as it is), and the
+  definition ends with a full stop (added if it has none). A quote is kept exactly as written.
+
+### Changed
+- **Fewer properties:** `format`, `date`, `aliases`, and a quote's `link`. A quote's `source`
+  property is gone; the source is its title.
+
+### Fixed
+- **The "Add a revised definition / quote" button is back.** It looked for the callout before
+  Obsidian had made it from `> [!info]`, so it never showed. It now goes by the note's text and
+  looks again as the page fills in.
+
 ## [1.26.1] - 2026-11-11
 
 ### Changed

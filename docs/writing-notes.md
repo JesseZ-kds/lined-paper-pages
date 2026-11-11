@@ -362,9 +362,12 @@ date: 2026-11-11
 ^def
 ```
 
-(a quote's: `format: quote`, `source:`, `link:`, `> [!quote] [Author](https://…)`, `^quote`).
-The pages are plain notes (not lined paper). Each has its **aliases**: its name in other capitals
-and its abbreviations (from *Abbreviations or other names* in the form, or in brackets after the
+(a quote's: `format: quote`, `link:` when it has one, `> [!quote] [Author](https://…)`, `^quote`).
+A definition's title is written small (an abbreviation stays as it is), and it ends with a full stop;
+a quote is kept exactly as you wrote it.
+The pages are plain notes (not lined paper). Each has its **aliases**: its name in other capitals,
+its plural or singular, its British / American spellings and with a hyphen or a space (for a
+definition), and its abbreviations (from *Abbreviations or other names* in the form, or in brackets after the
 name: *In vitro fertilisation (IVF)*), so links and search find it however you write it.
 
 **Revised versions:** on a definition's or quote's page, the **Add a revised definition / quote**
