@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-11-11
+
+### Added
+- **Definitions and quotes on pages of their own, embedded where you use them.** No Templater
+  needed.
+  - **Insert: definition** (Alt + F) asks for the word and its definition. It makes its page
+    (`> [!info] Word` / `^def`) and embeds it at your cursor (`![[Word#^def]]`), on a `>>` notes
+    line too.
+  - **Insert: quote** (Alt + O) asks for the author or source, a link (optional) and the quote.
+    The quote's title is its source, as a link to it when given (`> [!quote] [Source](https://…)` /
+    `^quote`).
+  - Each page has its format in its properties (`format: def` / `quote`), the date, and `from`, a
+    link to the note it was made from. A quote also has `source` and `link`.
+- **Revised versions.**
+  - A definition's or quote's page has an **Add a revised definition / quote** button under its
+    last version (also *Insert: revised version*, Alt + R). It adds a new version with the same
+    title (no "revised" in it) and the next block id, `^revised`, `^revised-2` …, and copies its
+    embed.
+  - The button takes no room, and never shows in an embed or the PDF.
+- **Folders:** *Settings → Embeds → Folder for definitions / Folder for quotes* (default:
+  Definitions and Quotes, made when needed).
+- **Formats:** a note's `format` property (def, quote, img …) gives its page the class
+  `lp-format-…`, for a look of its own.
+
 ## [1.25.0] - 2026-11-11
 
 ### Added

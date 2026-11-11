@@ -103,6 +103,9 @@ commands have none, give them one there if you like.
 | Arrow `->` | Alt + A | | |
 | Double arrow `=>` | Alt + E | | |
 | Wavy arrow `~>` | Alt + V | | |
+| Definition (a page of its own) | Alt + F | | |
+| Quote (a page of its own) | Alt + O | | |
+| Revised version (on its page) | Alt + R | | |
 
 | Highlight: (Alt + Shift + …) | | Mark: (Mod + Alt + Shift + …) | |
 | --- | --- | --- | --- |

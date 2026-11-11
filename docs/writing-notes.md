@@ -335,6 +335,44 @@ The paper follows Obsidian's light or dark theme, unless you choose otherwise:
 
 The PDF export uses the same paper. For printing, light paper uses far less ink.
 
+## Definitions and quotes
+
+A definition or a quote gets a page of its own (a note), and is embedded where you use it, so one
+definition can be in many notes and stays the same in all of them.
+
+- **Insert: definition** (Alt + F): asks for the word and its definition, makes its page in the
+  definitions folder, and embeds it where your cursor is (`![[Conscientious objection#^def]]`).
+- **Insert: quote** (Alt + O): asks for the author or source, a link to the source (optional) and
+  the quote. The quote's title is its source, a link when you give one.
+
+A definition's page:
+
+```
+---
+format: def
+date: 2026-11-11
+from: "[[Abortion]]"
+---
+> [!info] Conscientious objection
+> A doctor may refuse to perform a procedure on moral grounds.
+
+^def
+```
+
+(a quote's: `format: quote`, `source:`, `link:`, `> [!quote] [Author](https://…)`, `^quote`).
+`from` links it to the note it was made from.
+
+**Revised versions:** on a definition's or quote's page, the **Add a revised definition / quote**
+button under its last version (or **Insert: revised version**, Alt + R) adds a new version under it,
+with the same title and the next block id: `^revised`, then `^revised-2`, `^revised-3` … Its embed,
+`![[Conscientious objection#^revised]]`, is copied for you to paste where you want the new version.
+
+**Folders:** *Settings → Embeds → Folder for definitions / quotes* (Definitions and Quotes by
+default; made when needed).
+
+**Formats:** the `format` property (def, quote, img …) gives the page the class `lp-format-…`, for a
+look of its own (a CSS snippet: `.lp-format-def …`).
+
 ## Arrows
 
 Type an arrow and it is drawn, like an arrow drawn with your pen:

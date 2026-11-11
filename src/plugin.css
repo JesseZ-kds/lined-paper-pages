@@ -56,3 +56,27 @@ body.cn-hide-page-labels .lined-paper.cornell .lp-hdr { display: none; }
 
 /* An embedded callout is shown as a copy in the page; the embed itself is hidden */
 html body .lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped { display: none !important; }
+
+/* A definition's / quote's page: the "Add a revised …" button under its last version. It takes no
+   room on the page (nothing moves), and is never in the PDF or in an embed. */
+.lp-revise {
+  height: 0;
+  overflow: visible;
+  text-align: right;
+  position: relative;
+  z-index: 5;
+}
+.lp-revise > button {
+  margin-top: 4px;
+  font-size: 12px;
+  padding: 2px 10px;
+  height: auto;
+  cursor: pointer;
+}
+:is(.internal-embed, .markdown-embed, .lp-embed-copy, .print) .lp-revise,
+.lp-embed-unwrapped .lp-revise {
+  display: none !important;
+}
+@media print {
+  .lp-revise { display: none !important; }
+}

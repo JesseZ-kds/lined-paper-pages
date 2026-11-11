@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -221,4 +221,24 @@ test('hotkeys: one family per kind of command, named after it, no two the same',
   assert.deepEqual(['insert-cue-notes', 'insert-summary', 'insert-question', 'insert-title', 'insert-divider', 'insert-nextpage'].map(k), ['Alt+n', 'Alt+c', 'Alt+q', 'Alt+t', 'Alt+d', 'Alt+p']);
   assert.deepEqual(['colour-red', 'colour-blue', 'colour-green', 'colour-orange', 'colour-purple'].map(k), ['Mod+Alt+r', 'Mod+Alt+b', 'Mod+Alt+g', 'Mod+Alt+o', 'Mod+Alt+p']);
   assert.deepEqual(['highlighter-orange', 'highlighter-yellow', 'highlighter-blue', 'highlighter-green', 'highlighter-pink'].map(k), ['Alt+Shift+o', 'Alt+Shift+y', 'Alt+Shift+b', 'Alt+Shift+g', 'Alt+Shift+p']);
+});
+
+test('a definition / quote page: its format, the note it is from, its block id; a quote titled with its source', () => {
+  assert.equal(formatNoteText('def', { name: 'Conscientious objection', text: 'A doctor may refuse on moral grounds.', from: 'Abortion', date: '2026-11-11' }),
+    '---\nformat: def\ndate: 2026-11-11\nfrom: "[[Abortion]]"\ncssclasses:\n  - lined-paper\n---\n> [!info] Conscientious objection\n> A doctor may refuse on moral grounds.\n\n^def\n');
+  assert.equal(formatNoteText('quote', { author: 'Catechism of the Catholic Church, 2270', link: 'https://www.vatican.va/archive/ENG0015/__P7Z.HTM', text: 'Human life must be respected\nand protected absolutely.', date: '2026-11-11' }),
+    '---\nformat: quote\ndate: 2026-11-11\nsource: "Catechism of the Catholic Church, 2270"\nlink: "https://www.vatican.va/archive/ENG0015/__P7Z.HTM"\ncssclasses:\n  - lined-paper\n---\n> [!quote] [Catechism of the Catholic Church, 2270](https://www.vatican.va/archive/ENG0015/__P7Z.HTM)\n> Human life must be respected\n> and protected absolutely.\n\n^quote\n');
+  assert.match(formatNoteText('quote', { author: 'Yevamot 69b', date: '2026-11-11' }), /\n> \[!quote\] Yevamot 69b\n> \n\n\^quote\n$/, 'no link: the source as it is');
+});
+
+test('a revised version: the same title, no "revised" in it, the next block id, the cursor on its line', () => {
+  const page = formatNoteText('quote', { author: 'Yevamot 69b', text: 'until forty days', date: '2026-11-11' });
+  const one = addRevised(page);
+  assert.equal(one.id, 'revised');
+  assert.ok(one.text.endsWith('\n^quote\n\n> [!quote] Yevamot 69b\n> \n\n^revised\n'), one.text);
+  assert.equal(one.text.split('\n')[one.line], '> ');
+  const two = addRevised(one.text);
+  assert.equal(two.id, 'revised-2');
+  assert.equal(addRevised(two.text).id, 'revised-3');
+  assert.equal((two.text.match(/\[!quote\] Yevamot 69b$/gm) || []).length, 3, 'every version has the same title');
 });

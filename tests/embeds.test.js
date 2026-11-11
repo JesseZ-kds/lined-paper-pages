@@ -386,3 +386,34 @@ for (const [mode, cssPaging] of MODES) {
     }
   });
 }
+
+// A definition's / quote's page: a button under its last version adds a revised one; it takes no room
+// (nothing on the page moves) and shows only on such a page, never in an embed or the PDF
+test('a definition page: "Add a revised definition" under its last version, taking no room', async () => {
+  const { title, block, callout } = require('./lib/notes');
+  const blocks = [block(callout('info', 'Conscientious objection', '<p>RDEF a doctor may refuse</p>')), block('<p>RAFTER</p>')];
+  const { page, context } = await openReading({ name: 'def', cornell: false, blocks: [title('Conscientious objection'), ...blocks] });
+  try {
+    const r = await page.evaluate(() => {
+      const els = [...document.querySelectorAll('.markdown-preview-sizer > div')].filter((d) => d.querySelector(':scope > .callout'));
+      const el = els[0];
+      const src = '---\nformat: def\n---\n> [!info] Conscientious objection\n> RDEF a doctor may refuse\n\n^def\n';
+      const at = (w) => [...document.querySelectorAll('p')].find((p) => p.textContent.startsWith(w)).getBoundingClientRect().top;
+      const before = at('RAFTER');
+      const ctx = (fm) => ({ frontmatter: fm, sourcePath: 'Definitions/Conscientious objection.md', getSectionInfo: () => ({ text: src, lineStart: 3, lineEnd: 4 }) });
+      for (const f of window.__processors) f(el, ctx({ format: 'def' }));
+      const btn = el.querySelector('.lp-revise button');
+      const out = { label: btn && btn.textContent, moved: at('RAFTER') - before };
+      // not on a page of another format, nor twice
+      for (const f of window.__processors) f(el, ctx({ format: 'def' }));
+      out.once = el.querySelectorAll('.lp-revise').length;
+      const other = document.createElement('div'); other.innerHTML = '<div class="callout" data-callout="info"><div class="callout-content"><p>x</p></div></div>';
+      for (const f of window.__processors) f(other, ctx({}));
+      out.otherFormat = other.querySelectorAll('.lp-revise').length;
+      return out;
+    });
+    assert.deepEqual(r, { label: 'Add a revised definition', moved: 0, once: 1, otherFormat: 0 });
+  } finally {
+    await context.close();
+  }
+});

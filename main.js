@@ -26,7 +26,7 @@
  *
  * Nothing is ever written into a note. Every layout starts by undoing the previous one.
  */
-const { Plugin, Notice, PluginSettingTab, Setting } = require('obsidian');
+const { Plugin, Notice, PluginSettingTab, Setting, Modal } = require('obsidian');
 
 // ---------- settings ----------
 // Every option of the settings page. Each sets the CSS variable --<key> (read by lined-paper.css /
@@ -116,6 +116,12 @@ const SETTINGS = [
   { key: 'cn-label-notes', type: 'text', def: 'Notes', quote: true, name: 'Notes column label' },
   { key: 'labels', type: 'toggle', cls: 'cn-hide-page-labels', invert: true, def: true, name: 'Column labels on page 2, 3 ...',
     desc: 'Repeat the Cues | Notes labels under the header of every page.' },
+
+  { section: 'Embeds', desc: 'Definitions and quotes each get a page of their own (a note), embedded where you use them: Insert: definition / quote. Embedded blocks (![[Note#^id]]) all start on their line, and the writing after them on the next.' },
+  { key: 'def-folder', type: 'path', def: 'Definitions', name: 'Folder for definitions',
+    desc: 'Where Insert: definition makes the definition\'s page. Made if it is not there.' },
+  { key: 'quote-folder', type: 'path', def: 'Quotes', name: 'Folder for quotes',
+    desc: 'Where Insert: quote makes the quote\'s page.' },
 
   { section: 'Callouts', desc: 'Every callout except the Cornell ones (cue, notes, question, summary, wide).' },
   { key: 'lp-callout-height', type: 'slider', min: 0.5, max: 1, step: 0.01, def: 0.8, pct: true, name: 'Callout box height',
@@ -1437,6 +1443,7 @@ const HOTKEYS = {
   'insert-cue-notes': ALT('n'), 'insert-summary': ALT('c'), 'insert-question': ALT('q'), 'insert-title': ALT('t'),
   'insert-divider': ALT('d'), 'insert-nextpage': ALT('p'), 'insert-wide': ALT('w'), 'insert-cornell-page': ALT('l'),
   'insert-task': ALT('k'), 'insert-arrow': ALT('a'), 'insert-arrow-double': ALT('e'), 'insert-arrow-wavy': ALT('v'),
+  'insert-definition': ALT('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
   'colour-red': PEN('r'), 'colour-blue': PEN('b'), 'colour-green': PEN('g'), 'colour-orange': PEN('o'), 'colour-purple': PEN('p'),
   'remove-colour': PEN('x'),
   'highlighter-yellow': HL('y'), 'highlighter-orange': HL('o'), 'highlighter-blue': HL('b'), 'highlighter-green': HL('g'),
@@ -1472,6 +1479,67 @@ function insertBlock(editor, template) {
 }
 
 // write the selected text with a pen (or type an empty pen span to write in)
+// ---------- definitions and quotes: a page of their own, embedded where they are used ----------
+// A definition's page:   > [!info] Name / > the definition / ^def
+// a quote's page:        > [!quote] Author (a link to the source, when there is one) / > the quote / ^quote
+// with the format in its properties (format: def / quote), the note it was made from (from), and the
+// date. It is embedded where it is used: ![[Name#^def]]. A revised version goes under it, with the same
+// title and its own block id: ^revised, ^revised-2 … (embed ![[Name#^revised]]).
+const FORMATS = { def: { callout: 'info', id: 'def', label: 'definition' }, quote: { callout: 'quote', id: 'quote', label: 'quote' } };
+const isoToday = () => (globalThis.moment ? globalThis.moment().format('YYYY-MM-DD') : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10));
+// a name that can be a file name
+const fileName = (s) => String(s || '').replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+const yaml = (s) => JSON.stringify(String(s));
+function formatNoteText(kind, { name = '', text = '', author = '', link = '', from = '', date = isoToday() } = {}) {
+  const f = FORMATS[kind];
+  const title = kind === 'quote' ? (link ? `[${author || link}](${link})` : author) : name;
+  const fm = ['---', `format: ${kind}`, `date: ${date}`];
+  if (from) fm.push(`from: ${yaml('[[' + from + ']]')}`);
+  if (kind === 'quote') { if (author) fm.push(`source: ${yaml(author)}`); if (link) fm.push(`link: ${yaml(link)}`); }
+  fm.push('cssclasses:', '  - lined-paper', '---');
+  const body = String(text || '').split('\n').map((l) => '> ' + l).join('\n');
+  return `${fm.join('\n')}\n> [!${f.callout}] ${title}\n${body}\n\n^${f.id}\n`;
+}
+// the note with a revised version added under it: the same title, the next ^revised id. Returns the
+// new text, the id, and the line to write on.
+function addRevised(content) {
+  const head = /^>\s*\[!(?:info|quote)\][^\n]*$/m.exec(content);
+  const title = head ? head[0] : '> [!info]';
+  let n = 0;
+  for (const m of content.matchAll(/^\^revised(?:-(\d+))?\s*$/gm)) n = Math.max(n, m[1] ? +m[1] : 1);
+  const id = n ? `revised-${n + 1}` : 'revised';
+  const base = content.replace(/\s*$/, '');
+  const text = `${base}\n\n${title}\n> \n\n^${id}\n`;
+  const line = text.split('\n').length - 4;   // (the "> " line)
+  return { text, id, line };
+}
+// a little form: the fields asked for, then ok(values)
+function askFields(app, title, fields, ok) {
+  if (!Modal) { new Notice('Lined Paper Pages: this needs a newer Obsidian'); return; }
+  const m = new Modal(app);
+  m.titleEl.setText(title);
+  const values = {};
+  for (const f of fields) {
+    values[f.key] = f.value || '';
+    const row = new Setting(m.contentEl).setName(f.name);
+    if (f.desc) row.setDesc(f.desc);
+    const add = f.long ? row.addTextArea.bind(row) : row.addText.bind(row);
+    add((t) => {
+      t.setPlaceholder(f.placeholder || '').setValue(values[f.key]).onChange((v) => { values[f.key] = v; });
+      if (f === fields[0]) window.setTimeout(() => t.inputEl.focus(), 30);
+      if (!f.long) t.inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); done(); } });
+    });
+  }
+  let finished = false;
+  const done = () => {
+    if (finished) return;
+    if (fields.some((f) => f.required && !String(values[f.key]).trim())) { new Notice('Lined Paper Pages: ' + fields.find((f) => f.required).name + ' is needed'); return; }
+    finished = true; m.close(); ok(values);
+  };
+  new Setting(m.contentEl).addButton((b) => b.setButtonText('Create').setCta().onClick(done));
+  m.open();
+}
+
 // ---------- pen colours, highlighters and pen marks: put on, change, take off ----------
 // The styled runs in one line of source: <font color>, <span style="color">  (colour),
 // <span class="pen-…">  (mark), <mark …> and ==…==  (highlight). Where each is, and its tags.
@@ -1695,6 +1763,19 @@ function addPaperCommands(plugin) {
       editor.setCursor({ line: cur.line, ch: cur.ch + ins.length });
     } });
   }
+  // definitions and quotes: a page of their own, embedded where you write
+  add({ id: 'insert-definition', name: 'Insert: definition (on a page of its own, embedded here)', callback: () => plugin.newFormatNote('def') });
+  add({ id: 'insert-quote', name: 'Insert: quote (on a page of its own, embedded here)', callback: () => plugin.newFormatNote('quote') });
+  add({
+    id: 'add-revised', name: 'Insert: revised version (of this definition or quote)',
+    checkCallback: (checking) => {
+      const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
+      const fm = file && app.metadataCache && (app.metadataCache.getFileCache(file) || {}).frontmatter;
+      if (!fm || !FORMATS[fm.format]) return false;
+      if (!checking) plugin.addRevisedVersion(file);
+      return true;
+    },
+  });
   // taking them off again: of the selection, or of the run the cursor is in
   add({ id: 'remove-colour', name: 'Pen: remove colour', editorCallback: (editor) => restyleSelection(editor, ['colour'], null) });
   add({ id: 'remove-highlight', name: 'Highlight: remove', editorCallback: (editor) => restyleSelection(editor, ['highlight'], null) });
@@ -1747,6 +1828,8 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
+      // a definition's / quote's page: under its last version, a button to add a revised one
+      try { this.reviseButton(el, ctx); } catch (e) { /* */ }
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
@@ -1894,6 +1977,7 @@ module.exports = class LinedPaperPages extends Plugin {
     for (const def of SETTINGS) {
       if (!def.key) continue;
       const v = this.settings[def.key];
+      if (def.type === 'path') continue;   // (a folder: no look of its own)
       if (def.type === 'select') {
         // one class per choice (lp-ink-pencil, ...); none at the default (and, as for a toggle, a
         // class it did not add itself is left alone)
@@ -1954,6 +2038,7 @@ module.exports = class LinedPaperPages extends Plugin {
     document.querySelectorAll('.lp-pending').forEach((v) => v.classList.remove('lp-pending'));
     for (const def of SETTINGS) {
       if (!def.key || this.settings[def.key] === undefined) continue;
+      if (def.type === 'path') continue;
       if (def.type === 'toggle') { if (this.ownClasses.has(def.cls)) document.body.classList.remove(def.cls); }
       else if (def.type === 'select') { for (const o of Object.keys(def.options)) if (this.ownClasses.has(def.cls + o)) document.body.classList.remove(def.cls + o); }
       else document.body.style.removeProperty('--' + def.key);
@@ -2193,6 +2278,82 @@ module.exports = class LinedPaperPages extends Plugin {
   // newer Chromium can split the note into page-sized columns itself (column-height + column-wrap);
   // lined-paper.css then does the pagination and this plugin must not move anything
   // the date property of the note shown in `el` (a reading view, or the PDF export: the open note)
+  reviseButton(el, ctx) {
+    const fm = ctx && ctx.frontmatter;
+    const f = fm && FORMATS[fm.format];
+    if (!f || el.closest('.print') || el.querySelector(':scope > .lp-revise')) return;
+    const c = el.querySelector(':scope > .callout[data-callout="info"], :scope > .callout[data-callout="quote"]');
+    if (!c) return;
+    // (only under the last one: nothing written after it but block ids)
+    const info = ctx.getSectionInfo && ctx.getSectionInfo(el);
+    if (info && info.text.split('\n').slice(info.lineEnd + 1).some((l) => l.trim() && !/^\^[\w-]+\s*$/.test(l.trim()))) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'lp-revise';
+    const b = document.createElement('button');
+    b.textContent = 'Add a revised ' + f.label;
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+      this.addRevisedVersion(file);
+    });
+    wrap.appendChild(b);
+    el.appendChild(wrap);
+  }
+
+  // Insert: definition / quote: a page of its own, made in its folder, and embedded where you write
+  newFormatNote(kind) {
+    const app = this.app, f = FORMATS[kind];
+    const from = app.workspace.getActiveFile && app.workspace.getActiveFile();
+    const editor = app.workspace.activeEditor && app.workspace.activeEditor.editor;
+    const fields = kind === 'def'
+      ? [{ key: 'name', name: 'Word or name', required: true }, { key: 'text', name: 'Definition', long: true }]
+      : [{ key: 'author', name: 'Author or source', required: true, desc: 'The quote\'s title.' }, { key: 'link', name: 'Link to the source', placeholder: 'https://… (optional)', desc: 'Makes the title a link.' }, { key: 'text', name: 'Quote', long: true }];
+    askFields(app, kind === 'def' ? 'New definition' : 'New quote', fields, async (v) => {
+      try {
+        const set = this.settings[kind === 'def' ? 'def-folder' : 'quote-folder'];
+        const folder = String(set === undefined ? (kind === 'def' ? 'Definitions' : 'Quotes') : set).trim().replace(/^\/+|\/+$/g, '');
+        if (folder && !app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder).catch(() => {});
+        const at = (b) => (folder ? folder + '/' : '') + b + '.md';
+        let base = fileName(kind === 'def' ? v.name : v.author) || f.label;
+        let file = app.vault.getAbstractFileByPath(at(base));
+        if (file && kind === 'quote') { let i = 2; while (app.vault.getAbstractFileByPath(at(`${base} ${i}`))) i++; base = `${base} ${i}`; file = null; }
+        if (file) new Notice(`Lined Paper Pages: "${base}" already has a page: it is embedded as it is`);
+        else file = await app.vault.create(at(base), formatNoteText(kind, { ...v, from: from && from.extension === 'md' ? from.basename : '' }));
+        const embed = `![[${file.basename}#^${f.id}]]`;
+        if (editor) {
+          // (in a quote line, >> in the notes: there; else on a line of its own)
+          const cur = editor.getCursor(), line = editor.getLine(cur.line);
+          const q = /^(\s*(?:>\s?)+)/.exec(line);
+          if (q && !line.slice(q[0].length).trim()) editor.replaceRange(embed, { line: cur.line, ch: q[0].length }, { line: cur.line, ch: line.length });
+          else if (q) editor.replaceRange('\n' + q[0] + embed, { line: cur.line, ch: line.length });
+          else insertBlock(editor, embed + '\n|');
+        } else {
+          try { await navigator.clipboard.writeText(embed); } catch (e) { /* */ }
+          new Notice(`Lined Paper Pages: ${f.label} page made. Its embed (copied): ${embed}`);
+        }
+      } catch (e) {
+        new Notice('Lined Paper Pages: could not make the page: ' + (e && e.message ? e.message : e));
+      }
+    });
+  }
+
+  // a revised version under a definition / quote (the same title, the next ^revised id), opened to write in
+  async addRevisedVersion(file) {
+    const app = this.app;
+    if (!file) return;
+    let r = null;
+    await app.vault.process(file, (data) => { r = addRevised(data); return r.text; });
+    const embed = `![[${file.basename}#^${r.id}]]`;
+    try { await navigator.clipboard.writeText(embed); } catch (e) { /* */ }
+    new Notice(`Lined Paper Pages: revised version added. Its embed (copied): ${embed}`);
+    try {
+      const leaf = app.workspace.getLeaf(false);
+      await leaf.openFile(file, { state: { mode: 'source' } });
+      const ed = leaf.view && leaf.view.editor;
+      if (ed) { ed.setCursor({ line: r.line, ch: ed.getLine(r.line).length }); ed.focus(); }
+    } catch (e) { /* */ }
+  }
+
   noteDate(el) {
     const info = this.noteDateInfo(el);
     return info ? formatDate(info.value) : '';
@@ -2204,6 +2365,12 @@ module.exports = class LinedPaperPages extends Plugin {
     if (root.closest('.print') || root.matches('.print')) fm = fm || this.exportFm || null;
     // (no note found, as can happen while a PDF is made: the dates already there stay)
     if (!info && !fm) return;
+    // the note's format (format: def, quote, img …): a class for its look, lp-format-…
+    if (root.matches && root.matches('.markdown-preview-view, .print')) {
+      const want = fm && fm.format ? 'lp-format-' + String(fm.format).toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
+      for (const c of Array.from(root.classList)) if (c.startsWith('lp-format-') && c !== want) root.classList.remove(c);
+      if (want && !root.classList.contains(want)) root.classList.add(want);
+    }
     showDates(root, info ? this.noteDate(root) : frontmatterDate(fm), listValue(fm && fm['page-dates']));
   }
   // the note shown in `el` (a reading view, or the PDF export: the open note), and its date property:
@@ -2882,6 +3049,8 @@ module.exports.wrapSelection = wrapSelection;
 module.exports.restyleLine = restyleLine;
 module.exports.HOTKEYS = HOTKEYS;
 module.exports.addPaperCommands = addPaperCommands;
+module.exports.formatNoteText = formatNoteText;
+module.exports.addRevised = addRevised;
 module.exports.drawArrows = drawArrows;
 module.exports.markBullets = markBullets;
 module.exports.noteThemeClasses = noteThemeClasses;
