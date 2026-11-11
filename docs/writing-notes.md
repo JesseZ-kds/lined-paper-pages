@@ -335,6 +335,24 @@ The paper follows Obsidian's light or dark theme, unless you choose otherwise:
 
 The PDF export uses the same paper. For printing, light paper uses far less ink.
 
+## Review: answer the cues from memory
+
+On a Cornell note, the toolbar's **Review** button (or *Note: review*) covers every notes column in
+reading view; the cues stay. Answer each cue in your head, then **click its notes to check**; click
+again to cover them. Review again to show everything. Nothing on the page moves, and the PDF is never
+covered.
+
+## The toolbar
+
+Lined-paper notes have a small bar at the top right (it fades until you point at it):
+
+| Insert | Pen | Highlight | Mark | |
+| --- | --- | --- | --- | --- |
+| cue + notes, question, summary, title, divider, page break, definition, quote, arrow | the five pens, remove | the five highlighters, remove | circle, box, underline, wavy, cross out, remove | Review |
+
+The buttons do the same as the hotkeys (hover a button to see its hotkey), and keep your cursor and
+selection in the note. In reading view only Review shows. Switch it off in *Settings → Toolbar*.
+
 ## Definitions and quotes
 
 A definition or a quote gets a page of its own (a note), and is embedded where you use it, so one

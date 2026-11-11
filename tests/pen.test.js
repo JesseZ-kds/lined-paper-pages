@@ -415,3 +415,72 @@ test('bullets with Obsidian\'s own bullet element: one bullet per point, the one
     }
   }
 });
+
+test('review mode: the notes covered (nothing moves), the cues shown; a click reveals a notes column, another covers it', async () => {
+  const { title, group } = require('./lib/notes');
+  const n = { name: 'review', cornell: true, blocks: [title('R'), group('<p>Rcue one?</p>', '<p>Rnotes one</p>'), group('<p>Rcue two?</p>', '<p>Rnotes two</p>')] };
+  const { page, context } = await openReading(n, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(() => {
+      const v = document.querySelector('.markdown-preview-view');
+      const pos = () => [...document.querySelectorAll('p')].map((p) => Math.round(p.getBoundingClientRect().top));
+      const seen = (re) => { const p = [...document.querySelectorAll('p')].find((x) => re.test(x.textContent)); return getComputedStyle(p).visibility === 'visible'; };
+      const before = pos();
+      v.classList.add('lp-review');
+      const out = { moved: pos().join() !== before.join(), cue: seen(/^Rcue one/), notes: seen(/^Rnotes one/) };
+      const notes = document.querySelectorAll('.callout[data-callout="notes"]');
+      const click = (el) => window.plugin.onReviewClick({ target: el, preventDefault() {}, stopPropagation() {} });
+      click(notes[0].querySelector('p'));
+      out.revealed = [seen(/^Rnotes one/), seen(/^Rnotes two/)];
+      click(notes[0]);
+      out.again = seen(/^Rnotes one/);
+      return out;
+    });
+    assert.deepEqual(r, { moved: false, cue: true, notes: false, revealed: [true, false], again: false });
+  } finally {
+    await context.close();
+  }
+});
+
+test('the toolbar: on lined-paper notes, its buttons run the commands (the cursor stays in the note); in reading view only Review', async () => {
+  const { page, context } = await openReading({ name: 'tb', cornell: true, blocks: [] }, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(() => {
+      const pl = window.plugin;
+      const ran = [];
+      pl.app.commands = { executeCommandById: (id) => ran.push(id) };
+      const mk = (mode, lined) => {
+        const c = document.createElement('div');
+        c.innerHTML = `<div class="view-content"><div class="${mode === 'source' ? 'markdown-source-view' : 'markdown-reading-view'}"><div class="${lined ? 'lined-paper ' : ''}inner"></div></div></div>`;
+        document.body.appendChild(c);
+        return { view: { containerEl: c, getMode: () => mode } };
+      };
+      const editing = mk('source', true), reading = mk('preview', true), plain = mk('source', false);
+      pl.app.workspace.getLeavesOfType = () => [editing, reading, plain];
+      pl.syncToolbars();
+      const bar = editing.view.containerEl.querySelector('.lp-toolbar');
+      const btn = (cmd) => bar.querySelector(`[data-cmd="${cmd}"]`);
+      const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      btn('colour-red').dispatchEvent(down);
+      btn('colour-red').click(); btn('highlighter-pink').click(); btn('pen-circle').click(); btn('insert-cue-notes').click();
+      const shown = (b) => [...b.querySelectorAll('.lp-tb-group')].filter((g) => getComputedStyle(g).display !== 'none').map((g) => g.getAttribute('aria-label'));
+      const out = {
+        ran, keepsCursor: down.defaultPrevented,
+        editing: shown(bar), reading: shown(reading.view.containerEl.querySelector('.lp-toolbar')),
+        plain: !!plain.view.containerEl.querySelector('.lp-toolbar'),
+      };
+      document.body.classList.add('lp-no-toolbar');
+      pl.syncToolbars();
+      out.off = document.querySelectorAll('.lp-toolbar').length;
+      return out;
+    });
+    assert.deepEqual(r.ran, ['lined-paper-pages:colour-red', 'lined-paper-pages:highlighter-pink', 'lined-paper-pages:pen-circle', 'lined-paper-pages:insert-cue-notes']);
+    assert.equal(r.keepsCursor, true, 'a button does not take the cursor out of the note');
+    assert.deepEqual(r.editing, ['Insert', 'Pen', 'Highlight', 'Mark', 'Review']);
+    assert.deepEqual(r.reading, ['Review']);
+    assert.equal(r.plain, false, 'not on a plain note');
+    assert.equal(r.off, 0, 'none with the setting off');
+  } finally {
+    await context.close();
+  }
+});

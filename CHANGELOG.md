@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-11-11
+
+### Added
+- **Review mode: flashcards from your cues.** On a Cornell note, *Review* (the toolbar button, or
+  *Note: review*) covers every notes column in reading view and leaves the cues.
+  - Answer each cue from memory, then click its notes to check; click again to cover them.
+  - Nothing on the page moves, and the PDF is never covered.
+- **A toolbar on lined-paper notes:** a small bar at the top right that fades until you point at
+  it, with buttons for:
+  - **Insert:** cue + notes, question, summary, title, divider, page break, definition, quote,
+    arrow;
+  - **Pen:** the five pens, and remove;
+  - **Highlight:** the five highlighters, and remove;
+  - **Mark:** circle, box, underline, wavy, cross out, and remove;
+  - **Review**.
+
+  The buttons do the same as the hotkeys, shown when you point at a button, and keep the cursor
+  and selection in the note. In reading view only Review shows. *Settings → Toolbar* switches it
+  off.
+
 ## [1.27.1] - 2026-11-11
 
 ### Changed

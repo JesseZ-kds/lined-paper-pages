@@ -53,6 +53,8 @@ const SETTINGS = [
     desc: 'Every # title after the note\'s own title starts a new page and is that page\'s title, as if [!nextpage] were written above it.' },
   { key: 'table-gap', type: 'toggle', cls: 'lp-table-gap', def: false, name: 'A line under a table\'s header row',
     desc: 'Leave an empty ruled line between a table\'s header row and its other rows. Off: the rows follow the header straight away (an empty row typed there as a gap is left out).' },
+  { key: 'toolbar', type: 'toggle', cls: 'lp-no-toolbar', invert: true, def: true, name: 'Toolbar',
+    desc: 'A small bar on lined-paper notes: insert, pens, highlighters, marks and Review (hide the notes, answer the cues from memory). The same as the hotkeys.' },
   { key: 'links', type: 'toggle', cls: 'lp-link-underline', def: false, name: 'Underline links',
     desc: 'Links are shown in their colour only, like writing. Switch this on to underline them.' },
 
@@ -1753,6 +1755,15 @@ function addPaperCommands(plugin) {
     },
   });
   add({
+    id: 'review', name: 'Note: review (cover the notes, answer the cues, click to reveal)',
+    checkCallback: (checking) => {
+      const v = app && app.workspace && app.workspace.activeLeaf && app.workspace.activeLeaf.view;
+      if (!v || !v.containerEl || !v.containerEl.querySelector('.cornell')) return false;
+      if (!checking) plugin.toggleReview();
+      return true;
+    },
+  });
+  add({
     id: 'set-date', name: 'Note: set the date',
     checkCallback: (checking) => {
       const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
@@ -1919,6 +1930,14 @@ module.exports = class LinedPaperPages extends Plugin {
     }, true);
     // the date in the title bar (reading view): click it to change it
     this.registerDomEvent(document, 'click', (e) => this.onDateClick(e), true);
+    // review mode: a click on a covered notes column shows it (and hides it again)
+    this.registerDomEvent(document, 'click', (e) => this.onReviewClick(e), true);
+    // the toolbar on each lined-paper note
+    const bars = () => this.syncToolbars();
+    this.registerEvent(this.app.workspace.on('layout-change', bars));
+    this.registerEvent(this.app.workspace.on('active-leaf-change', bars));
+    this.registerEvent(this.app.workspace.on('file-open', bars));
+    this.register(() => document.querySelectorAll('.lp-toolbar').forEach((t) => t.remove()));
     this.registerDomEvent(document, 'load', (e) => {
       const view = e.target && e.target.tagName === 'IMG' && e.target.closest(SEL_VIEW);
       const st = view && this.states.get(view);
@@ -2050,6 +2069,7 @@ module.exports = class LinedPaperPages extends Plugin {
       }
     }
     this.applyPaperThemes();
+    try { this.syncToolbars(); } catch (e) { /* */ }
     // (editors redraw their arrows: drawn, or as typed)
     try { if (this.app && this.app.workspace && this.app.workspace.updateOptions) this.app.workspace.updateOptions(); } catch (e) { /* */ }
     this.scheduleScan(true);
@@ -2177,6 +2197,7 @@ module.exports = class LinedPaperPages extends Plugin {
   scan(force) {
     try { this.keepAllSections(); } catch (e) { /* Obsidian internals changed: leave them */ }
     this.applyPaperThemes();
+    try { this.syncToolbars(); } catch (e) { /* */ }
     document.querySelectorAll(SEL_VIEW).forEach((view) => {
       let st = this.states.get(view);
       if (!st) {
@@ -2466,6 +2487,99 @@ module.exports = class LinedPaperPages extends Plugin {
       const key = dateKey(fm);
       return { file, key, value: key ? fm[key] : '', fm: fm || null };
     } catch (e) { return null; }
+  }
+
+  // ---------- review mode: the notes covered, the cues to answer from memory ----------
+  // (reading view of a Cornell note: the view gets lp-review; a click on a notes column shows it,
+  // lp-revealed, and a second click covers it again. Covering takes no room: nothing moves.)
+  reviewView() {
+    const leaf = this.app.workspace.activeLeaf;
+    const v = leaf && leaf.view;
+    return { leaf, v, page: v && v.containerEl && v.containerEl.querySelector('.markdown-reading-view .markdown-preview-view') };
+  }
+  async toggleReview() {
+    const { v } = this.reviewView();
+    if (!v) return;
+    // (from editing view: to reading view, where the pages are)
+    if (v.getMode && v.getMode() === 'source') {
+      try { await v.setState(Object.assign({}, v.getState(), { mode: 'preview' }), { history: false }); } catch (e) { /* */ }
+    }
+    const page = this.reviewView().page;
+    if (!page) return;
+    const on = !page.classList.contains('lp-review');
+    page.classList.toggle('lp-review', on);
+    if (!on) page.querySelectorAll('.lp-revealed').forEach((c) => c.classList.remove('lp-revealed'));
+    new Notice(on ? 'Lined Paper Pages: review. Answer each cue, then click its notes to check.' : 'Lined Paper Pages: review off');
+    this.syncToolbars();
+  }
+  onReviewClick(e) {
+    const c = e.target && e.target.closest && e.target.closest('.lp-review .callout[data-callout="notes"]');
+    if (!c || (e.target.closest('a') && c.classList.contains('lp-revealed'))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    c.classList.toggle('lp-revealed');
+  }
+
+  // ---------- the toolbar ----------
+  // A small bar at the top right of each lined-paper note: buttons that run the commands (the same as
+  // the hotkeys). It floats over the page (takes no room). Editing view: insert, pens, highlighters,
+  // marks and Review; reading view: Review.
+  toolbarFor(v) {
+    const id = (x) => (this.manifest && this.manifest.id ? this.manifest.id : 'lined-paper-pages') + ':' + x;
+    const run = (cmd) => {
+      if (cmd === 'review') { this.toggleReview(); return; }
+      const c = this.app.commands;
+      if (c && c.executeCommandById) c.executeCommandById(id(cmd));
+    };
+    const bar = document.createElement('div');
+    bar.className = 'lp-toolbar';
+    const group = (name, cls) => { const g = document.createElement('div'); g.className = 'lp-tb-group ' + (cls || ''); g.setAttribute('aria-label', name); bar.appendChild(g); return g; };
+    const button = (g, label, title, cmd, extra) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lp-tb-btn' + (extra && extra.cls ? ' ' + extra.cls : '');
+      b.textContent = label;
+      b.title = title;
+      b.dataset.cmd = cmd;
+      if (extra && extra.style) b.setAttribute('style', extra.style);
+      // (keeps the cursor and the selection in the note)
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', (e) => { e.preventDefault(); run(cmd); });
+      g.appendChild(b);
+      return b;
+    };
+    const ins = group('Insert', 'lp-tb-edit');
+    for (const [l, t, c] of [['Cue', 'Insert: cue + notes (Alt+N)', 'insert-cue-notes'], ['Q', 'Insert: essential question (Alt+Q)', 'insert-question'], ['Sum', 'Insert: summary (Alt+C)', 'insert-summary'],
+      ['Title', 'Insert: title (Alt+T)', 'insert-title'], ['—', 'Insert: divider line (Alt+D)', 'insert-divider'], ['Page', 'Insert: page break (Alt+P)', 'insert-nextpage'],
+      ['Def', 'Insert: definition (Alt+F)', 'insert-definition'], ['“ ”', 'Insert: quote (Alt+O)', 'insert-quote'], ['→', 'Insert: arrow (Alt+A)', 'insert-arrow']]) button(ins, l, t, c);
+    const pen = group('Pen', 'lp-tb-edit');
+    for (const [name, hex] of COLOURS) button(pen, '●', `Pen: ${name} (Mod+Alt+${name[0].toUpperCase()})`, 'colour-' + name, { cls: 'lp-tb-swatch', style: `color: var(--pen-${name}, ${hex})` });
+    button(pen, '⌫', 'Pen: remove colour (Mod+Alt+X)', 'remove-colour');
+    const hl = group('Highlight', 'lp-tb-edit');
+    for (const c of ['yellow', 'orange', 'blue', 'green', 'pink']) button(hl, '▬', `Highlight: ${c} (Alt+Shift+${c[0].toUpperCase()})`, 'highlighter-' + c, { cls: 'lp-tb-swatch lp-tb-hl hl-' + c });
+    button(hl, '⌫', 'Highlight: remove (Alt+Shift+X)', 'remove-highlight');
+    const mark = group('Mark', 'lp-tb-edit');
+    for (const [l, t, c] of [['◯', 'Mark: circle (Mod+Alt+Shift+C)', 'pen-circle'], ['▢', 'Mark: box (Mod+Alt+Shift+B)', 'pen-box'], ['U̲', 'Mark: underline (Mod+Alt+Shift+U)', 'pen-underline'],
+      ['〰', 'Mark: wavy underline (Mod+Alt+Shift+W)', 'pen-wavy'], ['S̶', 'Mark: cross out (Mod+Alt+Shift+K)', 'cross-out'], ['⌫', 'Mark: remove marks (Mod+Alt+Shift+X)', 'remove-marks']]) button(mark, l, t, c);
+    const rev = group('Review', 'lp-tb-review');
+    button(rev, 'Review', 'Note: review: cover the notes, answer the cues, click to reveal', 'review', { cls: 'lp-tb-reviewbtn' });
+    return bar;
+  }
+  syncToolbars() {
+    const ws = this.app && this.app.workspace;
+    if (!ws || !ws.getLeavesOfType) return;
+    const off = document.body.classList.contains('lp-no-toolbar');
+    for (const leaf of ws.getLeavesOfType('markdown')) {
+      const v = leaf.view, host = v && v.containerEl && v.containerEl.querySelector('.view-content');
+      if (!host) continue;
+      const lined = !!v.containerEl.querySelector('.view-content .lined-paper');
+      let bar = host.querySelector(':scope > .lp-toolbar');
+      if (off || !lined) { if (bar) bar.remove(); continue; }
+      if (!bar) { bar = this.toolbarFor(v); host.appendChild(bar); }
+      bar.dataset.mode = v.getMode ? v.getMode() : 'source';
+      const page = v.containerEl.querySelector('.markdown-reading-view .markdown-preview-view');
+      bar.classList.toggle('lp-tb-reviewing', !!(page && page.classList.contains('lp-review')));
+    }
   }
 
   onDateClick(e) {
