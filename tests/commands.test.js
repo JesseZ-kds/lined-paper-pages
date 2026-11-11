@@ -211,7 +211,8 @@ test('hotkeys: one family per kind of command, named after it, no two the same',
   // each family: its keys and the start of its commands' names
   const family = { 'Alt': 'Insert: ', 'Mod': 'Insert: ', 'Mod+Shift': 'Insert: ', 'Mod+Alt': 'Pen: ', 'Alt+Shift': 'Highlight: ', 'Mod+Alt+Shift': 'Mark: ' };
   for (const [id, h] of Object.entries(HOTKEYS)) {
-    const want = family[h[0].modifiers.join('+')];
+    // (a definition linked, Alt + Shift + F, sits next to its embedded one, Alt + F)
+    const want = id === 'insert-definition-link' ? 'Insert: ' : family[h[0].modifiers.join('+')];
     assert.ok(want && byId[id].name.startsWith(want), `${id} (${h[0].modifiers.join('+')}+${h[0].key}): "${byId[id].name}" starts with "${want}"`);
   }
   // the commands without a hotkey are named by kind too
@@ -244,10 +245,10 @@ test('a revised version: the same title, no "revised" in it, the next block id, 
   assert.equal((two.text.match(/\[!quote\] Yevamot 69b$/gm) || []).length, 3, 'every version has the same title');
 });
 
-test('definitions: Mod+F embeds, Mod+Shift+F links', () => {
+test('definitions: Alt+F embeds, Alt+Shift+F links', () => {
   const k = (id) => HOTKEYS[id][0].modifiers.join('+') + '+' + HOTKEYS[id][0].key;
-  assert.equal(k('insert-definition'), 'Mod+f');
-  assert.equal(k('insert-definition-link'), 'Mod+Shift+f');
+  assert.equal(k('insert-definition'), 'Alt+f');
+  assert.equal(k('insert-definition-link'), 'Alt+Shift+f');
 });
 
 test('aliases: other capitals, plural / singular, British / American spellings, hyphen / space, abbreviations', () => {

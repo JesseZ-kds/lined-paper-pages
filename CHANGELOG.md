@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.27.1] - 2026-11-11
+
+### Changed
+- **Insert: definition** is Alt + F (embedded) and Alt + Shift + F (linked), instead of
+  Ctrl/Cmd + F and Ctrl/Cmd + Shift + F, which were also Obsidian's Search keys.
+
 ## [1.27.0] - 2026-11-11
 
 ### Added

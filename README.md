@@ -103,8 +103,8 @@ commands have none, give them one there if you like.
 | Arrow `->` | Alt + A | | |
 | Double arrow `=>` | Alt + E | | |
 | Wavy arrow `~>` | Alt + V | | |
-| Definition, embedded (a page of its own) | Mod + F * | | |
-| Definition, linked | Mod + Shift + F * | | |
+| Definition, embedded (a page of its own) | Alt + F | | |
+| Definition, linked | Alt + Shift + F | | |
 | Quote (a page of its own) | Alt + O | | |
 | Revised version (on its page) | Alt + R | | |
 
@@ -118,8 +118,6 @@ commands have none, give them one there if you like.
 | Your highlighter (`==`) | Alt + Shift + H | Cross out (`~~`) | Mod + Alt + Shift + K |
 | Remove highlight | Alt + Shift + X | Remove marks | Mod + Alt + Shift + X |
 | | | Remove all colours, highlights and marks | Mod + Alt + Shift + A |
-
-\* Also Obsidian's own Search keys: if Search opens instead, take them off it in *Settings → Hotkeys*.
 
 **Paper:** make this note lined paper / Cornell notes / a plain note again, switch between light and
 dark (also the ☀/☾ button), follow Obsidian's light / dark theme, switch this note between light and

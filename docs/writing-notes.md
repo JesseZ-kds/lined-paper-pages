@@ -341,10 +341,9 @@ A definition or a quote gets a page of its own (a note), and is embedded where y
 definition can be in many notes and stays the same in all of them.
 
 - **Insert: definition**: asks for the word and its definition, makes its page in the definitions
-  folder, and embeds it where your cursor is (`![[Conscientious objection#^def]]`, Ctrl/Cmd + F),
+  folder, and embeds it where your cursor is (`![[Conscientious objection#^def]]`, Alt + F),
   or puts just a link to it there (`[[Conscientious objection#^def|Conscientious objection]]`,
-  Ctrl/Cmd + Shift + F). (These are also Obsidian's own Search keys: if Search opens instead, take
-  them off it in *Settings → Hotkeys*.)
+  Alt + Shift + F).
 - **Insert: quote** (Alt + O; *linked here* has no hotkey of its own): asks for the author or
   source, a link to the source (optional) and the quote. The quote's title is its source, a link
   when you give one.

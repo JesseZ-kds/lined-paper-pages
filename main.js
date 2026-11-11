@@ -1431,8 +1431,8 @@ const TEMPLATES = {
 // the pens (lined-paper.css "PEN COLOURS": each shown as var(--pen-…), lighter in dark theme)
 const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], ['purple', '#6a1b9a'], ['orange', '#d84315']];
 // Default hotkeys, by family (a hotkey you set yourself in Settings → Hotkeys wins). Mod = Ctrl
-// (Cmd on a Mac). No two are the same. Asked for: a definition on Mod + F (embedded) and Mod + Shift + F
-// (linked), which are also Obsidian's own Search keys (take those off in Settings → Hotkeys).
+// (Cmd on a Mac). No two are the same, and none is one of Obsidian's own. (A definition linked, not
+// embedded, is Alt + Shift + F, next to its embedded one, Alt + F.)
 //   Insert:     Alt + letter
 //   Pen:        Mod + Alt + letter
 //   Highlight:  Alt + Shift + letter
@@ -1444,7 +1444,7 @@ const HOTKEYS = {
   'insert-cue-notes': ALT('n'), 'insert-summary': ALT('c'), 'insert-question': ALT('q'), 'insert-title': ALT('t'),
   'insert-divider': ALT('d'), 'insert-nextpage': ALT('p'), 'insert-wide': ALT('w'), 'insert-cornell-page': ALT('l'),
   'insert-task': ALT('k'), 'insert-arrow': ALT('a'), 'insert-arrow-double': ALT('e'), 'insert-arrow-wavy': ALT('v'),
-  'insert-definition': HK(['Mod'])('f'), 'insert-definition-link': HK(['Mod', 'Shift'])('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
+  'insert-definition': ALT('f'), 'insert-definition-link': HL('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
   'colour-red': PEN('r'), 'colour-blue': PEN('b'), 'colour-green': PEN('g'), 'colour-orange': PEN('o'), 'colour-purple': PEN('p'),
   'remove-colour': PEN('x'),
   'highlighter-yellow': HL('y'), 'highlighter-orange': HL('o'), 'highlighter-blue': HL('b'), 'highlighter-green': HL('g'),
