@@ -1431,7 +1431,8 @@ const TEMPLATES = {
 // the pens (lined-paper.css "PEN COLOURS": each shown as var(--pen-…), lighter in dark theme)
 const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], ['purple', '#6a1b9a'], ['orange', '#d84315']];
 // Default hotkeys, by family (a hotkey you set yourself in Settings → Hotkeys wins). Mod = Ctrl
-// (Cmd on a Mac). None of them is one of Obsidian's own, and no two are the same.
+// (Cmd on a Mac). No two are the same. Asked for: a definition on Mod + F (embedded) and Mod + Shift + F
+// (linked), which are also Obsidian's own Search keys (take those off in Settings → Hotkeys).
 //   Insert:     Alt + letter
 //   Pen:        Mod + Alt + letter
 //   Highlight:  Alt + Shift + letter
@@ -1443,7 +1444,7 @@ const HOTKEYS = {
   'insert-cue-notes': ALT('n'), 'insert-summary': ALT('c'), 'insert-question': ALT('q'), 'insert-title': ALT('t'),
   'insert-divider': ALT('d'), 'insert-nextpage': ALT('p'), 'insert-wide': ALT('w'), 'insert-cornell-page': ALT('l'),
   'insert-task': ALT('k'), 'insert-arrow': ALT('a'), 'insert-arrow-double': ALT('e'), 'insert-arrow-wavy': ALT('v'),
-  'insert-definition': ALT('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
+  'insert-definition': HK(['Mod'])('f'), 'insert-definition-link': HK(['Mod', 'Shift'])('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
   'colour-red': PEN('r'), 'colour-blue': PEN('b'), 'colour-green': PEN('g'), 'colour-orange': PEN('o'), 'colour-purple': PEN('p'),
   'remove-colour': PEN('x'),
   'highlighter-yellow': HL('y'), 'highlighter-orange': HL('o'), 'highlighter-blue': HL('b'), 'highlighter-green': HL('g'),
@@ -1482,21 +1483,37 @@ function insertBlock(editor, template) {
 // ---------- definitions and quotes: a page of their own, embedded where they are used ----------
 // A definition's page:   > [!info] Name / > the definition / ^def
 // a quote's page:        > [!quote] Author (a link to the source, when there is one) / > the quote / ^quote
-// with the format in its properties (format: def / quote), the note it was made from (from), and the
-// date. It is embedded where it is used: ![[Name#^def]]. A revised version goes under it, with the same
+// with the format in its properties (format: def / quote) and the date; a plain note (not lined
+// paper). It is embedded where it is used, ![[Name#^def]], or linked, [[Name#^def|Name]]. A revised version goes under it, with the same
 // title and its own block id: ^revised, ^revised-2 … (embed ![[Name#^revised]]).
 const FORMATS = { def: { callout: 'info', id: 'def', label: 'definition' }, quote: { callout: 'quote', id: 'quote', label: 'quote' } };
 const isoToday = () => (globalThis.moment ? globalThis.moment().format('YYYY-MM-DD') : new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10));
 // a name that can be a file name
 const fileName = (s) => String(s || '').replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
 const yaml = (s) => JSON.stringify(String(s));
-function formatNoteText(kind, { name = '', text = '', author = '', link = '', from = '', date = isoToday() } = {}) {
+// The other ways a definition / quote may be written, for its aliases: the same words with other
+// capitals (all small, the first letter capital, every word capital), and its abbreviations (given,
+// or in brackets after the name: "In vitro fertilisation (IVF)"). Not the name itself; no repeats.
+function nameAndAliases(name, extra = '') {
+  let base = String(name || '').trim();
+  const abbr = [];
+  const m = /^(.*\S)\s*\(([^()]+)\)\s*$/.exec(base);
+  if (m) { base = m[1]; abbr.push(m[2].trim()); }
+  for (const a of String(extra || '').split(/[,;\n]/)) if (a.trim()) abbr.push(a.trim());
+  const low = base.toLowerCase();
+  const forms = [low, low.charAt(0).toUpperCase() + low.slice(1), low.replace(/(^|[\s-])(\p{L})/gu, (x, a, b) => a + b.toUpperCase())];
+  const out = [];
+  for (const a of [...forms, ...abbr]) if (a && a !== base && !out.includes(a)) out.push(a);
+  return { name: base, aliases: out };
+}
+function formatNoteText(kind, { name = '', text = '', author = '', link = '', aliases = '', date = isoToday() } = {}) {
   const f = FORMATS[kind];
-  const title = kind === 'quote' ? (link ? `[${author || link}](${link})` : author) : name;
+  const na = nameAndAliases(kind === 'quote' ? author : name, aliases);
+  const title = kind === 'quote' ? (link ? `[${na.name || link}](${link})` : na.name) : na.name;
   const fm = ['---', `format: ${kind}`, `date: ${date}`];
-  if (from) fm.push(`from: ${yaml('[[' + from + ']]')}`);
-  if (kind === 'quote') { if (author) fm.push(`source: ${yaml(author)}`); if (link) fm.push(`link: ${yaml(link)}`); }
-  fm.push('cssclasses:', '  - lined-paper', '---');
+  if (kind === 'quote') { if (na.name) fm.push(`source: ${yaml(na.name)}`); if (link) fm.push(`link: ${yaml(link)}`); }
+  if (na.aliases.length) fm.push('aliases:', ...na.aliases.map((a) => '  - ' + yaml(a)));
+  fm.push('---');
   const body = String(text || '').split('\n').map((l) => '> ' + l).join('\n');
   return `${fm.join('\n')}\n> [!${f.callout}] ${title}\n${body}\n\n^${f.id}\n`;
 }
@@ -1765,7 +1782,9 @@ function addPaperCommands(plugin) {
   }
   // definitions and quotes: a page of their own, embedded where you write
   add({ id: 'insert-definition', name: 'Insert: definition (on a page of its own, embedded here)', callback: () => plugin.newFormatNote('def') });
+  add({ id: 'insert-definition-link', name: 'Insert: definition (on a page of its own, linked here)', callback: () => plugin.newFormatNote('def', 'link') });
   add({ id: 'insert-quote', name: 'Insert: quote (on a page of its own, embedded here)', callback: () => plugin.newFormatNote('quote') });
+  add({ id: 'insert-quote-link', name: 'Insert: quote (on a page of its own, linked here)', callback: () => plugin.newFormatNote('quote', 'link') });
   add({
     id: 'add-revised', name: 'Insert: revised version (of this definition or quote)',
     checkCallback: (checking) => {
@@ -2301,25 +2320,27 @@ module.exports = class LinedPaperPages extends Plugin {
   }
 
   // Insert: definition / quote: a page of its own, made in its folder, and embedded where you write
-  newFormatNote(kind) {
+  newFormatNote(kind, mode = 'embed') {
     const app = this.app, f = FORMATS[kind];
-    const from = app.workspace.getActiveFile && app.workspace.getActiveFile();
     const editor = app.workspace.activeEditor && app.workspace.activeEditor.editor;
     const fields = kind === 'def'
-      ? [{ key: 'name', name: 'Word or name', required: true }, { key: 'text', name: 'Definition', long: true }]
-      : [{ key: 'author', name: 'Author or source', required: true, desc: 'The quote\'s title.' }, { key: 'link', name: 'Link to the source', placeholder: 'https://… (optional)', desc: 'Makes the title a link.' }, { key: 'text', name: 'Quote', long: true }];
+      ? [{ key: 'name', name: 'Word or name', required: true, placeholder: 'In vitro fertilisation (IVF)' }, { key: 'aliases', name: 'Abbreviations or other names', placeholder: 'IVF, test-tube conception (optional)', desc: 'Separated by commas. Added as aliases, with the name in other capitals.' }, { key: 'text', name: 'Definition', long: true }]
+      : [{ key: 'author', name: 'Author or source', required: true, desc: 'The quote\'s title.' }, { key: 'link', name: 'Link to the source', placeholder: 'https://… (optional)', desc: 'Makes the title a link.' }, { key: 'aliases', name: 'Abbreviations or other names', placeholder: 'CCC (optional)', desc: 'Separated by commas. Added as aliases.' }, { key: 'text', name: 'Quote', long: true }];
     askFields(app, kind === 'def' ? 'New definition' : 'New quote', fields, async (v) => {
       try {
         const set = this.settings[kind === 'def' ? 'def-folder' : 'quote-folder'];
         const folder = String(set === undefined ? (kind === 'def' ? 'Definitions' : 'Quotes') : set).trim().replace(/^\/+|\/+$/g, '');
         if (folder && !app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder).catch(() => {});
         const at = (b) => (folder ? folder + '/' : '') + b + '.md';
-        let base = fileName(kind === 'def' ? v.name : v.author) || f.label;
+        let base = fileName(nameAndAliases(kind === 'def' ? v.name : v.author).name) || f.label;
         let file = app.vault.getAbstractFileByPath(at(base));
         if (file && kind === 'quote') { let i = 2; while (app.vault.getAbstractFileByPath(at(`${base} ${i}`))) i++; base = `${base} ${i}`; file = null; }
         if (file) new Notice(`Lined Paper Pages: "${base}" already has a page: it is embedded as it is`);
-        else file = await app.vault.create(at(base), formatNoteText(kind, { ...v, from: from && from.extension === 'md' ? from.basename : '' }));
-        const embed = `![[${file.basename}#^${f.id}]]`;
+        else file = await app.vault.create(at(base), formatNoteText(kind, v));
+        // (once Obsidian knows its block: an embed of a note it has not read yet shows the whole note,
+        // its properties too, until it has)
+        await this.blockKnown(file, f.id);
+        const embed = mode === 'link' ? `[[${file.basename}#^${f.id}|${file.basename}]]` : `![[${file.basename}#^${f.id}]]`;
         if (editor) {
           // (in a quote line, >> in the notes: there; else on a line of its own)
           const cur = editor.getCursor(), line = editor.getLine(cur.line);
@@ -2329,11 +2350,24 @@ module.exports = class LinedPaperPages extends Plugin {
           else insertBlock(editor, embed + '\n|');
         } else {
           try { await navigator.clipboard.writeText(embed); } catch (e) { /* */ }
-          new Notice(`Lined Paper Pages: ${f.label} page made. Its embed (copied): ${embed}`);
+          new Notice(`Lined Paper Pages: ${f.label} page made. Its ${mode === 'link' ? 'link' : 'embed'} (copied): ${embed}`);
         }
       } catch (e) {
         new Notice('Lined Paper Pages: could not make the page: ' + (e && e.message ? e.message : e));
       }
+    });
+  }
+
+  // wait (up to 3 s) until Obsidian has read a note and knows its block ^id
+  blockKnown(file, id) {
+    const mc = this.app.metadataCache;
+    const known = () => { try { const c = mc.getFileCache(file); return !!(c && c.blocks && c.blocks[id]); } catch (e) { return true; } };
+    if (!mc || !mc.on || known()) return Promise.resolve();
+    return new Promise((res) => {
+      let ref = null;
+      const end = () => { if (ref) mc.offref(ref); window.clearTimeout(t); res(); };
+      const t = window.setTimeout(end, 3000);
+      ref = mc.on('changed', (f) => { if (f === file && known()) end(); });
     });
   }
 
@@ -3051,6 +3085,7 @@ module.exports.HOTKEYS = HOTKEYS;
 module.exports.addPaperCommands = addPaperCommands;
 module.exports.formatNoteText = formatNoteText;
 module.exports.addRevised = addRevised;
+module.exports.nameAndAliases = nameAndAliases;
 module.exports.drawArrows = drawArrows;
 module.exports.markBullets = markBullets;
 module.exports.noteThemeClasses = noteThemeClasses;

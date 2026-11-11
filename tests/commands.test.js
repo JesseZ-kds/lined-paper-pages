@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -209,7 +209,7 @@ test('hotkeys: one family per kind of command, named after it, no two the same',
   const keys = Object.values(HOTKEYS).map((h) => h[0].modifiers.join('+') + '+' + h[0].key);
   assert.equal(new Set(keys).size, keys.length, 'no two the same: ' + keys.join(' '));
   // each family: its keys and the start of its commands' names
-  const family = { 'Alt': 'Insert: ', 'Mod+Alt': 'Pen: ', 'Alt+Shift': 'Highlight: ', 'Mod+Alt+Shift': 'Mark: ' };
+  const family = { 'Alt': 'Insert: ', 'Mod': 'Insert: ', 'Mod+Shift': 'Insert: ', 'Mod+Alt': 'Pen: ', 'Alt+Shift': 'Highlight: ', 'Mod+Alt+Shift': 'Mark: ' };
   for (const [id, h] of Object.entries(HOTKEYS)) {
     const want = family[h[0].modifiers.join('+')];
     assert.ok(want && byId[id].name.startsWith(want), `${id} (${h[0].modifiers.join('+')}+${h[0].key}): "${byId[id].name}" starts with "${want}"`);
@@ -223,11 +223,11 @@ test('hotkeys: one family per kind of command, named after it, no two the same',
   assert.deepEqual(['highlighter-orange', 'highlighter-yellow', 'highlighter-blue', 'highlighter-green', 'highlighter-pink'].map(k), ['Alt+Shift+o', 'Alt+Shift+y', 'Alt+Shift+b', 'Alt+Shift+g', 'Alt+Shift+p']);
 });
 
-test('a definition / quote page: its format, the note it is from, its block id; a quote titled with its source', () => {
-  assert.equal(formatNoteText('def', { name: 'Conscientious objection', text: 'A doctor may refuse on moral grounds.', from: 'Abortion', date: '2026-11-11' }),
-    '---\nformat: def\ndate: 2026-11-11\nfrom: "[[Abortion]]"\ncssclasses:\n  - lined-paper\n---\n> [!info] Conscientious objection\n> A doctor may refuse on moral grounds.\n\n^def\n');
+test('a definition / quote page: its format and date (no "from"), a plain note (not lined paper), its block id; a quote titled with its source', () => {
+  assert.equal(formatNoteText('def', { name: 'Conscientious objection', text: 'A doctor may refuse on moral grounds.', date: '2026-11-11' }),
+    '---\nformat: def\ndate: 2026-11-11\naliases:\n  - "conscientious objection"\n  - "Conscientious Objection"\n---\n> [!info] Conscientious objection\n> A doctor may refuse on moral grounds.\n\n^def\n');
   assert.equal(formatNoteText('quote', { author: 'Catechism of the Catholic Church, 2270', link: 'https://www.vatican.va/archive/ENG0015/__P7Z.HTM', text: 'Human life must be respected\nand protected absolutely.', date: '2026-11-11' }),
-    '---\nformat: quote\ndate: 2026-11-11\nsource: "Catechism of the Catholic Church, 2270"\nlink: "https://www.vatican.va/archive/ENG0015/__P7Z.HTM"\ncssclasses:\n  - lined-paper\n---\n> [!quote] [Catechism of the Catholic Church, 2270](https://www.vatican.va/archive/ENG0015/__P7Z.HTM)\n> Human life must be respected\n> and protected absolutely.\n\n^quote\n');
+    '---\nformat: quote\ndate: 2026-11-11\nsource: "Catechism of the Catholic Church, 2270"\nlink: "https://www.vatican.va/archive/ENG0015/__P7Z.HTM"\naliases:\n  - "catechism of the catholic church, 2270"\n  - "Catechism of the catholic church, 2270"\n  - "Catechism Of The Catholic Church, 2270"\n---\n> [!quote] [Catechism of the Catholic Church, 2270](https://www.vatican.va/archive/ENG0015/__P7Z.HTM)\n> Human life must be respected\n> and protected absolutely.\n\n^quote\n');
   assert.match(formatNoteText('quote', { author: 'Yevamot 69b', date: '2026-11-11' }), /\n> \[!quote\] Yevamot 69b\n> \n\n\^quote\n$/, 'no link: the source as it is');
 });
 
@@ -241,4 +241,20 @@ test('a revised version: the same title, no "revised" in it, the next block id, 
   assert.equal(two.id, 'revised-2');
   assert.equal(addRevised(two.text).id, 'revised-3');
   assert.equal((two.text.match(/\[!quote\] Yevamot 69b$/gm) || []).length, 3, 'every version has the same title');
+});
+
+test('definitions: Mod+F embeds, Mod+Shift+F links', () => {
+  const k = (id) => HOTKEYS[id][0].modifiers.join('+') + '+' + HOTKEYS[id][0].key;
+  assert.equal(k('insert-definition'), 'Mod+f');
+  assert.equal(k('insert-definition-link'), 'Mod+Shift+f');
+});
+
+test('aliases: the name in other capitals, and its abbreviations (given, or in brackets after it)', () => {
+  assert.deepEqual(nameAndAliases('In vitro fertilisation (IVF)', 'test-tube conception'), {
+    name: 'In vitro fertilisation',
+    aliases: ['in vitro fertilisation', 'In Vitro Fertilisation', 'IVF', 'test-tube conception'],
+  });
+  assert.deepEqual(nameAndAliases('abortion', ''), { name: 'abortion', aliases: ['Abortion'] });
+  assert.deepEqual(nameAndAliases('DNA', 'deoxyribonucleic acid'), { name: 'DNA', aliases: ['dna', 'Dna', 'deoxyribonucleic acid'] });
+  assert.match(formatNoteText('def', { name: 'In vitro fertilisation (IVF)', date: '2026-11-11' }), /^---\nformat: def\ndate: 2026-11-11\naliases:\n  - "in vitro fertilisation"\n  - "In Vitro Fertilisation"\n  - "IVF"\n---\n> \[!info\] In vitro fertilisation\n/);
 });

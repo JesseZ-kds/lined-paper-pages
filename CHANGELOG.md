@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-11-11
+
+### Changed
+- **Definition and quote pages:**
+  - no `from` property;
+  - plain notes, not lined paper.
+- **Aliases:** a definition's or quote's page gets every other way it may be written as aliases,
+  so links, search and autocomplete find it however you write it:
+  - its name in other capitals;
+  - its abbreviations, from the new *Abbreviations or other names* field, or in brackets after the
+    name (*In vitro fertilisation (IVF)* gets IVF, and the title is *In vitro fertilisation*).
+- **Insert: definition:** Ctrl/Cmd + F makes the page and embeds it; Ctrl/Cmd + Shift + F makes it
+  and puts just a link to it. (These are also Obsidian's Search keys: take them off Search in
+  Settings → Hotkeys if it opens instead.) *Insert: quote, linked here* added, with no hotkey.
+
+### Fixed
+- **A new definition's or quote's embed no longer shows the whole note with its properties at
+  first.**
+  - The embed is put in once Obsidian has read the new note's block.
+  - An embed of one block never shows its note's properties.
+
 ## [1.26.0] - 2026-11-11
 
 ### Added

@@ -3669,6 +3669,11 @@ body.lp-hl-orange :is(.theme-dark .lined-paper:not(.light-paper), .lined-paper.d
 .lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-preview-pusher, .mod-header, .mod-footer) {
   display: none !important;
 }
+/* (an embed of one block never shows its note's properties: Obsidian can draw the whole note for a
+   moment, while it has not read a new note yet) */
+.lined-paper .internal-embed[src*="#^"] :is(.mod-frontmatter, .frontmatter-container, .metadata-container, .frontmatter, pre.frontmatter) {
+  display: none !important;
+}
 .lined-paper :is(.internal-embed:has(.callout), .markdown-embed:has(.callout), .internal-embed[src*="#^"], .internal-embed[src*="#^"] .markdown-embed) :is(.markdown-embed-title, .markdown-embed-link, .embed-title) {
   display: none !important;
 }

@@ -340,10 +340,14 @@ The PDF export uses the same paper. For printing, light paper uses far less ink.
 A definition or a quote gets a page of its own (a note), and is embedded where you use it, so one
 definition can be in many notes and stays the same in all of them.
 
-- **Insert: definition** (Alt + F): asks for the word and its definition, makes its page in the
-  definitions folder, and embeds it where your cursor is (`![[Conscientious objection#^def]]`).
-- **Insert: quote** (Alt + O): asks for the author or source, a link to the source (optional) and
-  the quote. The quote's title is its source, a link when you give one.
+- **Insert: definition**: asks for the word and its definition, makes its page in the definitions
+  folder, and embeds it where your cursor is (`![[Conscientious objection#^def]]`, Ctrl/Cmd + F),
+  or puts just a link to it there (`[[Conscientious objection#^def|Conscientious objection]]`,
+  Ctrl/Cmd + Shift + F). (These are also Obsidian's own Search keys: if Search opens instead, take
+  them off it in *Settings → Hotkeys*.)
+- **Insert: quote** (Alt + O; *linked here* has no hotkey of its own): asks for the author or
+  source, a link to the source (optional) and the quote. The quote's title is its source, a link
+  when you give one.
 
 A definition's page:
 
@@ -351,7 +355,6 @@ A definition's page:
 ---
 format: def
 date: 2026-11-11
-from: "[[Abortion]]"
 ---
 > [!info] Conscientious objection
 > A doctor may refuse to perform a procedure on moral grounds.
@@ -360,7 +363,9 @@ from: "[[Abortion]]"
 ```
 
 (a quote's: `format: quote`, `source:`, `link:`, `> [!quote] [Author](https://…)`, `^quote`).
-`from` links it to the note it was made from.
+The pages are plain notes (not lined paper). Each has its **aliases**: its name in other capitals
+and its abbreviations (from *Abbreviations or other names* in the form, or in brackets after the
+name: *In vitro fertilisation (IVF)*), so links and search find it however you write it.
 
 **Revised versions:** on a definition's or quote's page, the **Add a revised definition / quote**
 button under its last version (or **Insert: revised version**, Alt + R) adds a new version under it,
