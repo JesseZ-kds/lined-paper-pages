@@ -298,7 +298,8 @@ body.lp-cards-blank .lp-card-cell::before { display: none; }
   --row: calc(100cqh / var(--card-rows, 10));
   --card-font: calc(var(--row) * 0.62 * var(--card-k));
   position: absolute;
-  inset: var(--row) 7% 0;
+  /* (under the top row; the writing a little lower than the middle of each row, so it sits on its line) */
+  inset: calc(var(--row) * 1.16) 7% calc(var(--row) * -0.16);
   overflow: hidden;
   color: var(--card-ink);
   font-family: var(--card-hand);
@@ -309,12 +310,9 @@ body.lp-cards-plain .lp-card-face { font-family: system-ui, -apple-system, "Sego
   font-size: var(--card-font);
   line-height: var(--row);
   overflow-wrap: anywhere;
-  /* (the writing sits on its line, not in the middle of the row) */
-  position: relative;
-  top: calc(var(--row) * 0.16);
 }
 .lp-card-cell.lp-front .lp-card-text { font-weight: 600; }
-.lp-card-text :is(p, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, div) {
+.lp-cards-wrap .lp-card-face .lp-card-text :is(p, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, div) {
   margin: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
@@ -341,7 +339,8 @@ body.lp-cards-plain .lp-card-face { font-family: system-ui, -apple-system, "Sego
   align-items: flex-end;
   justify-content: space-between;
   gap: 6px;
-  padding-bottom: 0.6mm;
+  /* (a little above the red line, not sitting on it) */
+  padding-bottom: calc(100cqh / var(--card-rows, 10) * 0.24);
   box-sizing: border-box;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: calc(100cqh / var(--card-rows, 10) * 0.42);
@@ -421,29 +420,40 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
 .lp-deck-card.lp-flip .lp-card-cell.lp-front { display: none; }
 .lp-deck-card.lp-flip .lp-card-cell.lp-back { display: block; }
 
-/* beside the note (the side panel): one card under another, as wide as the panel */
+/* flip through (beside the note): one card at a time, ‹ 3 / 12 › under it */
+.lp-cards-flip .lp-cards-count,
+.lp-cards-flip .lp-cards-controls .lp-cards-btn:is(:nth-of-type(1), :nth-of-type(2)) { display: none; }
+.lp-cards-flip .lp-card-deck { grid-template-columns: 1fr !important; }
+.lp-cards-flip .lp-deck-card:not(.lp-current) { display: none; }
+.lp-cards-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 12px 0 0; }
+.lp-cards-nav .lp-cards-btn { font-size: 16px; padding: 2px 14px; }
+.lp-cards-at { font-size: 13px; color: var(--text-muted, #666); min-width: 4em; text-align: center; font-variant-numeric: tabular-nums; }
 .lp-card-panel { padding: 10px 12px !important; }
-.lp-card-panel .lp-card-deck { grid-template-columns: 1fr !important; gap: 12px; }
-.lp-card-panel .lp-cards-controls .lp-cards-btn:is(:nth-of-type(1), :nth-of-type(2)) { display: none; }
-.lp-card-panel-empty { color: var(--text-muted); font-size: 13px; padding: 12px 4px; text-align: center; }
 
 /* while editing: the cards drawn in place of the block, as in reading view */
 .markdown-source-view .lp-cuecards-block .lp-card-sheet { width: min(100%, 700px); }
 
-/* the card editor */
-.lp-card-editor { width: min(760px, 96vw); }
-.lp-ce-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-bottom: 12px; }
-.lp-ce-opt { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-muted); }
-.lp-ce-opt :is(input, select) { width: 100%; }
-.lp-ce-list { display: flex; flex-direction: column; gap: 10px; max-height: 58vh; overflow-y: auto; padding-right: 4px; }
-.lp-ce-card { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; border-top: 3px solid #e06666; }
-.lp-ce-head { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
-.lp-ce-head span { flex: 1; }
-.lp-ce-head button { padding: 0 8px; height: 22px; font-size: 12px; }
-.lp-ce-card textarea { width: 100%; resize: vertical; font-size: 13px; }
+/* the card editor: one card at a time, how it looks under it */
+.lp-card-editor { width: min(820px, 96vw); }
+.lp-ce-page { margin-bottom: 10px; font-size: 13px; }
+.lp-ce-page summary { cursor: pointer; color: var(--text-muted); }
+.lp-ce-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 8px 0 4px; }
+.lp-ce-opt, .lp-ce-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-muted); }
+.lp-ce-opt :is(input, select), .lp-ce-field :is(input, textarea) { width: 100%; color: var(--text-normal); }
+.lp-ce-field small { font-size: 11px; opacity: 0.8; }
+.lp-ce-nav { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+.lp-ce-pick { flex: 1; min-width: 0; }
+.lp-ce-flip { font-size: 18px; padding: 0 14px; }
+.lp-ce-card { display: flex; flex-direction: column; gap: 8px; border-top: 3px solid #e06666; padding-top: 10px; }
+.lp-ce-card textarea { resize: vertical; font-size: 14px; }
 .lp-ce-q { font-weight: 600; }
-.lp-ce-foot { display: flex; justify-content: space-between; margin-top: 12px; }
-@media (max-width: 600px) { .lp-ce-options { grid-template-columns: 1fr; } }
+.lp-ce-preview { margin-top: 4px; }
+.lp-ce-preview .lp-cards-controls { display: none; }
+.lp-ce-preview .lp-card-deck { grid-template-columns: 1fr 1fr !important; gap: 12px; }
+.lp-ce-preview .lp-deck-card { pointer-events: none; }
+.lp-ce-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.lp-ce-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+@media (max-width: 600px) { .lp-ce-options, .lp-ce-preview .lp-card-deck { grid-template-columns: 1fr !important; } }
 
 /* printing: just the sheets, each exactly one A4 page */
 @media print {

@@ -281,19 +281,31 @@ test('cue cards: answers on the back, mirrored for double-sided printing (flippe
   assert.equal(note, '---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n```cuecards\ntitle: Bio\n\nQ: Why?\nA: Because.\n```\n');
 });
 
-test('cue cards: the cues that are questions, with their notes; the card block written and read back the same', () => {
-  const md = '---\ndate: 2026-11-12\n---\n# Life\n> [!cue]\n> When does ==life== begin?\n\n> [!notes]\n> - at **birth**\n> - or at conception\n\n> [!cue]\n> Christianity view\n\n> [!notes]\n> not a card\n\n>> [!cue]\n>> What do biologists say? \n>\n>> [!notes]\n>> From fertilisation.\n';
+test('cue cards: the cues that are questions, with their notes, under their heading; the card block written and read back the same', () => {
+  const md = '---\ndate: 2026-11-12\n---\n# Beginning of **Life**\n> [!cue]\n> When does ==life== begin?\n\n> [!notes]\n> - at **birth**\n> - or at conception\n\n> [!cue]\n> Christianity view\n\n> [!notes]\n> not a card\n\n# Abortion\n>> [!cue]\n>> What do biologists say? \n>\n>> [!notes]\n>> From fertilisation.\n';
   const cards = cornellCards(md);
-  assert.deepEqual(cards, [{ q: 'When does ==life== begin?', a: '- at **birth**\n- or at conception' }, { q: 'What do biologists say?', a: 'From fertilisation.' }]);
-  const block = cueBlockText(cards, { title: 'Life', size: 'big', back: '' });
-  assert.equal(block, '```cuecards\ntitle: Life\nsize: big\n\nQ: When does ==life== begin?\nA: - at **birth**\n   - or at conception\n\nQ: What do biologists say?\nA: From fertilisation.\n```');
+  assert.deepEqual(cards, [{ q: 'When does ==life== begin?', a: '- at **birth**\n- or at conception', h: 'Beginning of Life' }, { q: 'What do biologists say?', a: 'From fertilisation.', h: 'Abortion' }]);
+  const block = cueBlockText(cards, { size: 'big', back: '' });
+  assert.equal(block, '```cuecards\nsize: big\n\n# Beginning of Life\nQ: When does ==life== begin?\nA: - at **birth**\n   - or at conception\n\n# Abortion\nQ: What do biologists say?\nA: From fertilisation.\n```');
   const back = parseCueBlock(block.split('\n').slice(1, -1).join('\n'));
-  assert.deepEqual(back, { opts: { title: 'Life', size: 'big' }, cards });
+  assert.deepEqual(back, { opts: { size: 'big' }, cards });
   // (an answer with a line that starts like a card's is still one card)
-  const odd = [{ q: 'Q?', a: 'line one\nA: not a new card\n\nnew paragraph' }];
+  const odd = [{ q: 'Q?', a: 'line one\nA: not a new card\n\nnew paragraph', h: '' }];
   assert.deepEqual(parseCueBlock(cueBlockText(odd).split('\n').slice(1, -1).join('\n')).cards, odd);
+  // (a block from 1.31: no headings, its title for every card)
+  assert.deepEqual(parseCueBlock('title: Life\n\nQ: Why?\nA: So.'), { opts: { title: 'Life' }, cards: [{ q: 'Why?', a: 'So.', h: '' }] });
 });
 
+test('cue cards: hidden comments (%% … %%) are left out, also after the question mark and over lines', () => {
+  const slide = '%% [slide](https://docs.google.com/presentation/d/1qqQMkGfeodK_p_G3s-PVwqEGUIKsXQ6WD9LXSNPb9wA/edit?slide=id.g3983aee9a80_0_27#slide=id.g3983aee9a80_0_27) (Slide 9) %%';
+  const md = `# Life\n>> [!cue]\n>> What is IVF? ${slide}\n>\n>> [!notes]\n>> ${slide}\n>> Fertilisation outside the body.\n>> %% a note\n>> over lines %%\n>> Then implanted.\n\n>> [!cue]\n>> ${slide}\n>> Who opposes it?\n>\n>> [!notes]\n>> The Catholic Church. <!-- hidden -->\n`;
+  assert.deepEqual(cornellCards(md), [
+    { q: 'What is IVF?', a: 'Fertilisation outside the body.\n\nThen implanted.', h: 'Life' },
+    { q: 'Who opposes it?', a: 'The Catholic Church.', h: 'Life' },
+  ]);
+  // (each card knows its cue's line: the panel shows the card you are writing in)
+  assert.deepEqual(cornellCards(md, { lines: true }).map((c) => c.line), [1, 11]);
+});
 test('updates: a newer version is found, the files come from the first mirror that answers with the right file', async () => {
   assert.equal(newerVersion('1.29.0', '1.28.0'), true);
   assert.equal(newerVersion('1.28.10', '1.28.9'), true);

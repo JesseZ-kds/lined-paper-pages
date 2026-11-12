@@ -1556,11 +1556,25 @@ const CARD_GRIDS = { small: [3, 6], standard: [2, 4], large: [2, 3], big: [2, 2]
 const CARD_ROWS = { small: 8, standard: 10, large: 13, big: 18 };
 const CARD_BACKS = ['mirror', 'fold', 'separate'];
 // the question / answer pairs of a Cornell note's source (cue + notes groups, written >> [!cue] … or
-// > [!cue] …): the markdown of each, as written
-function cornellCards(md) {
-  const lines = String(md || '').replace(/^---\n[\s\S]*?\n---\n/, '').split('\n');
+// > [!cue] …): the markdown of each, as written, without hidden comments (%% … %%, <!-- … -->), and
+// the heading each is under (h: the # Title before it). With { lines: true }, each card's line too.
+const plainHeading = (t) => String(t || '').replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_=~`]/g, '').replace(/\s+#+\s*$/, '').trim();
+function cornellCards(md, o = {}) {
+  let src = String(md || '').replace(/\r\n?/g, '\n');
+  const fm = /^---\n[\s\S]*?\n---\n/.exec(src);
+  const skip = fm ? fm[0].split('\n').length - 1 : 0;
+  if (fm) src = src.slice(fm[0].length);
+  // (a hidden comment taken out where it is, keeping the lines: a card still knows its line)
+  src = src.replace(/%%[\s\S]*?%%|<!--[\s\S]*?-->/g, (c, at) => {
+    const prefix = /^(?:>\s?)*/.exec(src.slice(src.lastIndexOf('\n', at - 1) + 1))[0];
+    return c.replace(/[^\n]/g, '').replace(/\n/g, '\n' + prefix);
+  });
+  const lines = src.split('\n');
   const parts = [];
+  let heading = '';
   for (let i = 0; i < lines.length; i++) {
+    const h = /^(?:>\s?)*#{1,6}\s+(.+)$/.exec(lines[i]);
+    if (h && !/^\s*$/.test(plainHeading(h[1]))) { heading = plainHeading(h[1]); continue; }
     const m = /^((?:>\s?)+)\[!(cue|notes)\][+-]?(.*)$/i.exec(lines[i]);
     if (!m) continue;
     const depth = (m[1].match(/>/g) || []).length;
@@ -1574,8 +1588,8 @@ function cornellCards(md) {
       if (d < depth || /^\s*\[![\w-]+\]/.test(q[2])) break;
       body.push(q[2]);
     }
+    parts.push({ kind: m[2].toLowerCase(), text: body.map((l) => l.replace(/\s+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, ''), h: heading, line: i + skip });
     i = j - 1;
-    parts.push({ kind: m[2].toLowerCase(), text: body.join('\n').replace(/^\s+|\s+$/g, '') });
   }
   const cards = [];
   parts.forEach((p, k) => {
@@ -1583,32 +1597,42 @@ function cornellCards(md) {
     const plain = p.text.replace(/[\s*_"'”’)\]=]+$/, '');
     if (!plain.endsWith('?')) return;                 // (not a question: no card)
     const next = parts[k + 1];
-    cards.push({ q: p.text, a: next && next.kind === 'notes' ? next.text : '' });
+    const c = { q: p.text, a: next && next.kind === 'notes' ? next.text : '', h: p.h };
+    if (o.lines) c.line = p.line;
+    cards.push(c);
   });
   return cards;
 }
-// the ```cuecards block of the cards (its options first)
+// the ```cuecards block of the cards (its options first; "# Heading" before the cards under it)
 function cueBlockText(cards, opts = {}) {
   const head = Object.entries(opts).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => `${k}: ${v}`);
-  const one = (prefix, s) => String(s || '').split('\n').map((l, i) => (i ? '   ' + l : prefix + l)).join('\n');
-  const body = cards.map((c) => `${one('Q: ', c.q)}\n${one('A: ', c.a)}`).join('\n\n');
+  const one = (prefix, s) => String(s || '').split('\n').map((l, i) => (i ? (l ? '   ' + l : '') : prefix + l)).join('\n');
+  let h = '';
+  const body = cards.map((c) => {
+    const ch = String(c.h || '').trim();
+    const mark = ch !== h ? `# ${ch}\n` : '';
+    h = ch;
+    return `${mark}${one('Q: ', c.q)}\n${one('A: ', c.a)}`;
+  }).join('\n\n');
   return '```cuecards\n' + (head.length ? head.join('\n') + '\n\n' : '') + body + '\n```';
 }
 // a ```cuecards block's options and cards
 function parseCueBlock(src) {
   const opts = {}, cards = [];
-  let cur = null, field = null;
-  for (const raw of String(src || '').split('\n')) {
+  let cur = null, field = null, h = '';
+  for (const raw of String(src || '').replace(/\r\n?/g, '\n').split('\n')) {
+    const hd = /^#(?:\s+(.*))?$/.exec(raw);
+    if (hd) { h = (hd[1] || '').trim(); cur = null; field = null; continue; }
     const qa = /^([QA]):\s?(.*)$/i.exec(raw);
     if (qa) {
       field = qa[1].toUpperCase() === 'Q' ? 'q' : 'a';
-      if (field === 'q' || !cur) { cur = { q: '', a: '' }; cards.push(cur); }
+      if (field === 'q' || !cur) { cur = { q: '', a: '', h }; cards.push(cur); }
       cur[field] = qa[2];
       continue;
     }
     if (!cur) {
       const o = /^\s*([\w-]+)\s*:\s*(.*?)\s*$/.exec(raw);
-      if (o) opts[o[1].toLowerCase()] = o[2];
+      if (o && !cards.length) opts[o[1].toLowerCase()] = o[2];
       continue;
     }
     cur[field] += '\n' + raw.replace(/^ {1,3}/, '');
@@ -1641,6 +1665,7 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
   const rows = CARD_ROWS[size];
   const [cols, sheetRows] = back === 'fold' ? [2, CARD_GRIDS[size][1]] : CARD_GRIDS[size];
   const title = opts.title || '';
+  const label = (k) => (cards[k] && cards[k].h) || title;
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
   const wrap = el('div', 'lp-cards-wrap');
   Object.assign(wrap.dataset, { size, back, view: opts.view || 'sheets', key: size + '|' + back });
@@ -1656,6 +1681,31 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
   btn('Flip all', () => { const on = !wrap.classList.contains('lp-flipped'); wrap.classList.toggle('lp-flipped', on); wrap.querySelectorAll('.lp-deck-card').forEach((c) => c.classList.toggle('lp-flip', on)); fitCards(wrap); });
   if (onEdit) btn('Edit cards', onEdit);
   wrap.appendChild(bar);
+  // flip through (beside the note, in the editor): one card at a time, ‹ 3 / 12 ›
+  if (opts.flip) {
+    wrap.classList.add('lp-cards-flip');
+    wrap.dataset.view = 'deck';
+    const nav = el('div', 'lp-cards-nav');
+    const prev = el('button', 'lp-cards-btn lp-nav-prev', '‹'), next = el('button', 'lp-cards-btn lp-nav-next', '›'), at = el('span', 'lp-cards-at');
+    prev.type = next.type = 'button';
+    prev.title = 'The card before'; next.title = 'The next card';
+    nav.append(prev, at, next);
+    wrap.appendChild(nav);
+    wrap.lpShow = (k) => {
+      const all = wrap.querySelectorAll('.lp-deck-card');
+      const n = all.length;
+      if (!n) return;
+      k = Math.max(0, Math.min(n - 1, k | 0));
+      all.forEach((c, i) => c.classList.toggle('lp-current', i === k));
+      wrap.dataset.at = k;
+      at.textContent = `${k + 1} / ${n}`;
+      prev.disabled = k === 0; next.disabled = k === n - 1;
+      if (opts.onShow) opts.onShow(k);
+      fitCards(wrap);
+    };
+    prev.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); wrap.lpShow(+wrap.dataset.at - 1); });
+    next.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); wrap.lpShow(+wrap.dataset.at + 1); });
+  }
   // a face: a ruled card, its writing on the lines; the top row: the note's name and the card's number
   const face = (src, side, k) => {
     const cell = el('div', 'lp-card-cell lp-' + side);
@@ -1666,7 +1716,7 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
     f.appendChild(t);
     cell.appendChild(f);
     const top = el('div', 'lp-card-top');
-    top.append(el('span', 'lp-card-label', title), el('span', 'lp-card-no', `${k + 1}${side === 'back' ? ' ✓' : ''}`));
+    top.append(el('span', 'lp-card-label', label(k)), el('span', 'lp-card-no', `${k + 1}${side === 'back' ? ' ✓' : ''}`));
     cell.appendChild(top);
     return cell;
   };
@@ -1697,6 +1747,7 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
     deck.appendChild(card);
   });
   wrap.appendChild(deck);
+  if (opts.flip) wrap.lpShow(opts.at || 0);
   return wrap;
 }
 // the cue card pages made by 1.29 / 1.30 (the cards as HTML, <div class="lp-cards">): drawn the same way
@@ -1720,9 +1771,10 @@ function fitCards(root) {
     if (!f.offsetParent || !f.clientHeight) continue;
     const key = f.clientWidth + 'x' + f.clientHeight;
     if (f.dataset.fit === key) continue;
-    const rows = +f.dataset.rows || 10, row = f.clientHeight / rows, body = rows - 1;
     const t = f.querySelector('.lp-card-text');
     if (!t) continue;
+    const row = parseFloat(getComputedStyle(t).lineHeight) || f.clientHeight / ((+f.dataset.rows || 10) - 1);
+    const body = Math.max(1, Math.round(f.clientHeight / row));
     t.style.removeProperty('font-size');
     t.style.removeProperty('margin-top');
     let k = 1;
@@ -2221,9 +2273,9 @@ module.exports = class LinedPaperPages extends Plugin {
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
     if (this.registerView && ItemView) this.registerView('lp-cue-cards', (leaf) => new CueCardsView(leaf, this));
-    const panel = () => { window.clearTimeout(this._panelT); this._panelT = window.setTimeout(() => this.refreshCardPanel().catch(() => {}), 500); };
+    const panel = (follow = false) => { window.clearTimeout(this._panelT); this._panelT = window.setTimeout(() => this.refreshCardPanel(follow).catch(() => {}), 500); };
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => { const v = leaf && leaf.view; if (v && v.file && v.getViewType && v.getViewType() === 'markdown') { this.cardSource = v.file; panel(); } }));
-    if (this.app.workspace.on) this.registerEvent(this.app.workspace.on('editor-change', (ed, info) => { if (info && info.file && info.file === this.cardSource) panel(); }));
+    if (this.app.workspace.on) this.registerEvent(this.app.workspace.on('editor-change', (ed, info) => { if (info && info.file && info.file === this.cardSource) panel(true); }));
     // review mode: a click on a covered notes column shows it (and hides it again)
     this.registerDomEvent(document, 'click', (e) => this.onReviewClick(e), true);
     // the toolbar on each lined-paper note
@@ -2770,7 +2822,9 @@ module.exports = class LinedPaperPages extends Plugin {
     el._lpCue = { src, sourcePath };
     const { opts, cards } = parseCueBlock(src);
     const o = { size: opts.size || this.settings['cards-size'], back: opts.back || this.settings['cards-back'], title: opts.title || '', text: opts.text };
-    const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, sourcePath), a: await this.renderCardText(c.a, sourcePath) })));
+    el.classList.add('lp-cuecards-block');
+    if (!cards.length) { el.replaceChildren(); return; }
+    const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, sourcePath), a: await this.renderCardText(c.a, sourcePath), h: c.h })));
     const view = el.querySelector('.lp-cards-wrap') ? el.querySelector('.lp-cards-wrap').dataset.view : 'sheets';
     const file = sourcePath && this.app.vault.getAbstractFileByPath(sourcePath);
     el.replaceChildren(buildCardWrap(els, { ...o, view }, file ? () => this.editCueCards(file) : null));
@@ -2786,55 +2840,106 @@ module.exports = class LinedPaperPages extends Plugin {
     this.refreshCardPanel();
   }
 
-  // ---------- the card editor: change, add, take out and move cards, and the page's options ----------
-  async editCueCards(file) {
+  // ---------- the card editor: one card at a time (flip through ‹ ›), as it will look; change, add, take
+  // out and move cards, and the page's options ----------
+  async editCueCards(file, at = 0) {
     const app = this.app;
     if (!Modal) { new Notice('Lined Paper Pages: this needs a newer Obsidian'); return; }
     const text = await app.vault.read(file);
     const m = /```cuecards[^\n]*\n([\s\S]*?)\n```/.exec(text);
     if (!m) { new Notice('Lined Paper Pages: no cue cards in this note (make them with Note: make cue cards)'); return; }
     const { opts, cards } = parseCueBlock(m[1]);
+    const rows = cards.map((c) => ({ q: c.q, a: c.a, h: c.h || '' }));
+    if (!rows.length) rows.push({ q: '', a: '', h: '' });
+    let k = Math.max(0, Math.min(rows.length - 1, at | 0)), dirty = false;
     const modal = new Modal(app);
     modal.titleEl.setText('Edit cue cards');
     modal.modalEl.addClass('lp-card-editor');
-    const page = modal.contentEl.createDiv({ cls: 'lp-ce-options' });
-    const opt = (name, el) => { const r = page.createDiv({ cls: 'lp-ce-opt' }); r.createSpan({ text: name }); r.appendChild(el); return el; };
+    const root = modal.contentEl;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const button = (parent, label, title, f, cls) => { const b = mk(parent, 'button', cls || '', label); b.type = 'button'; if (title) b.title = title; b.addEventListener('click', (e) => { e.preventDefault(); f(); }); return b; };
+
+    // the page's options (folded away)
+    const more = mk(root, 'details', 'lp-ce-page');
+    mk(more, 'summary', '', 'Page options (size, answers, text size)');
+    const page = mk(more, 'div', 'lp-ce-options');
+    const opt = (name, el) => { const r = mk(page, 'label', 'lp-ce-opt'); mk(r, 'span', '', name); r.appendChild(el); el.addEventListener('change', () => { dirty = true; preview(); }); return el; };
     const input = (v, ph) => { const i = document.createElement('input'); i.type = 'text'; i.value = v || ''; if (ph) i.placeholder = ph; return i; };
-    const select = (v, options) => { const s = document.createElement('select'); for (const [k, l] of Object.entries(options)) { const o = s.createEl ? s.createEl('option', { text: l, value: k }) : Object.assign(document.createElement('option'), { textContent: l, value: k }); if (!s.createEl) s.appendChild(o); } s.value = v; return s; };
-    const fTitle = opt('Title (top of each card)', input(opts.title, 'Beginning of Life'));
+    const select = (v, options) => { const sel = document.createElement('select'); for (const [key, l] of Object.entries(options)) { const o = document.createElement('option'); o.value = key; o.textContent = l; sel.appendChild(o); } sel.value = v; return sel; };
+    const fTitle = opt('Title, for cards with no heading', input(opts.title, file.basename.replace(/ cue cards$/, '')));
     const fSize = opt('Card size', select(opts.size || '', { '': 'As in the settings', small: 'Small (18 a page)', standard: 'Standard (8 a page)', large: 'Large (6 a page)', big: 'Big (4 a page)' }));
     const fBack = opt('Answers', select(opts.back || '', { '': 'As in the settings', mirror: 'On the back (double-sided)', fold: 'Beside the question (fold)', separate: 'On their own pages' }));
     const fText = opt('Text size', input(opts.text, '100%'));
-    const list = modal.contentEl.createDiv({ cls: 'lp-ce-list' });
-    const rows = [];
-    const draw = () => {
-      list.replaceChildren();
-      rows.forEach((r, k) => {
-        const box = list.createDiv({ cls: 'lp-ce-card' });
-        const head = box.createDiv({ cls: 'lp-ce-head' });
-        head.createSpan({ text: `Card ${k + 1}` });
-        const tool = (label, title, f) => { const b = head.createEl('button', { text: label }); b.title = title; b.addEventListener('click', (e) => { e.preventDefault(); f(); }); };
-        tool('↑', 'Move up', () => { if (k) { [rows[k - 1], rows[k]] = [rows[k], rows[k - 1]]; draw(); } });
-        tool('↓', 'Move down', () => { if (k < rows.length - 1) { [rows[k + 1], rows[k]] = [rows[k], rows[k + 1]]; draw(); } });
-        tool('✕', 'Take this card out', () => { rows.splice(k, 1); draw(); });
-        const q = box.createEl('textarea', { cls: 'lp-ce-q' }); q.value = r.q; q.placeholder = 'Question (the front)'; q.rows = 2; q.addEventListener('input', () => { r.q = q.value; });
-        const a = box.createEl('textarea', { cls: 'lp-ce-a' }); a.value = r.a; a.placeholder = 'Answer (the back): **bold**, ==highlight==, - points …'; a.rows = 4; a.addEventListener('input', () => { r.a = a.value; });
-      });
-    };
-    for (const c of cards) rows.push({ q: c.q, a: c.a });
-    draw();
-    const foot = modal.contentEl.createDiv({ cls: 'lp-ce-foot' });
-    const add = foot.createEl('button', { text: '+ Add a card' });
-    add.addEventListener('click', (e) => { e.preventDefault(); rows.push({ q: '', a: '' }); draw(); list.lastElementChild && list.lastElementChild.querySelector('textarea').focus(); });
-    const save = foot.createEl('button', { text: 'Save', cls: 'mod-cta' });
-    save.addEventListener('click', async (e) => {
-      e.preventDefault();
+
+    // flip through: ‹  [3. When does life begin?  ▾]  ›
+    const nav = mk(root, 'div', 'lp-ce-nav');
+    const prev = button(nav, '‹', 'The card before (Page Up)', () => show(k - 1), 'lp-ce-flip');
+    const pick = mk(nav, 'select', 'lp-ce-pick');
+    const next = button(nav, '›', 'The next card (Page Down)', () => show(k + 1), 'lp-ce-flip');
+    pick.addEventListener('change', () => show(+pick.value));
+
+    // the card: its heading, question and answer, and how it looks (front, back)
+    const card = mk(root, 'div', 'lp-ce-card');
+    const field = (name, el, hint) => { const r = mk(card, 'label', 'lp-ce-field'); mk(r, 'span', '', name); r.appendChild(el); if (hint) mk(r, 'small', '', hint); return el; };
+    const fH = field('Heading (top of the card)', input('', 'the # heading it was under'));
+    const fQ = field('Question (the front)', document.createElement('textarea'));
+    const fA = field('Answer (the back)', document.createElement('textarea'), '**bold**, ==highlight==, - points, an indented line for a new line');
+    fQ.rows = 2; fA.rows = 6; fQ.className = 'lp-ce-q'; fA.className = 'lp-ce-a';
+    const look = mk(card, 'div', 'lp-ce-preview');
+    const edit = () => { const r = rows[k]; r.h = fH.value; r.q = fQ.value; r.a = fA.value; dirty = true; pickLabel(k); preview(); };
+    for (const f of [fH, fQ, fA]) f.addEventListener('input', edit);
+
+    // add, take out, move
+    const tools = mk(root, 'div', 'lp-ce-tools');
+    button(tools, '+ Card after this', 'A new card after this one', () => { rows.splice(k + 1, 0, { q: '', a: '', h: rows[k] ? rows[k].h : '' }); dirty = true; show(k + 1); fQ.focus(); });
+    button(tools, '⇠ Move earlier', 'Swap with the card before', () => { if (k) { [rows[k - 1], rows[k]] = [rows[k], rows[k - 1]]; dirty = true; show(k - 1); } });
+    button(tools, 'Move later ⇢', 'Swap with the next card', () => { if (k < rows.length - 1) { [rows[k + 1], rows[k]] = [rows[k], rows[k + 1]]; dirty = true; show(k + 1); } });
+    button(tools, '✕ Take out', 'Take this card out', () => { rows.splice(k, 1); if (!rows.length) rows.push({ q: '', a: '', h: '' }); dirty = true; show(Math.min(k, rows.length - 1)); }, 'mod-warning');
+    const foot = mk(root, 'div', 'lp-ce-foot');
+    button(foot, 'Cancel', '', () => { dirty = false; modal.close(); });
+    const save = button(foot, 'Save', 'Save (Ctrl/Cmd + Enter)', async () => {
       const o = { title: fTitle.value.trim(), size: fSize.value, back: fBack.value, text: fText.value.trim() };
       const block = cueBlockText(rows.filter((r) => r.q.trim() || r.a.trim()), o);
       await app.vault.process(file, (data) => data.replace(/```cuecards[^\n]*\n[\s\S]*?\n```/, () => block));
+      dirty = false;
       modal.close();
       new Notice('Lined Paper Pages: cue cards saved');
+    }, 'mod-cta');
+
+    const short = (r, i) => `${i + 1}. ${(r.q || '(no question yet)').replace(/%%[\s\S]*?%%|[*_=~`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 70)}`;
+    const pickLabel = (i) => { if (pick.options[i]) pick.options[i].textContent = short(rows[i], i); };
+    let pt = 0;
+    const preview = () => {
+      window.clearTimeout(pt);
+      pt = window.setTimeout(async () => {
+        const r = rows[k];
+        const one = [{ q: await this.renderCardText(r.q, file.path), a: await this.renderCardText(r.a, file.path), h: r.h }];
+        const wrap = buildCardWrap(one, { size: fSize.value || this.settings['cards-size'], back: 'mirror', title: fTitle.value.trim() || fTitle.placeholder, text: fText.value.trim(), view: 'deck' });
+        const front = wrap.querySelector('.lp-deck-card');
+        const back = front.cloneNode(true);
+        back.classList.add('lp-flip');
+        wrap.querySelector('.lp-card-deck').appendChild(back);
+        for (const c of wrap.querySelectorAll('.lp-card-no')) c.textContent = c.textContent.replace(/^\d+/, String(k + 1));
+        look.replaceChildren(wrap);
+        window.setTimeout(() => fitCards(look), 0);
+      }, 150);
+    };
+    const show = (i) => {
+      k = Math.max(0, Math.min(rows.length - 1, i));
+      pick.replaceChildren(...rows.map((r, n) => { const o = document.createElement('option'); o.value = n; o.textContent = short(r, n); return o; }));
+      pick.value = String(k);
+      const r = rows[k];
+      fH.value = r.h; fQ.value = r.q; fA.value = r.a;
+      prev.disabled = k === 0; next.disabled = k === rows.length - 1;
+      preview();
+    };
+    modal.contentEl.addEventListener('keydown', (e) => {
+      if (e.key === 'PageUp') { e.preventDefault(); show(k - 1); } else if (e.key === 'PageDown') { e.preventDefault(); show(k + 1); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save.click(); }
     });
+    const close = modal.onClose ? modal.onClose.bind(modal) : null;
+    modal.onClose = () => { if (close) close(); if (dirty) new Notice('Lined Paper Pages: cue card changes not saved'); };
+    this._editor = { modal, show, rows, root };
+    show(k);
     modal.open();
   }
 
@@ -2846,26 +2951,37 @@ module.exports = class LinedPaperPages extends Plugin {
     ws.revealLeaf(leaf);
     this.refreshCardPanel();
   }
-  async refreshCardPanel() {
+  async refreshCardPanel(follow = false) {
     const ws = this.app.workspace;
     if (!ws.getLeavesOfType) return;
     const leaves = ws.getLeavesOfType('lp-cue-cards');
     if (!leaves.length) return;
     const file = this.cardSource;
-    let text = '';
+    let text = '', cursor = -1;
     if (file) {
       const md = ws.getLeavesOfType('markdown').map((l) => l.view).find((v) => v.file === file && v.editor);
       text = md ? md.editor.getValue() : await this.app.vault.cachedRead(file);
+      if (md && md.editor.getCursor) cursor = md.editor.getCursor().line;
     }
     const blk = /```cuecards[^\n]*\n([\s\S]*?)\n```/.exec(text);
-    const { opts, cards } = blk ? parseCueBlock(blk[1]) : { opts: {}, cards: cornellCards(text) };
-    const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, file ? file.path : ''), a: await this.renderCardText(c.a, file ? file.path : '') })));
+    const { opts, cards } = blk ? parseCueBlock(blk[1]) : { opts: {}, cards: cornellCards(text, { lines: true }) };
+    // (while you write in a cue or its notes: that card)
+    if (follow && cursor >= 0 && !blk) {
+      let k = -1;
+      cards.forEach((c, i) => { if (c.line <= cursor) k = i; });
+      if (k >= 0) this._panelAt = k;
+    }
+    if (file !== this._panelFile) { this._panelFile = file; if (!follow) this._panelAt = 0; }
+    const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, file ? file.path : ''), a: await this.renderCardText(c.a, file ? file.path : ''), h: c.h })));
     for (const leaf of leaves) {
       const host = leaf.view.contentEl;
       host.replaceChildren();
       host.classList.add('lp-card-panel');
-      if (!cards.length) { host.createDiv({ cls: 'lp-card-panel-empty', text: file ? 'No cue in this note ends with a question mark yet.' : 'Open a Cornell note.' }); continue; }
-      const wrap = buildCardWrap(els, { size: opts.size || this.settings['cards-size'], back: opts.back || this.settings['cards-back'], title: opts.title || (file ? file.basename : ''), text: opts.text, view: 'deck' }, blk && file ? () => this.editCueCards(file) : null);
+      if (!cards.length) continue;            // (no cue cards: nothing)
+      const wrap = buildCardWrap(els, {
+        size: opts.size || this.settings['cards-size'], back: opts.back || this.settings['cards-back'], title: opts.title || '', text: opts.text,
+        flip: true, at: this._panelAt || 0, onShow: (k) => { this._panelAt = k; },
+      }, blk && file ? () => this.editCueCards(file, this._panelAt || 0) : null);
       host.appendChild(wrap);
       window.setTimeout(() => fitCards(host), 30);
     }

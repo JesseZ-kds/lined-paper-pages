@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-11-12
+
+### Changed
+- **The card editor shows one card at a time.** Flip through with ‹ › (or Page Up / Page Down), or
+  pick a card from the list. Under the card, its front and back as they will look. Add a card after
+  this one, move it earlier or later, take it out; the page's options are folded away. Save with
+  Ctrl/Cmd + Enter.
+- **Cards beside the note** show one at a time (‹ 3 / 12 ›), and the card you are writing in.
+- **The top of each card is the heading the cue is under** (the `# Title` before it), a little above
+  the red line. The note's name only when there is no heading.
+
+### Fixed
+- **The writing sits on the lines.** It was placed by the wrong row height (10% short on a standard
+  card), so on most cards it floated between two lines.
+- **Hidden comments** (`%% … %%`, `<!-- … -->`) in a cue or its notes are left out of the cards. A
+  cue with a comment after its question mark (`What is IVF? %% [slide](…) %%`) is a card again.
+- A note with no question cues shows nothing beside it (no message), and an empty card block shows
+  nothing.
+
 ## [1.31.0] - 2026-11-12
 
 ### Changed

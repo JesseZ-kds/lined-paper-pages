@@ -536,15 +536,12 @@ test('cue cards look like ruled index cards: a red line under the top row, the w
       const rows = +face.dataset.rows, row = cell.getBoundingClientRect().height / rows;
       const top = cell.getBoundingClientRect().top;
       const red = getComputedStyle(cell, '::before');
-      // each line of writing: its letters' bottom just above a ruled line
-      const range = document.createRange(); range.selectNodeContents(text);
-      const lines = [...range.getClientRects()].map((r) => (r.bottom - top) / row);
       const mark = [...document.querySelectorAll('.lp-card-sheet.lp-back .lp-card-text mark')][0];
       const ms = getComputedStyle(mark);
       return {
         rows, red: red.backgroundColor, redTop: (parseFloat(red.top) + parseFloat(red.height) / 2) / row,
         paper: getComputedStyle(cell).backgroundColor, lines: cell.style.length >= 0 && getComputedStyle(cell).backgroundImage.includes('linear-gradient'),
-        onLine: lines.every((b) => b % 1 > 0.6 || b % 1 < 0.05), lineH: parseFloat(getComputedStyle(text).lineHeight) / row,
+        lineH: parseFloat(getComputedStyle(text).lineHeight) / row,
         label: cell.querySelector('.lp-card-label').textContent, no: cell.querySelector('.lp-card-no').textContent,
         mark: ms.backgroundImage.includes('255, 232, 26'), ink: getComputedStyle(text).color,
       };
@@ -555,10 +552,154 @@ test('cue cards look like ruled index cards: a red line under the top row, the w
     assert.equal(r.paper, 'rgb(255, 255, 255)', 'white, in dark mode too');
     assert.ok(r.lines, 'blue lines');
     assert.ok(Math.abs(r.lineH - 1) < 0.02, 'one line of writing a row');
-    assert.ok(r.onLine, 'the writing on the lines');
     assert.deepEqual([r.label, r.no], ['Life', '1']);
     assert.ok(r.mark, 'the light highlighter, on the white card');
     assert.equal(r.ink, 'rgb(31, 41, 55)', 'dark writing on the white card');
+  } finally {
+    await context.close();
+  }
+});
+
+test('cue cards in a dark lined-paper note (Obsidian\'s markup: lists with bullets, highlights): every line of writing sits on a ruled line, in each font', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-dark' });
+  try {
+    const r = await page.evaluate(() => {
+      const P = window.plugin.constructor;
+      const view = document.querySelector('.markdown-preview-view');
+      const host = document.createElement('div');
+      host.className = 'el-pre';
+      host.innerHTML = '<div class="block-language-cuecards lp-cuecards-block"></div>';
+      (view.querySelector('.markdown-preview-sizer') || view).appendChild(host);
+      const html = (s) => { const d = document.createElement('div'); d.innerHTML = s; return d; };
+      const cards = [
+        { q: html('<p>When does <strong>life</strong> begin?</p>'), a: html('<ul class="has-list-bullet"><li data-line="0" dir="auto"><span class="list-bullet"></span>CJ at <mark>birth</mark>, when the head emerges</li><li data-line="1" dir="auto"><span class="list-bullet"></span>the soul enters at <strong>birth</strong></li></ul>'), h: 'Beginning of Life' },
+        { q: html('<p>What do biologists say?</p>'), a: html('<p>From fertilisation. ' + 'A new life begins. '.repeat(6) + '</p><p>Second paragraph.</p>'), h: 'Abortion' },
+      ];
+      const out = {};
+      for (const font of ['serif', 'sans-serif', 'cursive']) {
+        const block = host.firstChild;
+        block.replaceChildren(P.buildCardWrap(cards, { title: 'Life' }));
+        block.querySelector('.lp-cards-wrap').style.setProperty('--card-hand', font);
+        P.fitCards(block);
+        const bad = [];
+        for (const cell of block.querySelectorAll('.lp-card-sheet .lp-card-cell:not(.lp-empty)')) {
+          const box = cell.getBoundingClientRect(), t = cell.querySelector('.lp-card-text');
+          const row = parseFloat(getComputedStyle(t).lineHeight);
+          if (Math.abs(row - box.height / 10) > 0.5) bad.push('row ' + row + ' vs ' + box.height / 10);
+          // a mark at the baseline of each line of writing (a zero-size box sits on the baseline)
+          const probes = [];
+          const walk = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+          const texts = []; for (let n; (n = walk.nextNode());) if (n.textContent.trim()) texts.push(n);
+          for (const n of texts) {
+            const words = n.textContent.split(/(\s+)/);
+            const frag = document.createDocumentFragment();
+            for (const w of words) { frag.appendChild(document.createTextNode(w)); if (w.trim()) { const p = document.createElement('i'); p.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'; frag.appendChild(p); probes.push(p); } }
+            n.replaceWith(frag);
+          }
+          const ys = [...new Set(probes.map((p) => Math.round((p.getBoundingClientRect().bottom - box.top) * 10) / 10))];
+          for (const y of ys) {
+            const f = (y / row) % 1, line = Math.floor(y / row);
+            if (f < 0.7 || f > 0.97 || line < 1 || line > 9) bad.push(`${cell.textContent.trim().slice(0, 12)}: baseline at row ${(y / row).toFixed(2)}`);
+          }
+        }
+        out[font] = bad;
+      }
+      return out;
+    });
+    assert.deepEqual(r, { serif: [], 'sans-serif': [], cursive: [] });
+  } finally {
+    await context.close();
+  }
+});
+
+// (Obsidian's Modal and ItemView, as much as the card editor and the panel use)
+const WITH_MODAL = `const __require = require;
+require = (n) => (n !== 'obsidian' ? __require(n) : Object.assign({}, __require(n), {
+  Modal: class { constructor(app) { this.app = app; this.modalEl = document.createElement('div'); this.modalEl.className = 'modal'; this.titleEl = document.createElement('div'); this.titleEl.setText = (t) => { this.titleEl.textContent = t; }; this.modalEl.addClass = (c) => this.modalEl.classList.add(c); this.contentEl = document.createElement('div'); this.modalEl.append(this.titleEl, this.contentEl); }
+    open() { document.body.appendChild(this.modalEl); } close() { this.modalEl.remove(); if (this.onClose) this.onClose(); } },
+  ItemView: class { constructor(leaf) { this.leaf = leaf; this.contentEl = document.createElement('div'); } },
+}));
+` + require('./lib/harness').MAIN;
+
+const BLOCK = 'size: standard\n\n# Beginning of Life\nQ: When does life begin?\nA: - at **birth**\n   - or at conception\n\nQ: What do biologists say?\nA: From fertilisation.\n\n# Abortion\nQ: Who opposes it?\nA: The Church.';
+test('the card editor: one card at a time (flip through), how it looks under it; move, add, take out, save', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-dark', src: WITH_MODAL });
+  try {
+    const r = await page.evaluate(async (block) => {
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const plugin = window.plugin;
+      let text = 'intro\n```cuecards\n' + block + '\n```\nafter';
+      plugin.app.vault = { read: async () => text, process: async (f, fn) => { text = fn(text); } };
+      await plugin.editCueCards({ path: 'Cue cards/Life cue cards.md', basename: 'Life cue cards' }, 1);
+      await wait(400);
+      const ed = document.querySelector('.lp-card-editor');
+      const state = () => ({
+        shown: ed.querySelectorAll('.lp-ce-card').length,
+        pick: [...ed.querySelectorAll('.lp-ce-pick option')].map((o) => o.textContent),
+        at: ed.querySelector('.lp-ce-pick').value,
+        h: ed.querySelector('.lp-ce-field input').value, q: ed.querySelector('.lp-ce-q').value,
+        look: [...ed.querySelectorAll('.lp-ce-preview .lp-deck-card')].map((c) => [...c.querySelectorAll('.lp-card-cell')].find((x) => getComputedStyle(x).display !== 'none').textContent.replace(/\s+/g, ' ').trim()),
+      });
+      const first = state();
+      const btn = (label) => [...ed.querySelectorAll('button')].find((b) => b.textContent.includes(label));
+      btn('›').click(); await wait(300);
+      const third = state();
+      // change the question, move it earlier, add one after it, take the first out, save
+      const q = ed.querySelector('.lp-ce-q'); q.value = 'Who opposes IVF?'; q.dispatchEvent(new Event('input'));
+      btn('Move earlier').click(); await wait(50);
+      btn('Card after this').click(); await wait(50);
+      ed.querySelector('.lp-ce-q').value = 'New?'; ed.querySelector('.lp-ce-q').dispatchEvent(new Event('input'));
+      ed.querySelector('.lp-ce-a').value = 'Yes.'; ed.querySelector('.lp-ce-a').dispatchEvent(new Event('input'));
+      ed.querySelector('.lp-ce-pick').value = '0'; ed.querySelector('.lp-ce-pick').dispatchEvent(new Event('change'));
+      btn('Take out').click(); await wait(50);
+      btn('Save').click(); await wait(100);
+      return { first, third, text, open: !!document.querySelector('.lp-card-editor') };
+    }, BLOCK);
+    assert.equal(r.first.shown, 1, 'one card at a time');
+    assert.deepEqual(r.first.pick, ['1. When does life begin?', '2. What do biologists say?', '3. Who opposes it?']);
+    assert.equal(r.first.at, '1', 'opened at the card asked for');
+    assert.deepEqual([r.first.h, r.first.q], ['Beginning of Life', 'What do biologists say?']);
+    assert.deepEqual(r.first.look, ['What do biologists say?Beginning of Life2', 'From fertilisation.Beginning of Life2 ✓'], 'the front and the back, as they will look');
+    assert.deepEqual([r.third.at, r.third.h, r.third.q], ['2', 'Abortion', 'Who opposes it?']);
+    assert.equal(r.open, false);
+    assert.equal(r.text, 'intro\n```cuecards\nsize: standard\n\n# Abortion\nQ: Who opposes IVF?\nA: The Church.\n\nQ: New?\nA: Yes.\n\n# Beginning of Life\nQ: What do biologists say?\nA: From fertilisation.\n```\nafter');
+  } finally {
+    await context.close();
+  }
+});
+
+test('the cards beside the note: one at a time (flip through), the card you are writing in; nothing when the note has no question cues', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-light', src: WITH_MODAL });
+  try {
+    const r = await page.evaluate(async () => {
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const plugin = window.plugin;
+      const panel = document.createElement('div'); panel.style.width = '320px'; document.body.appendChild(panel);
+      const leaf = { view: { contentEl: panel } };
+      let note = '# Life\n>> [!cue]\n>> When does life begin? %% [slide](https://example.com) (Slide 9) %%\n>\n>> [!notes]\n>> At birth.\n\n# Abortion\n>> [!cue]\n>> Who opposes it?\n>\n>> [!notes]\n>> The Church.\n';
+      let cursor = 0;
+      const file = { path: 'Life.md', basename: 'Life' };
+      const md = { file, editor: { getValue: () => note, getCursor: () => ({ line: cursor, ch: 0 }) } };
+      Object.assign(plugin.app.workspace, { getLeavesOfType: (t) => (t === 'lp-cue-cards' ? [leaf] : [{ view: md }]) });
+      plugin.cardSource = file;
+      const shown = () => { const c = panel.querySelector('.lp-deck-card.lp-current'); return c ? [panel.querySelectorAll('.lp-deck-card').length, [...panel.querySelectorAll('.lp-deck-card')].filter((x) => getComputedStyle(x).display !== 'none').length, c.querySelector('.lp-card-label').textContent, c.querySelector('.lp-front .lp-card-text').textContent.trim(), panel.querySelector('.lp-cards-at').textContent] : null; };
+      await plugin.refreshCardPanel(); await wait(50);
+      const a = shown();
+      panel.querySelector('.lp-nav-next').click(); await wait(50);
+      const b = shown();
+      await plugin.refreshCardPanel(); await wait(50);
+      const kept = shown();
+      cursor = 4; await plugin.refreshCardPanel(true); await wait(50);   // (writing in the first card's notes)
+      const follow = shown();
+      note = '# Life\n>> [!cue]\n>> Christianity view\n>\n>> [!notes]\n>> no question\n';
+      await plugin.refreshCardPanel(); await wait(50);
+      return { a, b, kept, follow, empty: panel.innerHTML };
+    });
+    assert.deepEqual(r.a, [2, 1, 'Life', 'When does life begin?', '1 / 2'], 'one card shown, its heading at the top, the hidden comment left out');
+    assert.deepEqual(r.b, [2, 1, 'Abortion', 'Who opposes it?', '2 / 2']);
+    assert.deepEqual(r.kept, r.b, 'still at that card when the panel is drawn again');
+    assert.deepEqual(r.follow, r.a, 'the card you are writing in');
+    assert.equal(r.empty, '', 'nothing');
   } finally {
     await context.close();
   }
