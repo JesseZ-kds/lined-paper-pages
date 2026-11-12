@@ -585,11 +585,12 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
 @media print {
   .lp-cards-controls, .lp-card-deck { display: none !important; }
   .lp-cards-wrap[data-view] .lp-card-sheets { display: block !important; }
+  /* (an A4 page; with the export's page margins, as big as fits on the page, the same shape) */
   .lp-card-sheet {
-    width: 210mm;
-    height: 297mm;
-    aspect-ratio: auto;
-    margin: 0;
+    width: min(210mm, 100%, calc((100vh - 0.5mm) * 210 / 297));
+    height: auto;
+    aspect-ratio: 210 / 297;
+    margin: 0 auto;
     box-shadow: none;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

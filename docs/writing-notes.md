@@ -384,8 +384,20 @@ paper. Hidden comments (`%% … %%`, such as a link to the slide) are left out.
 - **Cards beside the note:** *Note: show cue cards beside the note* (or **▤** on the toolbar) opens a
   side panel with the cards of the note you are in, one at a time (**‹ 3 / 12 ›**). While you write,
   it shows the card you are writing in. A note with no question cues shows nothing.
-- **Print:** *Export to PDF* with Page size **A4** and Margin **None**, then print **double-sided,
-  flipping on the long edge**: each answer is printed right behind its question.
+- **Definitions and quotes:** a note's cue cards also have a card for each definition and quote it
+  uses (`![[Page#^def]]`, `[[Page]]`): the word on the front and what it means on the back; for a
+  quote, who said it on the front and the quote on the back (or the other way round: *Settings → Cue
+  cards → A quote's card*). The latest revised version, or the one embedded. A **Definitions and
+  quotes cue cards** page with all of them is kept up to date by itself as you make or change them
+  (or make it with *Note: cue cards for all definitions and quotes*).
+- **Only for printing:** *Settings → Cue cards → Cue card pages → Only for printing* keeps no cue
+  card files: making the cards opens a page to print, and closing its tab removes it. (The cards
+  beside the note still show as you write.)
+- In the editor, **Enter** starts a new line (a list goes on with the next point; Enter on an empty
+  point ends the list; Shift+Enter: just a new line). Each line shows as a line of its own on the card.
+- **Print:** *Export to PDF* with Page size **A4** and Margin **None** (with margins the sheets are
+  made a little smaller to fit), then print **double-sided, flipping on the long edge**: each answer is
+  printed right behind its question. The PDF shows the cards exactly as reading view does.
 - *Settings → Cue cards*: the card size (18, 8, 6 or 4 a page), where the answers go (on the back for
   double-sided printing, beside the question to fold, or on pages of their own), the text size, ruled
   or blank cards, cut lines, handwriting or a plain font, the note's name on each card, and the

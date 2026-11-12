@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, newerVersion, fetchPluginFile, UPDATE_MIRRORS } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, formatCard, linkedPages, hardBreaks, cardNewLine, newerVersion, fetchPluginFile, UPDATE_MIRRORS } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -325,4 +325,43 @@ test('updates: a newer version is found, the files come from the first mirror th
   // none answers: an error, nothing written
   await assert.rejects(fetchPluginFile(async () => { throw new Error('blocked'); }, '1.30.0', 'main.js'));
   assert.ok(UPDATE_MIRRORS.length >= 5, 'several mirrors to try');
+});
+
+test('cue cards for definitions and quotes: the word / who said it on the front; the latest revised version; the block a note embeds', () => {
+  const def = formatNoteText('def', { name: 'In vitro fertilisation (IVF)', text: 'Fertilisation outside the body', date: '2026-11-12' });
+  assert.deepEqual(formatCard(def, 'def'), { q: 'in vitro fertilisation', a: 'Fertilisation outside the body.', h: 'Definitions' });
+  const quote = formatNoteText('quote', { author: 'Rabbi Moshe Feinstein', text: 'The foetus is not yet a person. %% Slide 9 %%', link: 'https://example.com', date: '2026-11-12' });
+  assert.deepEqual(formatCard(quote, 'quote'), { q: '[Rabbi Moshe Feinstein](https://example.com)', a: 'The foetus is not yet a person.', h: 'Quotes' });
+  assert.deepEqual(formatCard(quote, 'quote', { front: 'quote' }), { q: 'The foetus is not yet a person.', a: '[Rabbi Moshe Feinstein](https://example.com)', h: 'Quotes' });
+  // a revised version: its card is the latest; an embed of the first (#^def) gets the first
+  const { text } = addRevised(def);
+  const revised = text.replace(/> \n\n\^revised\n$/, '> Fertilisation of an egg in a lab.\n\n^revised\n');
+  assert.equal(formatCard(revised, 'def').a, 'Fertilisation of an egg in a lab.');
+  assert.equal(formatCard(revised, 'def', { block: 'def' }).a, 'Fertilisation outside the body.');
+  assert.equal(formatCard(text, 'def').a, 'Fertilisation outside the body.', '(an empty revised version: the one before it)');
+  assert.equal(formatCard('---\nformat: def\n---\n', 'def'), null);
+  // the pages a note links or embeds (once each; not in code)
+  assert.deepEqual(linkedPages('![[Jewish View on Abortion#^quote]]\n- the [[foetus]] and [[life|Life]], [[foetus]]\n```\n[[not this]]\n```\n![[IVF#^revised-2]] %% [[nor this]] %%'), [
+    { link: 'Jewish View on Abortion', block: 'quote' }, { link: 'foetus', block: '' }, { link: 'life', block: '' }, { link: 'IVF', block: 'revised-2' },
+  ]);
+});
+
+test('card editor: Enter makes a new line (a list goes on, an empty point ends it); each line its own line on the card', () => {
+  // (an editor over a string, the cursor at the end of a line)
+  const ed = (text, line) => {
+    const e = { text, cur: { line, ch: text.split('\n')[line].length } };
+    const off = (p) => text.split('\n').slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.ch;
+    Object.assign(e, {
+      getCursor: () => e.cur, getLine: (l) => e.text.split('\n')[l],
+      replaceSelection: (t) => { const o = off(e.cur); e.text = e.text.slice(0, o) + t + e.text.slice(o); },
+      replaceRange: (t, a, b) => { e.text = e.text.slice(0, off(a)) + t + e.text.slice(off(b)); },
+    });
+    return e;
+  };
+  let e = ed('first line', 0); cardNewLine(e); assert.equal(e.text, 'first line\n');
+  e = ed('- a point', 0); cardNewLine(e); assert.equal(e.text, '- a point\n- ');
+  e = ed('  2. second', 0); cardNewLine(e); assert.equal(e.text, '  2. second\n  3. ');
+  e = ed('- a\n- ', 1); cardNewLine(e); assert.equal(e.text, '- a\n', 'Enter on an empty point: the list ends');
+  e = ed('- a point', 0); cardNewLine(e, true); assert.equal(e.text, '- a point\n', 'Shift+Enter: just a new line');
+  assert.equal(hardBreaks('line one\nline two\n\n- a\n- b\n```\nx\ny\n```\nends.  \nnext'), 'line one  \nline two\n\n- a  \n- b\n```\nx\ny\n```\nends.  \nnext');
 });

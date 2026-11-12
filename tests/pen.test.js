@@ -734,6 +734,11 @@ test('the card editor: one card at a time (flip through), how it looks under it;
       q.focus(); q.setSelectionRange(0, 3);
       q.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', code: 'KeyB', ctrlKey: !/Mac/.test(navigator.platform), metaKey: /Mac/.test(navigator.platform), altKey: true, bubbles: true }));
       const styled = q.value;
+      // Enter in the answer: a new line, the list going on
+      const a = ed.querySelector('.lp-ce-a textarea'); a.focus(); a.value = '- one'; a.setSelectionRange(5, 5); a.dispatchEvent(new Event('input'));
+      a.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const entered = a.value;
+      a.value = 'The Church.'; a.dispatchEvent(new Event('input'));
       btn('Move earlier').click(); await wait(50);
       btn('Card after this').click(); await wait(50);
       ed.querySelector('.lp-ce-q textarea').value = 'New?'; ed.querySelector('.lp-ce-q textarea').dispatchEvent(new Event('input'));
@@ -741,7 +746,7 @@ test('the card editor: one card at a time (flip through), how it looks under it;
       ed.querySelector('.lp-ce-pick').value = '0'; ed.querySelector('.lp-ce-pick').dispatchEvent(new Event('change'));
       btn('Take out').click(); await wait(50);
       btn('Save').click(); await wait(100);
-      return { first, third, text, styled, open: !!document.querySelector('.lp-card-editor') };
+      return { first, third, text, styled, entered, open: !!document.querySelector('.lp-card-editor') };
     }, BLOCK);
     assert.equal(r.first.shown, 1, 'one card at a time');
     assert.deepEqual(r.first.pick, ['1. When does life begin?', '2. What do biologists say?', '3. Who opposes it?']);
@@ -750,6 +755,7 @@ test('the card editor: one card at a time (flip through), how it looks under it;
     assert.deepEqual(r.first.look, ['What do biologists say?Beginning of Life2', 'From fertilisation.Beginning of Life2 ✓'], 'the front and the back, as they will look');
     assert.deepEqual([r.third.at, r.third.h, r.third.q], ['2', 'Abortion', 'Who opposes it?']);
     assert.equal(r.styled, '<font color="#1e4fbf">Who</font> opposes <mark class="hl-yellow">IVF</mark>?', 'the highlighter button, then the blue pen hotkey (Mod+Alt+B)');
+    assert.equal(r.entered, '- one\n- ', 'Enter: a new line, the list going on');
     assert.equal(r.open, false);
     assert.equal(r.text, 'intro\n```cuecards\nsize: standard\n\n# Abortion\nQ: <font color="#1e4fbf">Who</font> opposes <mark class="hl-yellow">IVF</mark>?\nA: The Church.\n\nQ: New?\nA: Yes.\n\n# Beginning of Life\nQ: What do biologists say?\nA: From fertilisation.\n```\nafter');
   } finally {
@@ -792,6 +798,125 @@ test('the card editor writes in Obsidian\'s own editor (Live Preview) when it ca
     assert.equal(r.shownQ, 'When does life begin?');
     assert.equal(r.row, 'When does life begin?-> ', 'a change made in it is the card\'s');
     assert.deepEqual(r.log, ['load', 'load', 'unload', 'unload']);
+  } finally {
+    await context.close();
+  }
+});
+
+// (a vault in memory: its files, their properties, the tabs open)
+const FAKE_VAULT = `
+  window.makeVault = (plugin, files) => {
+    const vault = { files: {} };
+    const add = (path, text) => { vault.files[path] = { path, text, basename: path.replace(/^.*\\//, '').replace(/\\.md$/, ''), extension: 'md' }; return vault.files[path]; };
+    for (const [p, t] of Object.entries(files)) add(p, t);
+    const open = [];
+    Object.assign(vault, {
+      getAbstractFileByPath: (p) => vault.files[p] || (Object.keys(vault.files).some((f) => f.startsWith(p + '/')) ? { path: p } : null),
+      cachedRead: async (f) => vault.files[f.path].text, read: async (f) => vault.files[f.path].text,
+      modify: async (f, t) => { vault.files[f.path].text = t; }, create: async (p, t) => add(p, t), createFolder: async () => {},
+      process: async (f, fn) => { vault.files[f.path].text = fn(vault.files[f.path].text); },
+      getMarkdownFiles: () => Object.values(vault.files), trash: async (f) => { delete vault.files[f.path]; },
+    });
+    plugin.app.vault = vault;
+    plugin.app.metadataCache = {
+      getFileCache: (f) => { const t = vault.files[f.path] && vault.files[f.path].text; const m = t && /^---\\n([\\s\\S]*?)\\n---/.exec(t); if (!m) return {}; const fm = {}; for (const l of m[1].split('\\n')) { const x = /^([\\w-]+):\\s*(.*)$/.exec(l); if (x) fm[x[1]] = x[2] === 'true' ? true : x[2]; } return { frontmatter: fm }; },
+      getFirstLinkpathDest: (link) => Object.values(vault.files).find((f) => f.basename.toLowerCase() === link.toLowerCase()) || null,
+    };
+    Object.assign(plugin.app.workspace, {
+      getLeaf: () => ({ openFile: async (f) => { open.push(f.path); } }),
+      getLeavesOfType: (t) => (t === 'markdown' ? open.map((p) => ({ view: { file: { path: p } } })) : []),
+    });
+    return { vault, open };
+  };
+`;
+const DEF = (name, text) => `---\nformat: def\ndate: 2026-11-12\n---\n> [!info] ${name}\n> ${text}\n\n^def\n`;
+const QUOTE = (who, text) => `---\nformat: quote\ndate: 2026-11-12\n---\n> [!quote] ${who}\n> ${text}\n\n^quote\n`;
+
+test('cue cards for definitions and quotes: with the note\'s cards, a page of them all kept up to date; pages only for printing removed once closed', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-light', src: WITH_MODAL });
+  try {
+    await page.evaluate(FAKE_VAULT);
+    const r = await page.evaluate(async (F) => {
+      const DEF = (n, t) => F.def.replace('{n}', n).replace('{t}', t), QUOTE = (n, t) => F.quote.replace('{n}', n).replace('{t}', t);
+      const plugin = window.plugin;
+      const { vault, open } = window.makeVault(plugin, {
+        'Definitions/foetus.md': DEF('foetus', 'An unborn baby from eight weeks.'),
+        'Definitions/life.md': DEF('life', 'Being alive.'),
+        'Quotes/Rabbi Moshe Feinstein.md': QUOTE('Rabbi Moshe Feinstein', 'The foetus is not yet a person.'),
+        'Life.md': '# Judaism\n>> [!cue]\n>> When does life begin?\n>\n>> [!notes]\n>> ![[Rabbi Moshe Feinstein#^quote]]\n>> - the [[foetus]] is special\n',
+      });
+      const qs = (p) => window.plugin.constructor.parseCueBlock(/```cuecards\n([\s\S]*?)\n```/.exec(vault.files[p].text)[1]).cards.map((c) => c.h + ': ' + c.q + ' / ' + c.a.split('\n')[0]);
+      await plugin.makeCueCards(vault.files['Life.md']);
+      const note = qs('Cue cards/Life cue cards.md');
+      await plugin.updateFormatDeck();
+      const deck = qs('Cue cards/Definitions and quotes cue cards.md');
+      vault.files['Definitions/life.md'].text = DEF('life', 'Being alive: breathing, growing.');
+      await plugin.updateFormatDeck();
+      const changed = qs('Cue cards/Definitions and quotes cue cards.md')[1];
+      // only for printing: made and opened, then gone once its tab is closed (not while it is open)
+      plugin.settings['cards-keep'] = 'print';
+      plugin.settings['cards-quote-front'] = 'quote';
+      await plugin.makeFormatCards();
+      const printPath = 'Cue cards/Definitions and quotes cue cards.md';
+      const printText = vault.files[printPath].text;
+      await plugin.sweepPrintOnly();
+      const whileOpen = !!vault.files[printPath];
+      open.length = 0;
+      await plugin.sweepPrintOnly();
+      return { note, deck, changed, printOnly: /^---\nprint-only: true\n/.test(printText), quoteFront: /Q: The foetus is not yet a person\.\nA: Rabbi Moshe Feinstein/.test(printText), whileOpen, gone: !vault.files[printPath], list: plugin.settings._printOnly };
+    }, { def: DEF('{n}', '{t}'), quote: QUOTE('{n}', '{t}') });
+    assert.deepEqual(r.note, ['Judaism: When does life begin? / ![[Rabbi Moshe Feinstein#^quote]]', 'Quotes: Rabbi Moshe Feinstein / The foetus is not yet a person.', 'Definitions: foetus / An unborn baby from eight weeks.'], 'the note\'s cue, then the quote and definition it uses');
+    assert.deepEqual(r.deck, ['Definitions: foetus / An unborn baby from eight weeks.', 'Definitions: life / Being alive.', 'Quotes: Rabbi Moshe Feinstein / The foetus is not yet a person.']);
+    assert.equal(r.changed, 'Definitions: life / Being alive: breathing, growing.', 'kept up to date');
+    assert.ok(r.printOnly, 'marked print-only');
+    assert.ok(r.quoteFront, 'the quote on the front (the setting)');
+    assert.equal(r.whileOpen, true, 'kept while its tab is open');
+    assert.equal(r.gone, true, 'removed once closed');
+    assert.deepEqual(r.list, []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('the PDF export shows the cards as reading view does: drawn off the page, every card\'s writing where it is on screen; with page margins, one sheet a page', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-dark', src: WITH_MODAL, viewport: { width: 640, height: 900 } });
+  try {
+    await page.evaluate(FAKE_VAULT);
+    const block = 'size: standard\n\n# Life\nQ: When does life begin?\nA: - at birth\n   - or at conception, when the egg is fertilised and a new life begins to grow\n\nQ: What do biologists say?\nA: From fertilisation.\nThe cells divide.\n\nQ: Who opposes abortion?\nA: ' + 'The Catholic Church holds that life is sacred from conception. '.repeat(4);
+    const shape = async () => page.evaluate(() => [...document.querySelectorAll('.lp-card-sheet .lp-card-cell:not(.lp-empty)')].filter((c) => c.closest('.print') ? true : !document.querySelector('.print')).map((c) => {
+      const t = c.querySelector('.lp-card-text'), b = c.getBoundingClientRect(), r = t.getBoundingClientRect();
+      return [((r.top - b.top) / b.height).toFixed(3), ((r.height) / b.height).toFixed(3), (parseFloat(getComputedStyle(t).fontSize) / b.height).toFixed(4)].join(' ');
+    }));
+    await page.evaluate(async (block) => {
+      const plugin = window.plugin;
+      window.makeVault(plugin, { 'x.md': '```cuecards\n' + block + '\n```' });
+      const view = document.querySelector('.markdown-preview-sizer');
+      const el = document.createElement('div');
+      view.appendChild(el);
+      await plugin.renderCueBlock(block, el, 'x.md');
+      await new Promise((ok) => setTimeout(ok, 300));
+    }, block);
+    const reading = await shape();
+    await page.evaluate(async (block) => {
+      // (the export: the block drawn on an element not on the page, then put in the print view)
+      const el = document.createElement('div');
+      await window.plugin.renderCueBlock(block, el, 'x.md');
+      document.querySelector('.markdown-reading-view').style.display = 'none';
+      const pr = document.createElement('div'); pr.className = 'print';
+      pr.innerHTML = '<div class="markdown-preview-view markdown-rendered"></div>';
+      pr.firstChild.appendChild(el);
+      document.body.appendChild(pr);
+    }, block);
+    await page.emulateMedia({ media: 'print' });
+    const printed = await shape();
+    assert.equal(reading.length, 6, 'three cards: fronts and backs (the sheets not cut into the note\'s lined pages)');
+    assert.deepEqual(printed, reading, 'each card\'s writing in the same place, the same size, in the PDF');
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-cards-')), 'cards.pdf');
+    await page.pdf({ path: file, format: 'A4', margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' }, printBackground: true });
+    const pdf = fs.readFileSync(file, 'latin1');
+    assert.equal((pdf.match(/\/Type\s*\/Page[^s]/g) || []).length, 2, 'with page margins too: a sheet of fronts, a sheet of backs');
+    fs.rmSync(path.dirname(file), { recursive: true, force: true });
   } finally {
     await context.close();
   }

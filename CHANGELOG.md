@@ -6,6 +6,33 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-11-12
+
+### Added
+- **Cue cards for definitions and quotes, made by themselves.**
+  - A note's cue cards also have a card for each definition and quote the note uses.
+  - A *Definitions and quotes cue cards* page with all of them is kept up to date as you make or
+    change them. *Note: cue cards for all definitions and quotes* makes it any time.
+  - A definition's card: the word on the front, what it means on the back. A quote's card: who said
+    it on the front, the quote on the back, or the other way round (*Settings → Cue cards → A quote's
+    card*). The latest revised version, or the one a note embeds.
+  - The cards beside the note show them too.
+- **Cue card pages only for printing** (*Settings → Cue cards → Cue card pages*): no cue card files are
+  kept. Making the cards opens a page to print; closing its tab removes it.
+- **Enter in the card editor** starts a new line: a list goes on with its next point, Enter on an
+  empty point ends it, Shift+Enter is just a new line. Every line shows as a line of its own on the
+  card (also with Obsidian's *Strict line breaks* on).
+
+### Fixed
+- **The PDF shows the cue cards as reading view does.** Each card's writing was put in the middle
+  of its card by a distance measured on screen, which was wrong at the size the PDF prints (the
+  writing sat lower, off the lines); and the PDF export draws the page off screen, where the cards
+  could not be measured at all. The cards are now measured before they are placed, and every size is
+  in rows of the card, the same on screen and on paper.
+- With the export's page margins on, each sheet is made a little smaller (the same shape) so it
+  still fits one page, instead of running onto a second.
+- A lined-paper note with cue cards in it is not cut into lined pages through the cards.
+
 ## [1.33.0] - 2026-11-12
 
 ### Changed

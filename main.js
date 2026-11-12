@@ -136,6 +136,13 @@ const SETTINGS = [
   { key: 'cards-hand', type: 'toggle', cls: 'lp-cards-plain', invert: true, def: true, name: 'Handwriting on the cards', desc: 'Off: a plain print font.' },
   { key: 'cards-lines', type: 'toggle', cls: 'lp-cards-blank', invert: true, def: true, name: 'Ruled cards', desc: 'Like an index card: a red line under the top row, blue lines for the writing. Off: blank cards.' },
   { key: 'cards-label', type: 'toggle', cls: 'lp-cards-nolabel', invert: true, def: true, name: 'The note\'s name on each card', desc: 'In the top row (the title in Edit cards), so mixed cards can be sorted.' },
+  { key: 'cards-defs', type: 'toggle', cls: 'lp-cards-defs', def: true, name: 'Cards for definitions and quotes',
+    desc: 'A "Definitions and quotes" cue card page, kept up to date as you make or change them; and, with a note\'s cue cards, a card for each definition and quote the note uses.' },
+  { key: 'cards-quote-front', type: 'select', cls: 'lp-cards-quote-', def: 'source', name: 'A quote\'s card',
+    options: { source: 'Who said it on the front, the quote on the back', quote: 'The quote on the front, who said it on the back' } },
+  { key: 'cards-keep', type: 'select', cls: 'lp-cards-keep-', def: 'keep', name: 'Cue card pages',
+    options: { keep: 'Kept: pages in the cue cards folder', print: 'Only for printing: made when you make the cards, removed when you close them' },
+    desc: 'Only for printing: no cue card files are kept. Make the cards, print them (Export to PDF), close the tab: the page is gone. (The cards beside the note still show as you write.)' },
   { key: 'cards-folder', type: 'path', def: 'Cue cards', name: 'Folder for cue card pages' },
 
   { section: 'Toolbar and buttons', desc: 'The toolbar on lined-paper notes, and the buttons on the pages. (Toolbar on / off: Pages and text.)' },
@@ -1556,6 +1563,7 @@ async function fetchPluginFile(fetch, version, file, check = () => true) {
 const CARD_GRIDS = { small: [3, 6], standard: [2, 4], large: [2, 3], big: [2, 2] };
 const CARD_ROWS = { small: 8, standard: 10, large: 13, big: 18 };
 const CARD_BACKS = ['mirror', 'fold', 'separate'];
+const FORMAT_DECK = 'Definitions and quotes cue cards';
 // the question / answer pairs of a Cornell note's source (cue + notes groups, written >> [!cue] … or
 // > [!cue] …): the markdown of each, as written, without hidden comments (%% … %%, <!-- … -->), and
 // the heading each is under (h: the # Title before it). With { lines: true }, each card's line too.
@@ -1644,6 +1652,44 @@ function parseCueBlock(src) {
 // the note made from a Cornell note: its properties and its cards
 function cueCardsNote(cards, title) {
   return `---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n${cueBlockText(cards, { title })}\n`;
+}
+// a definition's or quote's page (format: def / quote) as a card: the latest version (the last
+// ^revised one), or the block asked for. A definition: the word on the front, what it means on the
+// back. A quote: who said it on the front, the quote on the back (front: 'quote' the other way round).
+const COMMENTS = /%%[\s\S]*?%%|<!--[\s\S]*?-->/g;
+function formatCard(md, kind, o = {}) {
+  const src = String(md || '').replace(/\r\n?/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '').replace(COMMENTS, '');
+  const lines = src.split('\n');
+  const blocks = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^>\s*\[![\w-]+\][+-]?\s*(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const body = [];
+    let j = i + 1;
+    for (; j < lines.length && /^>/.test(lines[j]); j++) body.push(lines[j].replace(/^>\s?/, ''));
+    let id = '';
+    for (let n = j; n < lines.length; n++) { if (!lines[n].trim()) continue; const b = /^\^([\w-]+)\s*$/.exec(lines[n]); if (b) id = b[1]; break; }
+    blocks.push({ title: m[1].trim(), body: body.join('\n').replace(/\n{3,}/g, '\n\n').trim(), id });
+    i = j - 1;
+  }
+  const said = blocks.filter((b) => b.body);
+  const pick = (o.block && blocks.find((b) => b.id === o.block)) || said[said.length - 1];
+  if (!pick || !pick.body) return null;
+  const title = pick.title || (blocks[0] && blocks[0].title) || o.name || '';
+  if (kind === 'def') return { q: title || o.name || '', a: pick.body, h: 'Definitions' };
+  return o.front === 'quote' ? { q: pick.body, a: title, h: 'Quotes' } : { q: title, a: pick.body, h: 'Quotes' };
+}
+// the pages a note links or embeds ([[Page]], ![[Page#^def]]): { link, block } (not in code)
+function linkedPages(md) {
+  const src = String(md || '').replace(/^---\n[\s\S]*?\n---\n/, '').replace(/^(\s*(?:>\s*)*)(```|~~~)[\s\S]*?^\1\2/gm, '').replace(COMMENTS, '');
+  const out = [], seen = new Set();
+  for (const m of src.matchAll(/!?\[\[([^\]|#^]+)(?:#\^([\w-]+)|#[^\]|]*)?(?:\|[^\]]*)?\]\]/g)) {
+    const key = m[1].trim() + '#' + (m[2] || '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ link: m[1].trim(), block: m[2] || '' });
+  }
+  return out;
 }
 // which card goes in each place of a sheet: fronts in order; backs mirrored (double-sided printing,
 // flipped on the long edge: the answer is right behind its question), or in the same places
@@ -1777,6 +1823,25 @@ function layoutCards(root, settings = {}) {
     list.after(buildCardWrap(cards, { size, back, view, title: list.dataset.title || '' }));
   }
 }
+// the cards fitted away from the page (on an A4-wide sheet, out of sight), once the handwriting font
+// is there: every size given in rows and shares of the card, so it holds wherever they are shown
+async function fitOffscreen(wrap) {
+  const box = document.createElement('div');
+  box.className = 'lp-card-measure';
+  box.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;visibility:hidden;pointer-events:none;';
+  document.body.appendChild(box);
+  box.appendChild(wrap);
+  try {
+    const t = wrap.querySelector('.lp-card-text');
+    if (t && document.fonts && document.fonts.load) {
+      const fam = getComputedStyle(t).fontFamily;
+      await Promise.race([document.fonts.load('20px ' + fam).catch(() => {}), new Promise((ok) => window.setTimeout(ok, 1500))]);
+    }
+    const view = wrap.dataset.view;
+    for (const v of ['sheets', 'deck']) { wrap.dataset.view = v; fitCards(wrap); }
+    wrap.dataset.view = view;
+  } finally { box.remove(); }
+}
 // each card's writing on its lines: made smaller (on that card only) where it would not fit, then put
 // in the middle of the card's lines, on a line
 function fitCards(root) {
@@ -1798,7 +1863,7 @@ function fitCards(root) {
       t.style.setProperty('--text', `calc(var(--card-font) * ${k.toFixed(2)})`);
     }
     const n = Math.max(1, Math.min(body, Math.round(t.offsetHeight / row)));
-    t.style.setProperty('margin-top', Math.floor((body - n) / 2) * row + 'px');
+    t.style.setProperty('margin-top', `calc(var(--row) * ${Math.floor((body - n) / 2)})`);   // (in rows: the same at any size, on screen and printed)
     f.dataset.fit = key;
   }
 }
@@ -2076,6 +2141,7 @@ function addPaperCommands(plugin) {
     },
   });
   add({ id: 'update', name: 'Paper: update Lined Paper Pages (look for a new version)', callback: () => plugin.checkForUpdate(false) });
+  add({ id: 'format-cue-cards', name: 'Note: cue cards for all definitions and quotes', callback: () => plugin.makeFormatCards() });
   add({ id: 'show-cue-cards', name: 'Note: show cue cards beside the note (as you write)', callback: () => plugin.showCardPanel() });
   add({
     id: 'edit-cue-cards', name: 'Note: edit cue cards (change, add, take out, move)',
@@ -2261,7 +2327,7 @@ function cardField(app, host, value, onChange, placeholder, onFocus) {
       }
       host.classList.add('lp-ce-is-live');
       return {
-        live: true, editor: ed.editor,
+        live: true, editor: ed.editor, host,
         get: () => ed.editor.getValue(),
         set: (v) => { ed.lpQuiet = true; ed.set(v || '', false); ed.lpQuiet = false; },
         focus: () => ed.editor.focus(),
@@ -2275,7 +2341,7 @@ function cardField(app, host, value, onChange, placeholder, onFocus) {
   ta.addEventListener('input', () => onChange(ta.value));
   ta.addEventListener('focus', () => { if (onFocus) onFocus(); });
   host.appendChild(ta);
-  return { live: false, editor: textareaEditor(ta), get: () => ta.value, set: (v) => { ta.value = v || ''; }, focus: () => ta.focus(), destroy: () => ta.remove(), textarea: ta };
+  return { live: false, host, editor: textareaEditor(ta), get: () => ta.value, set: (v) => { ta.value = v || ''; }, focus: () => ta.focus(), destroy: () => ta.remove(), textarea: ta };
 }
 // what the format bar and the hotkeys do in a card editor field (the commands of the same name)
 function cardAction(id, editor) {
@@ -2296,6 +2362,28 @@ function cardAction(id, editor) {
     if (m[2]) editor.replaceRange('', { line: c.line, ch: m[1].length }, { line: c.line, ch: m[1].length + 2 });
     else editor.replaceRange('- ', { line: c.line, ch: m[1].length });
   }
+}
+// Enter in a card editor field: a new line (a list goes on: "- " again, the next number; Enter on an
+// empty point ends the list). Shift+Enter: just a new line.
+function cardNewLine(editor, plain) {
+  const c = editor.getCursor(), line = editor.getLine(c.line);
+  const m = plain ? null : /^(\s*)([-*+]|\d+[.)])(\s+)(\[.\]\s+)?/.exec(line);
+  if (m && !line.slice(m[0].length).trim() && c.ch >= line.length) { editor.replaceRange('', { line: c.line, ch: 0 }, { line: c.line, ch: line.length }); return; }
+  let next = '';
+  if (m) { const num = /^\d+/.exec(m[2]); next = m[1] + (num ? (+num[0] + 1) + m[2].slice(num[0].length) : m[2]) + m[3] + (m[4] ? '[ ] ' : ''); }
+  editor.replaceSelection('\n' + next);
+}
+// every line of a card's writing a line of its own on the card (as Obsidian shows it, also with
+// "Strict line breaks" on): a line followed by another in the same paragraph ends in a line break
+function hardBreaks(md) {
+  const ls = String(md || '').split('\n');
+  let fence = false;
+  return ls.map((l, i) => {
+    if (/^\s*(```|~~~)/.test(l)) { fence = !fence; return l; }
+    const n = ls[i + 1];
+    if (fence || n === undefined || !l.trim() || !n.trim() || / {2}$|\\$/.test(l) || /^\s*\|/.test(l) || /^\s*\|/.test(n) || /^\s*(?:>\s*)*\[!/.test(l) || /^\s*(```|~~~)/.test(n)) return l;
+    return l + '  ';
+  }).join('\n');
 }
 // the command a key press is the hotkey of (the plugin's hotkeys: Settings → Hotkeys can change them,
 // these are the defaults)
@@ -2400,6 +2488,15 @@ module.exports = class LinedPaperPages extends Plugin {
     }, true);
     // the date in the title bar (reading view): click it to change it
     this.registerDomEvent(document, 'click', (e) => this.onDateClick(e), true);
+    // the "Definitions and quotes" cue cards kept up to date; print-only cue card pages removed once closed
+    if (this.app.vault && this.app.vault.on && this.app.metadataCache && this.app.metadataCache.on) {
+      const touched = (f) => { const fm = f && this.app.metadataCache.getFileCache && (this.app.metadataCache.getFileCache(f) || {}).frontmatter; if (!f || (fm && (fm.format === 'def' || fm.format === 'quote')) || this._formatPaths && this._formatPaths.has(f.path)) this.scheduleFormatDeck(f); };
+      this.registerEvent(this.app.metadataCache.on('changed', (f) => touched(f)));
+      this.registerEvent(this.app.vault.on('delete', (f) => touched(f)));
+      this.registerEvent(this.app.vault.on('rename', (f) => touched(f)));
+      this.registerEvent(this.app.workspace.on('layout-change', () => { window.clearTimeout(this._sweepT); this._sweepT = window.setTimeout(() => this.sweepPrintOnly().catch(() => {}), 1500); }));
+      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); });
+    }
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
     if (this.registerView && ItemView) this.registerView('lp-cue-cards', (leaf) => new CueCardsView(leaf, this));
@@ -2740,6 +2837,8 @@ module.exports = class LinedPaperPages extends Plugin {
       drawArrows(view);   // (the arrows, if a part of the note was not drawn yet: kept, nothing to undo)
       dropBlankLines(view);   // (line breaks between blocks: no empty lines of their own)
       if (document.body.classList.contains('lp-no-pages')) { this.showNoteDates(view); return; }
+      // (cue cards are A4 sheets of their own: a page with them is not cut into lined pages, so it shows as it prints)
+      if (view.querySelector('.lp-cuecards-block, .lp-cards-wrap')) { this.showNoteDates(view); return; }
       if (!view.offsetParent) return; // hidden
       unwrapQuotedBlocks(view, st.undo);
       liftSummaries(view, st.undo);
@@ -2918,34 +3017,129 @@ module.exports = class LinedPaperPages extends Plugin {
   async makeCueCards(file) {
     const app = this.app;
     if (!file || file.extension !== 'md') return;
-    const cards = cornellCards(await app.vault.cachedRead(file));
+    const md = await app.vault.cachedRead(file);
+    const cards = cornellCards(md).concat(this.settings['cards-defs'] === false ? [] : await this.formatCardsFor(md, file.path));
     if (!cards.length) { new Notice('Lined Paper Pages: no cue ends with a question mark, so no cue cards were made.'); return; }
+    await this.writeCardPage(file.basename + ' cue cards', cueCardsNote(cards, file.basename), cards.length);
+  }
+  // a card for each definition and quote a note links or embeds
+  async formatCardsFor(md, sourcePath) {
+    const app = this.app, out = [], seen = new Set();
+    for (const { link, block } of linkedPages(md)) {
+      const f = app.metadataCache.getFirstLinkpathDest && app.metadataCache.getFirstLinkpathDest(link, sourcePath || '');
+      if (!f || f.extension !== 'md' || seen.has(f.path + '#' + block)) continue;
+      const fm = (app.metadataCache.getFileCache(f) || {}).frontmatter;
+      const kind = fm && (fm.format === 'def' || fm.format === 'quote') ? fm.format : null;
+      if (!kind) continue;
+      seen.add(f.path + '#' + block);
+      const c = formatCard(await app.vault.cachedRead(f), kind, { block, name: f.basename, front: this.settings['cards-quote-front'] });
+      if (c) out.push(c);
+    }
+    return out;
+  }
+  // a card for every definition and quote in the vault: the definitions (A to Z), then the quotes
+  async allFormatCards() {
+    const app = this.app, found = [];
+    for (const f of app.vault.getMarkdownFiles()) {
+      const fm = (app.metadataCache.getFileCache(f) || {}).frontmatter;
+      if (fm && (fm.format === 'def' || fm.format === 'quote')) found.push({ f, kind: fm.format });
+    }
+    this._formatPaths = new Set(found.map((x) => x.f.path));
+    found.sort((x, y) => (x.kind === y.kind ? x.f.basename.localeCompare(y.f.basename) : x.kind === 'def' ? -1 : 1));
+    const out = [];
+    for (const { f, kind } of found) {
+      const c = formatCard(await app.vault.cachedRead(f), kind, { name: f.basename, front: this.settings['cards-quote-front'] });
+      if (c) out.push(c);
+    }
+    return out;
+  }
+  // Note: cue cards for all definitions and quotes
+  async makeFormatCards() {
+    const cards = await this.allFormatCards();
+    if (!cards.length) { new Notice('Lined Paper Pages: no definitions or quotes yet (Insert: definition, Insert: quote).'); return; }
+    await this.writeCardPage(FORMAT_DECK, cueCardsNote(cards, ''), cards.length);
+  }
+  // the "Definitions and quotes" page kept up to date (pages kept, and the setting on): a while after a
+  // definition or quote is made, changed, renamed or taken out
+  scheduleFormatDeck(file) {
+    if (this.settings['cards-defs'] === false || this.settings['cards-keep'] === 'print') return;
+    if (file && file.path && !/\.md$/.test(file.path)) return;
+    if (file && file.path && file.path.endsWith(FORMAT_DECK + '.md')) return;
+    window.clearTimeout(this._deckT);
+    this._deckT = window.setTimeout(() => this.updateFormatDeck().catch(() => {}), 3000);
+  }
+  async updateFormatDeck() {
+    const app = this.app;
+    const cards = await this.allFormatCards();
+    const path = this.cardPath(FORMAT_DECK);
+    const old = app.vault.getAbstractFileByPath(path);
+    if (!cards.length && !old) return;
+    const text = cueCardsNote(cards, '');
+    if (old) { if ((await app.vault.read(old)) !== text) await app.vault.modify(old, text); return; }
+    await this.ensureCardFolder();
+    await app.vault.create(path, text);
+  }
+  cardPath(name) {
+    const set = this.settings['cards-folder'];
+    const folder = String(set === undefined ? 'Cue cards' : set).trim().replace(/^\/+|\/+$/g, '');
+    return (folder ? folder + '/' : '') + fileName(name) + '.md';
+  }
+  async ensureCardFolder() {
+    const folder = this.cardPath('x').replace(/\/?[^/]*$/, '');
+    if (folder && !this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder).catch(() => {});
+  }
+  // a cue card page written and opened: kept, or (Cue card pages: only for printing) removed once closed
+  async writeCardPage(name, text, n) {
+    const app = this.app;
     try {
-      const set = this.settings['cards-folder'];
-      const folder = String(set === undefined ? 'Cue cards' : set).trim().replace(/^\/+|\/+$/g, '');
-      if (folder && !app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder).catch(() => {});
-      const path = (folder ? folder + '/' : '') + fileName(file.basename + ' cue cards') + '.md';
-      const text = cueCardsNote(cards, file.basename);
+      const print = this.settings['cards-keep'] === 'print';
+      if (print) text = text.replace(/^---\n/, '---\nprint-only: true\n');
+      await this.ensureCardFolder();
+      const path = this.cardPath(name);
       let out = app.vault.getAbstractFileByPath(path);
       if (out) await app.vault.modify(out, text); else out = await app.vault.create(path, text);
       const leaf = app.workspace.getLeaf('tab');
       await leaf.openFile(out, { state: { mode: 'preview' } });
-      new Notice(`Lined Paper Pages: ${cards.length} cue card${cards.length === 1 ? '' : 's'}. Change them with Edit cards; print with Export to PDF (A4, margin: none).`);
+      if (print) this.addPrintOnly(out.path);
+      new Notice(`Lined Paper Pages: ${n} cue card${n === 1 ? '' : 's'}. ` + (print ? 'Print with Export to PDF (A4, margin: none); the page is removed when you close it.' : 'Change them with Edit cards; print with Export to PDF (A4, margin: none).'));
     } catch (e) {
       new Notice('Lined Paper Pages: could not make the cue cards: ' + (e && e.message ? e.message : e));
     }
+  }
+  // the print-only pages: removed once no tab shows them (also those left from last time)
+  addPrintOnly(path) {
+    const list = new Set(this.settings._printOnly || []);
+    list.add(path);
+    this.settings._printOnly = [...list];
+    this.saveData(this.settings).catch(() => {});
+  }
+  async sweepPrintOnly() {
+    const list = this.settings._printOnly || [];
+    if (!list.length) return;
+    const ws = this.app.workspace;
+    const open = new Set(ws.getLeavesOfType ? ws.getLeavesOfType('markdown').map((l) => l.view && l.view.file && l.view.file.path).filter(Boolean) : []);
+    const keep = [];
+    for (const path of list) {
+      if (open.has(path)) { keep.push(path); continue; }
+      const f = this.app.vault.getAbstractFileByPath(path);
+      const fm = f && (this.app.metadataCache.getFileCache(f) || {}).frontmatter;
+      if (f && fm && fm['print-only']) { try { await (this.app.vault.trash ? this.app.vault.trash(f, true) : this.app.vault.delete(f)); } catch (e) { keep.push(path); } }
+    }
+    if (keep.length !== list.length) { this.settings._printOnly = keep; this.saveData(this.settings).catch(() => {}); }
   }
 
   // a card's writing (markdown) as it shows: highlights, pens, bold, links, arrows
   async renderCardText(text, sourcePath) {
     const d = document.createElement('div');
+    const src = text;
+    text = hardBreaks(text);
     try {
       if (MarkdownRenderer && MarkdownRenderer.render) await MarkdownRenderer.render(this.app, text, d, sourcePath || '', this);
       else if (MarkdownRenderer && MarkdownRenderer.renderMarkdown) await MarkdownRenderer.renderMarkdown(text, d, sourcePath || '', this);
       else d.textContent = text;
     } catch (e) { d.textContent = text; }
     // (bullets typed with * and + get their own look, as on the page)
-    try { markBullets(d, { getSectionInfo: () => ({ text, lineStart: 0, lineEnd: text.split('\n').length - 1 }) }); } catch (e) { /* */ }
+    try { markBullets(d, { getSectionInfo: () => ({ text: src, lineStart: 0, lineEnd: src.split('\n').length - 1 }) }); } catch (e) { /* */ }
     drawArrows(d);
     // (an embed, ![[Page#^quote]], fills in a moment after: the card is made from it once it has)
     for (let i = 0; i < 30 && Array.from(d.querySelectorAll('.internal-embed')).some((e) => !e.classList.contains('is-loaded') && !e.childElementCount); i++) await new Promise((ok) => window.setTimeout(ok, 50));
@@ -2961,7 +3155,10 @@ module.exports = class LinedPaperPages extends Plugin {
     const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, sourcePath), a: await this.renderCardText(c.a, sourcePath), h: c.h })));
     const view = el.querySelector('.lp-cards-wrap') ? el.querySelector('.lp-cards-wrap').dataset.view : 'sheets';
     const file = sourcePath && this.app.vault.getAbstractFileByPath(sourcePath);
-    el.replaceChildren(buildCardWrap(els, { ...o, view }, file ? (at) => this.editCueCards(file, at) : null));
+    const wrap = buildCardWrap(els, { ...o, view }, file ? (at) => this.editCueCards(file, at) : null);
+    // (fitted before it is placed: the PDF export draws the page off screen, where it can't be measured)
+    await fitOffscreen(wrap);
+    el.replaceChildren(wrap);
     el.classList.add('lp-cuecards-block');
     // (its writing fitted once it is on the page)
     let tries = 0;
@@ -3049,6 +3246,11 @@ module.exports = class LinedPaperPages extends Plugin {
     const look = mk(card, 'div', 'lp-ce-preview');
     fH.addEventListener('input', () => { rows[k].h = fH.value; dirty = true; preview(); });
     modal.contentEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing) {
+        const f = Object.values(fields).find((x) => x.host && x.host.contains(e.target));
+        if (f) { e.preventDefault(); e.stopPropagation(); cardNewLine(f.editor, e.shiftKey); return; }
+        if (e.target === fH) { e.preventDefault(); fields.q.focus(); return; }
+      }
       const id = hotkeyCommand(e);
       if (!id || !current) return;
       e.preventDefault(); e.stopPropagation();
@@ -3137,6 +3339,7 @@ module.exports = class LinedPaperPages extends Plugin {
     }
     const blk = /```cuecards[^\n]*\n([\s\S]*?)\n```/.exec(text);
     const { opts, cards } = blk ? parseCueBlock(blk[1]) : { opts: {}, cards: cornellCards(text, { lines: true }) };
+    if (!blk && file && this.settings['cards-defs'] !== false) cards.push(...await this.formatCardsFor(text, file.path));
     // (while you write in a cue or its notes: that card)
     if (follow && cursor >= 0 && !blk) {
       let k = -1;
@@ -4026,6 +4229,12 @@ module.exports.cueBlockText = cueBlockText;
 module.exports.parseCueBlock = parseCueBlock;
 module.exports.buildCardWrap = buildCardWrap;
 module.exports.cueCardsNote = cueCardsNote;
+module.exports.formatCard = formatCard;
+module.exports.linkedPages = linkedPages;
+module.exports.hardBreaks = hardBreaks;
+module.exports.fitOffscreen = fitOffscreen;
+module.exports.cardNewLine = cardNewLine;
+module.exports.textareaEditor = textareaEditor;
 module.exports.sheetOrder = sheetOrder;
 module.exports.layoutCards = layoutCards;
 module.exports.newerVersion = newerVersion;
