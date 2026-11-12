@@ -484,3 +484,77 @@ test('the toolbar: on lined-paper notes, its buttons run the commands (the curso
     await context.close();
   }
 });
+
+// Cue cards: the cues that are questions with their notes, laid out on A4 sheets (one sheet = one
+// printed page), answers behind their questions; long text made smaller to fit its card
+const cueNote = () => {
+  const { title, group } = require('./lib/notes');
+  return { name: 'cards', cornell: true, blocks: [title('Life'),
+    group('<p>At which point does Judaism hold life begins?</p>', '<p>CJ at <mark>birth</mark>.</p>'),
+    group('<p>Christianity view</p>', '<p>not a question</p>'),
+    group('<p>When does <strong>Christianity</strong> hold it begins?</p>', `<p>CC at conception. ${'A new soul comes into existence. '.repeat(14)}</p>`),
+    group('<p>What do biologists say? </p>', '<p>CB from fertilisation.</p>')] };
+};
+const cardsPage = async (page, settings) => page.evaluate((settings) => {
+  const P = window.plugin.constructor;
+  const cards = P.cardsFromDom(document.querySelector('.markdown-preview-view'));
+  const html = P.cueCardsNote(cards, 'Life').split('\n---\n')[1];
+  document.body.innerHTML = `<div class="markdown-reading-view"><div class="markdown-preview-view markdown-rendered lp-cuecards">${html}</div></div>`;
+  P.layoutCards(document.body, settings);
+  P.fitCards(document.body);
+  return cards.map((c) => c.q.replace(/<[^>]+>/g, '').trim());
+}, settings);
+
+test('cue cards: only the cues that are questions; sheets as set; each answer behind its question; long text fitted', async () => {
+  const { page, context } = await openReading(cueNote(), { theme: 'theme-light' });
+  try {
+    const qs = await cardsPage(page, {});
+    assert.deepEqual(qs, ['At which point does Judaism hold life begins?', 'When does Christianity hold it begins?', 'What do biologists say?'], 'not "Christianity view"');
+    const r = await page.evaluate(() => {
+      const sheets = [...document.querySelectorAll('.lp-card-sheet')];
+      const text = (cell) => cell.textContent.trim().slice(0, 2);
+      const over = [...document.querySelectorAll('.lp-card-sheet .lp-card-face')].filter((f) => f.scrollHeight > f.clientHeight + 1).length;
+      return { sheets: sheets.map((s) => s.className.replace('lp-card-sheet lp-', '')), front: [...sheets[0].children].slice(0, 3).map(text), back: [...sheets[1].children].slice(0, 4).map(text), over };
+    });
+    assert.deepEqual(r.sheets, ['front', 'back']);
+    assert.deepEqual(r.front, ['At', 'Wh', 'Wh']);
+    assert.deepEqual(r.back, ['CC', 'CJ', '', 'CB'], 'each answer behind its question (mirrored)');
+    assert.equal(r.over, 0, 'every card shows all its text');
+    // fold: question and answer side by side
+    const fold = await page.evaluate(() => { const P = window.plugin.constructor; P.layoutCards(document.body, { 'cards-back': 'fold', 'cards-size': 'small' }); return [...document.querySelector('.lp-card-sheet').children].slice(0, 2).map((c) => c.textContent.trim().slice(0, 2)); });
+    assert.deepEqual(fold, ['At', 'CJ']);
+  } finally {
+    await context.close();
+  }
+});
+
+test('cue cards print one sheet per A4 page, and nothing else', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const { page, context } = await openReading(cueNote(), { theme: 'theme-light' });
+  try {
+    await cardsPage(page, { 'cards-size': 'big' });   // (4 a sheet: 3 cards, a front sheet and its back)
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-cards-')), 'cards.pdf');
+    await page.emulateMedia({ media: 'print' });
+    await page.pdf({ path: file, format: 'A4', margin: { top: 0, right: 0, bottom: 0, left: 0 }, printBackground: true });
+    const pdf = fs.readFileSync(file, 'latin1');
+    assert.equal((pdf.match(/\/Type\s*\/Page[^s]/g) || []).length, 2, 'two pages: the fronts, then the backs');
+    fs.rmSync(path.dirname(file), { recursive: true, force: true });
+  } finally {
+    await context.close();
+  }
+});
+
+test('toolbar and buttons settings: groups hidden, the revise button off', async () => {
+  const { page, context } = await openReading({ name: 'tb2', cornell: true, blocks: [] }, { theme: 'theme-light lp-tb-no-pen lp-tb-no-mark lp-no-revise lp-tb-at-bl' });
+  try {
+    const r = await page.evaluate(() => {
+      const host = document.createElement('div'); host.className = 'view-content'; document.body.appendChild(host);
+      const bar = window.plugin.toolbarFor({ getMode: () => 'source' }); host.appendChild(bar);
+      const rev = document.createElement('div'); rev.className = 'lp-revise'; document.body.appendChild(rev);
+      return { shown: [...bar.querySelectorAll('.lp-tb-group')].filter((g) => getComputedStyle(g).display !== 'none').map((g) => g.getAttribute('aria-label')), bottom: getComputedStyle(bar).bottom !== 'auto', revise: getComputedStyle(rev).display };
+    });
+    assert.deepEqual(r, { shown: ['Insert', 'Highlight', 'Review'], bottom: true, revise: 'none' });
+  } finally {
+    await context.close();
+  }
+});

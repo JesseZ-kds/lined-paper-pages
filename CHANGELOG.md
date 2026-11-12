@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-11-12
+
+### Added
+- **Printable cue cards.** *Note: make cue cards* (or **Cards** on the toolbar) makes a cue card
+  page from a Cornell note.
+  - Every cue that ends with a question mark becomes a card: the question on the front, its notes
+    on the back. Any other cue is left out.
+  - **Sheets** shows the A4 pages as they print. Cards are all one size, with the text centred
+    (and made smaller on a card where it would not fit) and dashed cut lines.
+  - **Cut out** shows each card on its own; click one to turn it over.
+  - Print with *Export to PDF* (A4, margin none), double-sided, flipping on the long edge: each
+    answer lands right behind its question.
+  - *Settings → Cue cards*:
+    - card size: 18, 8, 6 or 4 a page;
+    - answers: on the back, beside the question to fold, or on pages of their own;
+    - text size, cut lines, handwriting or a plain font, the note's name on each card, the folder.
+- **Settings → Toolbar and buttons:** which toolbar groups show (Insert, Pens, Highlighters, Marks,
+  Review and Cards), where it sits (any corner), faded or always shown, and the "Add a revised …"
+  button on or off.
+
 ## [1.28.0] - 2026-11-11
 
 ### Added

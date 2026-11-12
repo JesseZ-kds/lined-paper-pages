@@ -26,7 +26,7 @@
  *
  * Nothing is ever written into a note. Every layout starts by undoing the previous one.
  */
-const { Plugin, Notice, PluginSettingTab, Setting, Modal } = require('obsidian');
+const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer } = require('obsidian');
 
 // ---------- settings ----------
 // Every option of the settings page. Each sets the CSS variable --<key> (read by lined-paper.css /
@@ -124,6 +124,29 @@ const SETTINGS = [
     desc: 'Where Insert: definition makes the definition\'s page. Made if it is not there.' },
   { key: 'quote-folder', type: 'path', def: 'Quotes', name: 'Folder for quotes',
     desc: 'Where Insert: quote makes the quote\'s page.' },
+
+  { section: 'Cue cards', desc: 'Note: make cue cards (or Cards on the toolbar) makes a printable page of cue cards from a Cornell note: the question (a cue ending with ?) on the front, its notes on the back. Print it with Export to PDF (A4, margin: none).' },
+  { key: 'cards-size', type: 'select', cls: 'lp-cards-size-', def: 'standard', name: 'Card size',
+    options: { small: 'Small: 18 a page (70 × 49 mm)', standard: 'Standard: 8 a page (105 × 74 mm)', large: 'Large: 6 a page (105 × 99 mm)', big: 'Big: 4 a page (105 × 148 mm)' } },
+  { key: 'cards-back', type: 'select', cls: 'lp-cards-back-', def: 'mirror', name: 'Answers',
+    options: { mirror: 'On the back: print double-sided, flip on the long edge', fold: 'Beside the question: cut out, fold in half', separate: 'On their own pages, in the same places (print single-sided)' } },
+  { key: 'lp-cards-text', type: 'slider', min: 0.6, max: 1.6, step: 0.05, def: 1, pct: true, name: 'Card text size',
+    desc: 'Text that does not fit is made smaller on its card, so every card shows all of it.' },
+  { key: 'cards-cut', type: 'toggle', cls: 'lp-cards-nocut', invert: true, def: true, name: 'Cut lines', desc: 'Dashed lines to cut along.' },
+  { key: 'cards-hand', type: 'toggle', cls: 'lp-cards-plain', invert: true, def: true, name: 'Handwriting on the cards', desc: 'Off: a plain print font.' },
+  { key: 'cards-label', type: 'toggle', cls: 'lp-cards-label', def: false, name: 'The note\'s name on each card', desc: 'Small, in a corner, so mixed cards can be sorted.' },
+  { key: 'cards-folder', type: 'path', def: 'Cue cards', name: 'Folder for cue card pages' },
+
+  { section: 'Toolbar and buttons', desc: 'The toolbar on lined-paper notes, and the buttons on the pages. (Toolbar on / off: Pages and text.)' },
+  { key: 'tb-insert', type: 'toggle', cls: 'lp-tb-no-insert', invert: true, def: true, name: 'Toolbar: Insert buttons' },
+  { key: 'tb-pen', type: 'toggle', cls: 'lp-tb-no-pen', invert: true, def: true, name: 'Toolbar: Pens' },
+  { key: 'tb-highlight', type: 'toggle', cls: 'lp-tb-no-highlight', invert: true, def: true, name: 'Toolbar: Highlighters' },
+  { key: 'tb-mark', type: 'toggle', cls: 'lp-tb-no-mark', invert: true, def: true, name: 'Toolbar: Marks' },
+  { key: 'tb-review', type: 'toggle', cls: 'lp-tb-no-review', invert: true, def: true, name: 'Toolbar: Review and Cards' },
+  { key: 'tb-place', type: 'select', cls: 'lp-tb-at-', def: 'tr', name: 'Toolbar: where',
+    options: { tr: 'Top right', tl: 'Top left', br: 'Bottom right', bl: 'Bottom left' } },
+  { key: 'tb-fade', type: 'toggle', cls: 'lp-tb-solid', invert: true, def: true, name: 'Toolbar: faded until you point at it', desc: 'Off: always fully shown.' },
+  { key: 'revise-button', type: 'toggle', cls: 'lp-no-revise', invert: true, def: true, name: 'The "Add a revised …" button', desc: 'Under a definition\'s or quote\'s last version. (Insert: revised version, Alt + R, works either way.)' },
 
   { section: 'Callouts', desc: 'Every callout except the Cornell ones (cue, notes, question, summary, wide).' },
   { key: 'lp-callout-height', type: 'slider', min: 0.5, max: 1, step: 0.01, def: 0.8, pct: true, name: 'Callout box height',
@@ -1482,6 +1505,142 @@ function insertBlock(editor, template) {
 }
 
 // write the selected text with a pen (or type an empty pen span to write in)
+// ---------- cue cards: a printable page from a Cornell note ----------
+// Every cue that is a question (it ends with ?) with its notes: the question on the front of a card, the
+// notes on the back. The cards go in a note of their own (format: cuecards) as a plain list; the
+// plugin lays them out (layoutCards) on A4 sheets for the size and the way of printing set, so a
+// change of setting needs no new note. Columns × rows on a portrait A4:
+const CARD_GRIDS = { small: [3, 6], standard: [2, 4], large: [2, 3], big: [2, 2] };
+// the question / answer pairs of a rendered note (in the order they come)
+function cardsFromDom(root) {
+  const cards = [];
+  const all = Array.from(root.querySelectorAll('.callout[data-callout="cue"], .callout[data-callout="notes"]')).filter((c) => !c.closest('.cn-sum-sizer'));
+  const clean = (el) => {
+    const c = el.cloneNode(true);
+    c.querySelectorAll('.list-collapse-indicator, .collapse-indicator, .callout-fold, .copy-code-button, .cn-sum-sizer, .lp-revise, .lp-embed-unwrapped, script, style').forEach((x) => x.remove());
+    // (an embed: its text, as typed there)
+    c.querySelectorAll('.internal-embed').forEach((x) => {
+      const inner = x.querySelector('.callout-content, .markdown-preview-sizer') || x;
+      const d = document.createElement('div');
+      d.innerHTML = inner.innerHTML;
+      d.querySelectorAll('.markdown-preview-pusher, .mod-header, .mod-footer, .embed-title, .markdown-embed-link, .callout-title').forEach((y) => y.remove());
+      x.replaceWith(...d.childNodes);
+    });
+    return c.innerHTML.replace(/\s*\n\s*/g, ' ').trim();
+  };
+  all.forEach((c, i) => {
+    if (c.dataset.callout !== 'cue') return;
+    const body = c.querySelector(':scope > .callout-content') || c;
+    const q = body.textContent.replace(/[\s*_"'”’)\]]+$/, '');
+    if (!q.endsWith('?')) return;                      // (not a question: no card)
+    const next = all[i + 1];
+    const a = next && next.dataset.callout === 'notes' ? (next.querySelector(':scope > .callout-content') || next) : null;
+    cards.push({ q: clean(body), a: a ? clean(a) : '' });
+  });
+  return cards;
+}
+const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+// the cue card note: its properties, then the cards as one HTML block (no blank line in it)
+function cueCardsNote(cards, title) {
+  const list = cards.map((c) => `<div class="lp-card"><div class="lp-card-q">${c.q}</div><div class="lp-card-a">${c.a}</div></div>`).join('');
+  return `---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n<div class="lp-cards" data-title="${escAttr(title)}">${list}</div>\n`;
+}
+// which card goes in each place of a sheet: fronts in order; backs mirrored (double-sided printing,
+// flipped on the long edge: the answer is right behind its question), or in the same places
+function sheetOrder(n, cols, rows, back) {
+  const per = cols * rows, sheets = [];
+  for (let s = 0; s < n; s += per) {
+    const idx = Array.from({ length: per }, (_, k) => (s + k < n ? s + k : -1));
+    sheets.push({ side: 'front', cells: idx });
+    if (back === 'mirror') sheets.push({ side: 'back', cells: idx.map((_, k) => { const r = Math.floor(k / cols), c = k % cols; return idx[r * cols + (cols - 1 - c)]; }) });
+    else if (back === 'separate') sheets.push({ side: 'back', cells: idx.slice() });
+  }
+  return sheets;
+}
+
+// The cards of a cue card note laid out: A4 sheets as they print (Sheets), or each card on its own,
+// as if cut out, to flip with a click (Cut out). Again when the size or the way of printing changes.
+function layoutCards(root, settings = {}) {
+  for (const list of root.querySelectorAll('.lp-cards')) {
+    const size = CARD_GRIDS[settings['cards-size']] ? settings['cards-size'] : 'standard';
+    const back = ['mirror', 'fold', 'separate'].includes(settings['cards-back']) ? settings['cards-back'] : 'mirror';
+    const key = size + '|' + back;
+    const old = list.nextElementSibling && list.nextElementSibling.classList.contains('lp-cards-wrap') ? list.nextElementSibling : null;
+    if (old && old.dataset.key === key) continue;
+    const mode = old ? old.dataset.view : 'sheets';
+    if (old) old.remove();
+    list.classList.add('lp-cards-src');
+    const title = list.dataset.title || '';
+    const cards = Array.from(list.querySelectorAll(':scope > .lp-card')).map((c) => ({ q: c.querySelector('.lp-card-q'), a: c.querySelector('.lp-card-a') }));
+    const [cols, rows] = back === 'fold' ? [2, CARD_GRIDS[size][1]] : CARD_GRIDS[size];
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+    const wrap = el('div', 'lp-cards-wrap');
+    Object.assign(wrap.dataset, { key, size, back, view: mode });
+    wrap.style.setProperty('--cols', cols);
+    wrap.style.setProperty('--rows', rows);
+    // the buttons over it (never printed)
+    const bar = el('div', 'lp-cards-controls');
+    const btn = (label, f) => { const b = el('button', 'lp-cards-btn', label); b.type = 'button'; b.addEventListener('click', (e) => { e.preventDefault(); f(b); }); bar.appendChild(b); return b; };
+    bar.appendChild(el('span', 'lp-cards-count', `${cards.length} card${cards.length === 1 ? '' : 's'}`));
+    btn('Sheets', () => { wrap.dataset.view = 'sheets'; });
+    btn('Cut out', () => { wrap.dataset.view = 'deck'; fitCards(wrap); });
+    btn('Flip all', () => { const on = !wrap.classList.contains('lp-flipped'); wrap.classList.toggle('lp-flipped', on); wrap.querySelectorAll('.lp-deck-card').forEach((c) => c.classList.toggle('lp-flip', on)); fitCards(wrap); });
+    wrap.appendChild(bar);
+    // a face: a copy of the question / answer, its text centred
+    const face = (src, side) => {
+      const cell = el('div', 'lp-card-cell lp-' + side);
+      const f = el('div', 'lp-card-face');
+      if (src) f.innerHTML = src.innerHTML;
+      cell.appendChild(f);
+      if (title) cell.appendChild(el('span', 'lp-card-label', title));
+      return cell;
+    };
+    const sheets = el('div', 'lp-card-sheets');
+    if (back === 'fold') {
+      for (let s = 0; s < cards.length; s += rows) {
+        const sheet = el('div', 'lp-card-sheet lp-fold');
+        for (let k = s; k < s + rows; k++) {
+          const c = cards[k];
+          sheet.appendChild(c ? face(c.q, 'front') : el('div', 'lp-card-cell lp-empty'));
+          sheet.appendChild(c ? face(c.a, 'back') : el('div', 'lp-card-cell lp-empty'));
+        }
+        sheets.appendChild(sheet);
+      }
+    } else {
+      for (const sh of sheetOrder(cards.length, cols, rows, back)) {
+        const sheet = el('div', 'lp-card-sheet lp-' + sh.side);
+        for (const i of sh.cells) sheet.appendChild(i < 0 ? el('div', 'lp-card-cell lp-empty') : face(sh.side === 'front' ? cards[i].q : cards[i].a, sh.side));
+        sheets.appendChild(sheet);
+      }
+    }
+    wrap.appendChild(sheets);
+    // cut out: each card on its own, a click turns it over
+    const deck = el('div', 'lp-card-deck');
+    for (const c of cards) {
+      const card = el('div', 'lp-deck-card');
+      card.append(face(c.q, 'front'), face(c.a, 'back'));
+      card.addEventListener('click', () => { card.classList.toggle('lp-flip'); fitCards(card); });
+      deck.appendChild(card);
+    }
+    wrap.appendChild(deck);
+    list.after(wrap);
+  }
+}
+// a card's text that does not fit is made smaller (on that card only), down to 40 %
+function fitCards(root) {
+  const faces = Array.from(root.querySelectorAll('.lp-card-face')).filter((f) => f.offsetParent && f.clientHeight);
+  for (const f of faces) {
+    if (f.dataset.fitW === String(f.clientWidth)) continue;
+    f.style.removeProperty('font-size');
+    let k = 1;
+    while (k > 0.4 && (f.scrollHeight > f.clientHeight + 1 || f.scrollWidth > f.clientWidth + 1)) {
+      k -= 0.06;
+      f.style.setProperty('font-size', `calc(var(--card-font) * ${k.toFixed(2)})`);
+    }
+    f.dataset.fitW = String(f.clientWidth);
+  }
+}
+
 // ---------- definitions and quotes: a page of their own, embedded where they are used ----------
 // A definition's page:   > [!info] Name / > the definition / ^def
 // a quote's page:        > [!quote] Author (a link to the source, when there is one) / > the quote / ^quote
@@ -1755,6 +1914,15 @@ function addPaperCommands(plugin) {
     },
   });
   add({
+    id: 'cue-cards', name: 'Note: make cue cards (a printable page, from the cues that are questions)',
+    checkCallback: (checking) => {
+      const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
+      if (!file || file.extension !== 'md') return false;
+      if (!checking) plugin.makeCueCards(file);
+      return true;
+    },
+  });
+  add({
     id: 'review', name: 'Note: review (cover the notes, answer the cues, click to reveal)',
     checkCallback: (checking) => {
       const v = app && app.workspace && app.workspace.activeLeaf && app.workspace.activeLeaf.view;
@@ -1896,7 +2064,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (el.querySelector('.lp-cards')) { layoutCards(el, this.settings); fitCards(el); } drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -1949,7 +2117,7 @@ module.exports = class LinedPaperPages extends Plugin {
       if (this.setDpr()) again(); // (moved to a screen with other display scaling)
       this.scan(false);
       // PDF export: an embed that filled in late
-      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { drawArrows(pr); dropBlankLines(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); evenRows(pr); roundTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
+      this.applyPaperThemes(); for (const pr of document.querySelectorAll('.print')) { layoutCards(pr, this.settings); fitCards(pr); drawArrows(pr); dropBlankLines(pr); autoBreaks(pr); this.showNoteDates(pr); unwrapQuotedBlocks(pr); liftSummaries(pr); unwrapCalloutEmbeds(pr); tidyEmbedLines(pr); markEmptyHeads(pr); evenRows(pr); roundTables(pr); alignEmbeds(pr); alignEmbedCopies(pr); fitTitles(pr); addSummarySizer(pr); autoBreaks(pr); anchorMidSummaries(pr); }
     }, 1500));
 
     // Style Settings / snippets change CSS variables without touching the note's DOM
@@ -2070,6 +2238,8 @@ module.exports = class LinedPaperPages extends Plugin {
     }
     this.applyPaperThemes();
     try { this.syncToolbars(); } catch (e) { /* */ }
+    // (cue card pages: laid out again for the size / the way of printing, their text fitted again)
+    try { layoutCards(document.body, this.settings); document.querySelectorAll('.lp-card-face').forEach((f) => { delete f.dataset.fitW; }); window.setTimeout(() => fitCards(document.body), 50); } catch (e) { /* */ }
     // (editors redraw their arrows: drawn, or as typed)
     try { if (this.app && this.app.workspace && this.app.workspace.updateOptions) this.app.workspace.updateOptions(); } catch (e) { /* */ }
     this.scheduleScan(true);
@@ -2198,6 +2368,7 @@ module.exports = class LinedPaperPages extends Plugin {
     try { this.keepAllSections(); } catch (e) { /* Obsidian internals changed: leave them */ }
     this.applyPaperThemes();
     try { this.syncToolbars(); } catch (e) { /* */ }
+    try { fitCards(document.body); } catch (e) { /* */ }
     document.querySelectorAll(SEL_VIEW).forEach((view) => {
       let st = this.states.get(view);
       if (!st) {
@@ -2379,6 +2550,40 @@ module.exports = class LinedPaperPages extends Plugin {
     });
     wrap.appendChild(b);
     el.appendChild(wrap);
+  }
+
+  // Note: make cue cards: the note's question cues with their notes, on a cue card page of their own
+  async makeCueCards(file) {
+    const app = this.app;
+    if (!file || file.extension !== 'md') return;
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:800px;visibility:hidden';
+    document.body.appendChild(holder);
+    let cards = [];
+    try {
+      const md = await app.vault.cachedRead(file);
+      if (MarkdownRenderer && MarkdownRenderer.render) await MarkdownRenderer.render(app, md, holder, file.path, this);
+      else if (MarkdownRenderer && MarkdownRenderer.renderMarkdown) await MarkdownRenderer.renderMarkdown(md, holder, file.path, this);
+      await new Promise((res) => window.setTimeout(res, 400));   // (embeds fill in)
+      cards = cardsFromDom(holder);
+    } finally {
+      holder.remove();
+    }
+    if (!cards.length) { new Notice('Lined Paper Pages: no cue ends with a question mark, so no cue cards were made.'); return; }
+    try {
+      const set = this.settings['cards-folder'];
+      const folder = String(set === undefined ? 'Cue cards' : set).trim().replace(/^\/+|\/+$/g, '');
+      if (folder && !app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder).catch(() => {});
+      const path = (folder ? folder + '/' : '') + fileName(file.basename + ' cue cards') + '.md';
+      const text = cueCardsNote(cards, file.basename);
+      let out = app.vault.getAbstractFileByPath(path);
+      if (out) await app.vault.modify(out, text); else out = await app.vault.create(path, text);
+      const leaf = app.workspace.getLeaf('tab');
+      await leaf.openFile(out, { state: { mode: 'preview' } });
+      new Notice(`Lined Paper Pages: ${cards.length} cue card${cards.length === 1 ? '' : 's'}. Print with Export to PDF (A4, margin: none).`);
+    } catch (e) {
+      new Notice('Lined Paper Pages: could not make the cue cards: ' + (e && e.message ? e.message : e));
+    }
   }
 
   // Insert: definition / quote: a page of its own, made in its folder, and embedded where you write
@@ -2563,6 +2768,7 @@ module.exports = class LinedPaperPages extends Plugin {
       ['〰', 'Mark: wavy underline (Mod+Alt+Shift+W)', 'pen-wavy'], ['S̶', 'Mark: cross out (Mod+Alt+Shift+K)', 'cross-out'], ['⌫', 'Mark: remove marks (Mod+Alt+Shift+X)', 'remove-marks']]) button(mark, l, t, c);
     const rev = group('Review', 'lp-tb-review');
     button(rev, 'Review', 'Note: review: cover the notes, answer the cues, click to reveal', 'review', { cls: 'lp-tb-reviewbtn' });
+    button(rev, 'Cards', 'Note: make cue cards (a printable page)', 'cue-cards');
     return bar;
   }
   syncToolbars() {
@@ -3241,6 +3447,11 @@ module.exports.addPaperCommands = addPaperCommands;
 module.exports.formatNoteText = formatNoteText;
 module.exports.addRevised = addRevised;
 module.exports.nameAndAliases = nameAndAliases;
+module.exports.cardsFromDom = cardsFromDom;
+module.exports.cueCardsNote = cueCardsNote;
+module.exports.sheetOrder = sheetOrder;
+module.exports.layoutCards = layoutCards;
+module.exports.fitCards = fitCards;
 module.exports.drawArrows = drawArrows;
 module.exports.markBullets = markBullets;
 module.exports.noteThemeClasses = noteThemeClasses;

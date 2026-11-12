@@ -342,6 +342,23 @@ reading view; the cues stay. Answer each cue in your head, then **click its note
 again to cover them. Review again to show everything. Nothing on the page moves, and the PDF is never
 covered.
 
+## Cue cards to print
+
+**Note: make cue cards** (or **Cards** on the toolbar) makes a printable page of cue cards from a
+Cornell note: every cue that is a **question (it ends with ?)** becomes a card, its notes on the back;
+a cue that is not a question is left out. The page is made in the *Cue cards* folder and opened.
+
+- **Sheets** shows the A4 pages as they print: cards all one size, the text centred (made smaller on a
+  card where it would not fit), dashed lines to cut along. **Cut out** shows each card on its own:
+  click one to turn it over (**Flip all** turns them all).
+- **Print:** *Export to PDF* with Page size **A4** and Margin **None**, then print **double-sided,
+  flipping on the long edge**: each answer is printed right behind its question.
+- *Settings → Cue cards*: the card size (18, 8, 6 or 4 a page), where the answers go (on the back for
+  double-sided printing, beside the question to fold, or on pages of their own), the text size, cut
+  lines, handwriting or a plain font, the note's name on each card, and the folder.
+
+Made again from the note whenever you run it (after you change the note).
+
 ## The toolbar
 
 Lined-paper notes have a small bar at the top right (it fades until you point at it):
@@ -351,7 +368,9 @@ Lined-paper notes have a small bar at the top right (it fades until you point at
 | cue + notes, question, summary, title, divider, page break, definition, quote, arrow | the five pens, remove | the five highlighters, remove | circle, box, underline, wavy, cross out, remove | Review |
 
 The buttons do the same as the hotkeys (hover a button to see its hotkey), and keep your cursor and
-selection in the note. In reading view only Review shows. Switch it off in *Settings → Toolbar*.
+selection in the note. In reading view only Review and Cards show. Switch it off in *Settings → Toolbar*;
+choose which groups show, where it sits and whether it fades in *Settings → Toolbar and buttons* (also:
+the "Add a revised …" button on or off).
 
 ## Definitions and quotes
 

@@ -190,3 +190,155 @@ html body .lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unw
 @media print {
   .lp-toolbar { display: none !important; }
 }
+
+/* ---------- Toolbar and buttons: what shows, and where (Settings → Toolbar and buttons) ---------- */
+body.lp-tb-no-insert .lp-toolbar .lp-tb-group[aria-label="Insert"],
+body.lp-tb-no-pen .lp-toolbar .lp-tb-group[aria-label="Pen"],
+body.lp-tb-no-highlight .lp-toolbar .lp-tb-group[aria-label="Highlight"],
+body.lp-tb-no-mark .lp-toolbar .lp-tb-group[aria-label="Mark"],
+body.lp-tb-no-review .lp-toolbar .lp-tb-group[aria-label="Review"] {
+  display: none !important;
+}
+body.lp-tb-at-tl .lp-toolbar { right: auto; left: 18px; justify-content: flex-start; }
+body.lp-tb-at-br .lp-toolbar { top: auto; bottom: 10px; }
+body.lp-tb-at-bl .lp-toolbar { top: auto; bottom: 10px; right: auto; left: 18px; justify-content: flex-start; }
+body.lp-tb-solid .lp-toolbar { opacity: 1; }
+body.lp-no-revise .lp-revise { display: none !important; }
+
+/* ---------- Cue cards (a note with cssclasses: lp-cuecards, made by Note: make cue cards) ----------
+   A4 sheets of cards, all one size, the text centred, dashed lines to cut along; on screen the
+   sheets as they print (Sheets), or each card as if cut out, turned over with a click (Cut out). */
+.lp-cards-src { display: none !important; }
+.lp-cards-wrap {
+  --card-ink: var(--lp-ink, #1f2937);
+  --card-paper: #ffffff;
+  --card-cut: #9aa3ae;
+  --card-hand: var(--lp-hand, "Patrick Hand"), "Segoe Print", "Bradley Hand", cursive;
+  --card-k: var(--lp-cards-text, 1);
+  margin: 0 auto;
+}
+/* (the text: a share of its card's width, so the same on a sheet and cut out) */
+.lp-cards-wrap { --card-base: 5.2cqw; }
+.lp-cards-wrap[data-size="small"] { --card-base: 6cqw; }
+.lp-cards-wrap[data-size="big"] { --card-base: 4.8cqw; }
+.lp-cards-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.lp-cards-count { color: var(--text-muted, #666); margin-right: 6px; }
+.lp-cards-btn { font-size: 13px; padding: 3px 12px; height: auto; cursor: pointer; }
+.lp-cards-wrap[data-view="sheets"] .lp-card-deck,
+.lp-cards-wrap[data-view="deck"] .lp-card-sheets { display: none; }
+
+/* a sheet: one A4 page */
+.lp-card-sheet {
+  container-type: inline-size;
+  width: min(100%, 794px);
+  aspect-ratio: 210 / 297;
+  margin: 0 auto 26px;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  background: var(--card-paper);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+  break-after: page;
+  page-break-after: always;
+}
+.lp-card-sheet .lp-card-cell {
+  outline: 0.25mm dashed var(--card-cut);
+  outline-offset: -0.125mm;
+}
+body.lp-cards-nocut .lp-card-sheet .lp-card-cell { outline: 0; }
+.lp-card-sheet.lp-fold .lp-card-cell.lp-front { outline-style: dashed; }
+.lp-card-sheet.lp-fold .lp-card-cell.lp-back { border-left: 0.3mm dotted var(--card-cut); }
+.lp-card-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  container-type: size;
+  background: var(--card-paper);
+}
+.lp-card-cell.lp-back { background: color-mix(in srgb, var(--card-paper) 94%, #7aa6d8); }
+.lp-card-face {
+  --card-font: calc(var(--card-base, 5.2cqw) * var(--card-k));
+  position: absolute;
+  inset: 7% 8%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  color: var(--card-ink);
+  font-family: var(--card-hand);
+  font-size: var(--card-font);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+body.lp-cards-plain .lp-card-face { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.lp-card-face > * { margin: 0.15em 0 !important; max-width: 100%; }
+.lp-card-face ul, .lp-card-face ol { text-align: left; padding-left: 1.2em; }
+.lp-card-face .list-bullet { display: none; }
+.lp-card-face li { list-style: disc; }
+.lp-card-cell.lp-front .lp-card-face { font-size: calc(var(--card-font) * 1.12); }
+.lp-card-face img { max-height: 60cqh; object-fit: contain; }
+.lp-card-label {
+  display: none;
+  position: absolute;
+  right: 4%;
+  bottom: 3%;
+  font-size: max(7px, calc(var(--card-font) * 0.45));
+  color: color-mix(in srgb, var(--card-ink) 45%, transparent);
+  font-family: system-ui, sans-serif;
+}
+body.lp-cards-label .lp-card-label { display: block; }
+.lp-card-cell.lp-empty { background: var(--card-paper); }
+
+/* cut out: each card on its own, turned over with a click */
+.lp-card-deck {
+  container-type: inline-size;
+  width: min(100%, 794px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  gap: 18px;
+}
+.lp-cards-wrap[data-back="fold"] .lp-card-deck { grid-template-columns: repeat(2, 1fr); }
+.lp-deck-card {
+  position: relative;
+  aspect-ratio: var(--card-ratio, 105 / 74.25);
+  cursor: pointer;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  background: var(--card-paper);
+}
+.lp-cards-wrap[data-size="small"] .lp-deck-card { --card-ratio: 70 / 49.5; }
+.lp-cards-wrap[data-size="large"] .lp-deck-card { --card-ratio: 105 / 99; }
+.lp-cards-wrap[data-size="big"] .lp-deck-card { --card-ratio: 105 / 148.5; }
+.lp-deck-card .lp-card-cell { position: absolute; inset: 0; border-radius: 6px; }
+.lp-deck-card .lp-card-cell.lp-back,
+.lp-deck-card.lp-flip .lp-card-cell.lp-front { display: none; }
+.lp-deck-card.lp-flip .lp-card-cell.lp-back { display: block; }
+
+/* printing: just the sheets, each exactly one A4 page */
+@media print {
+  .lp-cards-controls, .lp-card-deck { display: none !important; }
+  .lp-cards-wrap[data-view] .lp-card-sheets { display: block !important; }
+  .lp-card-sheet {
+    width: 210mm;
+    height: 297mm;
+    aspect-ratio: auto;
+    margin: 0;
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .lp-card-sheet:last-child { break-after: auto; page-break-after: auto; }
+}
+.lp-cuecards.markdown-preview-view { padding-top: 20px; }

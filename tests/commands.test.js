@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -266,4 +266,17 @@ test('aliases: other capitals, plural / singular, British / American spellings, 
   assert.deepEqual(a('DNA', 'deoxyribonucleic acid').aliases, ['dna', 'Dna', 'deoxyribonucleic acid'], 'an abbreviation: only its capitals');
   // a quote's source: only its capitals
   assert.deepEqual(nameAndAliases('Yevamot 69b').aliases, ['yevamot 69b']);
+});
+
+test('cue cards: answers on the back, mirrored for double-sided printing (flipped on the long edge), or in the same places', () => {
+  // 3 cards, 2 columns × 2 rows: a front sheet, then its back
+  assert.deepEqual(sheetOrder(3, 2, 2, 'mirror'), [
+    { side: 'front', cells: [0, 1, 2, -1] },
+    { side: 'back', cells: [1, 0, -1, 2] },
+  ]);
+  assert.deepEqual(sheetOrder(3, 2, 2, 'separate')[1], { side: 'back', cells: [0, 1, 2, -1] });
+  assert.deepEqual(sheetOrder(9, 2, 4, 'mirror').map((s) => s.side), ['front', 'back', 'front', 'back'], '8 a sheet: 9 cards, 2 sheets of each');
+  // the note: one HTML block, no blank line in it (Obsidian would end the block there)
+  const note = cueCardsNote([{ q: 'Why?', a: '<p>Because.</p>' }], 'Bio "notes"');
+  assert.match(note, /^---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n<div class="lp-cards" data-title="Bio &quot;notes&quot;"><div class="lp-card"><div class="lp-card-q">Why\?<\/div><div class="lp-card-a"><p>Because.<\/p><\/div><\/div><\/div>\n$/);
 });
