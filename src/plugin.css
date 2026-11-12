@@ -205,24 +205,27 @@ body.lp-tb-at-bl .lp-toolbar { top: auto; bottom: 10px; right: auto; left: 18px;
 body.lp-tb-solid .lp-toolbar { opacity: 1; }
 body.lp-no-revise .lp-revise { display: none !important; }
 
-/* ---------- Cue cards (a note with cssclasses: lp-cuecards, made by Note: make cue cards) ----------
-   A4 sheets of cards, all one size, the text centred, dashed lines to cut along; on screen the
-   sheets as they print (Sheets), or each card as if cut out, turned over with a click (Cut out). */
+/* ---------- Cue cards (a ```cuecards block: made by Note: make cue cards, changed with Edit cards) ----------
+   Each card a ruled index card: white, a red line under the top row (the note's name and the card's
+   number), blue lines under it, the writing on the lines and in the middle of the card. All one size;
+   A4 sheets with dashed lines to cut along (Sheets), or each card as if cut out, turned over with a
+   click (Cut out). The same in reading view, while editing, beside the note and in the PDF. */
 .lp-cards-src { display: none !important; }
 .lp-cards-wrap {
-  --card-ink: var(--lp-ink, #1f2937);
+  --card-ink: #1f2937;
   --card-paper: #ffffff;
+  --card-rule: #9cc3e6;
+  --card-red: #e06666;
   --card-cut: #9aa3ae;
   --card-hand: var(--lp-hand, "Patrick Hand"), "Segoe Print", "Bradley Hand", cursive;
   --card-k: var(--lp-cards-text, 1);
   margin: 0 auto;
+  color: var(--card-ink);
 }
-/* (the text: a share of its card's width, so the same on a sheet and cut out) */
-.lp-cards-wrap { --card-base: 5.2cqw; }
-.lp-cards-wrap[data-size="small"] { --card-base: 6cqw; }
-.lp-cards-wrap[data-size="big"] { --card-base: 4.8cqw; }
+.lp-cuecards-block { margin: 6px 0 12px; }
 .lp-cards-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
   justify-content: center;
@@ -236,7 +239,6 @@ body.lp-no-revise .lp-revise { display: none !important; }
 
 /* a sheet: one A4 page */
 .lp-card-sheet {
-  container-type: inline-size;
   width: min(100%, 794px);
   aspect-ratio: 210 / 297;
   margin: 0 auto 26px;
@@ -254,55 +256,140 @@ body.lp-no-revise .lp-revise { display: none !important; }
   outline-offset: -0.125mm;
 }
 body.lp-cards-nocut .lp-card-sheet .lp-card-cell { outline: 0; }
-.lp-card-sheet.lp-fold .lp-card-cell.lp-front { outline-style: dashed; }
 .lp-card-sheet.lp-fold .lp-card-cell.lp-back { border-left: 0.3mm dotted var(--card-cut); }
+
+/* a card: ruled. Its rows: the top one (red line under it), then the lines the writing is on. The
+   lines are drawn as solid colours (no see-through colour: that prints grey in some PDF viewers). */
 .lp-card-cell {
   position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   container-type: size;
-  background: var(--card-paper);
+  background-color: var(--card-paper);
+  background-image: linear-gradient(to bottom, var(--card-paper) 0, var(--card-paper) calc(100% - 0.25mm), var(--card-rule) calc(100% - 0.25mm), var(--card-rule) 100%);
+  background-size: 100% calc(100% / var(--card-rows, 10));
+  background-repeat: repeat-y;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-.lp-card-cell.lp-back { background: color-mix(in srgb, var(--card-paper) 94%, #7aa6d8); }
-.lp-card-face {
-  --card-font: calc(var(--card-base, 5.2cqw) * var(--card-k));
+.lp-card-cell::before {
+  content: "";
   position: absolute;
-  inset: 7% 8%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  left: 0;
+  right: 0;
+  top: calc(100% / var(--card-rows, 10) - 0.35mm);
+  height: 0.45mm;
+  background: var(--card-red);
+}
+body.lp-cards-blank .lp-card-cell { background-image: none; }
+body.lp-cards-blank .lp-card-cell::before { display: none; }
+.lp-card-cell.lp-empty { background-image: none; }
+.lp-card-cell.lp-empty::before { display: none; }
+.lp-card-face {
+  --row: calc(100cqh / var(--card-rows, 10));
+  --card-font: calc(var(--row) * 0.62 * var(--card-k));
+  position: absolute;
+  inset: var(--row) 7% 0;
   overflow: hidden;
   color: var(--card-ink);
   font-family: var(--card-hand);
-  font-size: var(--card-font);
-  line-height: 1.3;
-  overflow-wrap: anywhere;
+  text-align: center;
 }
 body.lp-cards-plain .lp-card-face { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-.lp-card-face > * { margin: 0.15em 0 !important; max-width: 100%; }
-.lp-card-face ul, .lp-card-face ol { text-align: left; padding-left: 1.2em; }
-.lp-card-face .list-bullet { display: none; }
-.lp-card-face li { list-style: disc; }
-.lp-card-cell.lp-front .lp-card-face { font-size: calc(var(--card-font) * 1.12); }
-.lp-card-face img { max-height: 60cqh; object-fit: contain; }
-.lp-card-label {
-  display: none;
-  position: absolute;
-  right: 4%;
-  bottom: 3%;
-  font-size: max(7px, calc(var(--card-font) * 0.45));
-  color: color-mix(in srgb, var(--card-ink) 45%, transparent);
-  font-family: system-ui, sans-serif;
+.lp-card-text {
+  font-size: var(--card-font);
+  line-height: var(--row);
+  overflow-wrap: anywhere;
+  /* (the writing sits on its line, not in the middle of the row) */
+  position: relative;
+  top: calc(var(--row) * 0.16);
 }
-body.lp-cards-label .lp-card-label { display: block; }
-.lp-card-cell.lp-empty { background: var(--card-paper); }
+.lp-card-cell.lp-front .lp-card-text { font-weight: 600; }
+.lp-card-text :is(p, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, div) {
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: inherit !important;
+  font-size: inherit !important;
+}
+.lp-card-text :is(h1, h2, h3, h4, h5, h6) { font-weight: 700; color: inherit; }
+.lp-card-text :is(ul, ol) { display: inline-block; text-align: left; padding-left: 1.1em !important; max-width: 100%; box-sizing: border-box; }
+.lp-card-text ul ul, .lp-card-text ol ol, .lp-card-text ul ol, .lp-card-text ol ul { display: block; }
+.lp-card-text .list-bullet, .lp-card-text .list-collapse-indicator { display: none; }
+.lp-card-text li { list-style: disc; }
+.lp-card-text ol > li { list-style: decimal; }
+.lp-card-text img { max-height: calc(var(--row) * 4); object-fit: contain; vertical-align: bottom; }
+.lp-card-text :is(a, .internal-link) { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, var(--card-paper)); }
+.lp-card-text .lp-arrow-src { font-size: 0 !important; }
+/* the top row: the note's name (left) and the card's number (right; a ✓ on the answer side) */
+.lp-card-top {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 0;
+  height: calc(100cqh / var(--card-rows, 10));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 0.6mm;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: calc(100cqh / var(--card-rows, 10) * 0.42);
+  line-height: 1;
+  color: #8a94a3;
+  white-space: nowrap;
+}
+.lp-card-label { overflow: hidden; text-overflow: ellipsis; }
+body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
+
+/* highlights on a card: the highlighter as on the page, its light colours (a card is white paper,
+   also in dark mode), solid in the PDF */
+.lp-cards-wrap .lp-card-text mark {
+  --pen-highlight-rgb: 255 232 26 !important;
+  --pen-highlight-a: 0.55 !important;
+  --pen-highlight: rgb(var(--pen-highlight-rgb) / var(--pen-highlight-a));
+  --pen-highlight-cut: 0.07em;
+  color: inherit !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(104deg, transparent var(--pen-highlight-cut), var(--pen-highlight) var(--pen-highlight-cut), var(--pen-highlight) calc(100% - var(--pen-highlight-cut)), transparent calc(100% - var(--pen-highlight-cut))) !important;
+  background-size: 100% 0.88em !important;
+  background-position: 0 72% !important;
+  background-repeat: no-repeat !important;
+  padding: 0 0.15em !important;
+  margin: 0 -0.15em !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.lp-cards-wrap .lp-card-text mark.hl-yellow { --pen-highlight-rgb: 255 232 26 !important; --pen-highlight-a: 0.55 !important; }
+.lp-cards-wrap .lp-card-text mark.hl-green { --pen-highlight-rgb: 120 220 90 !important; --pen-highlight-a: 0.45 !important; }
+.lp-cards-wrap .lp-card-text mark.hl-pink { --pen-highlight-rgb: 255 120 190 !important; --pen-highlight-a: 0.38 !important; }
+.lp-cards-wrap .lp-card-text mark.hl-blue { --pen-highlight-rgb: 90 190 255 !important; --pen-highlight-a: 0.4 !important; }
+.lp-cards-wrap .lp-card-text mark.hl-orange { --pen-highlight-rgb: 255 170 60 !important; --pen-highlight-a: 0.45 !important; }
+.lp-cards-wrap .lp-card-text mark mark { background-image: linear-gradient(104deg, transparent var(--pen-highlight-cut), var(--pen-highlight) var(--pen-highlight-cut), var(--pen-highlight) calc(100% - var(--pen-highlight-cut)), transparent calc(100% - var(--pen-highlight-cut))), linear-gradient(var(--card-paper), var(--card-paper)) !important; }
+.lp-cards-wrap .lp-card-text mark :is(a, .internal-link) { color: inherit !important; }
+/* the pens, as written on white paper */
+.lp-cards-wrap .lp-card-text font[color="#1e4fbf" i] { color: #1e4fbf !important; }
+.lp-cards-wrap .lp-card-text font[color="#c62828" i] { color: #c62828 !important; }
+.lp-cards-wrap .lp-card-text font[color="#2e7d32" i] { color: #2e7d32 !important; }
+.lp-cards-wrap .lp-card-text font[color="#6a1b9a" i] { color: #6a1b9a !important; }
+.lp-cards-wrap .lp-card-text font[color="#d84315" i] { color: #d84315 !important; }
+@media print {
+  .lp-cards-wrap .lp-card-text mark,
+  .lp-cards-wrap .lp-card-text mark mark {
+    --pen-highlight: color-mix(in srgb, rgb(var(--pen-highlight-rgb)) calc(var(--pen-highlight-a) * 100%), #ffffff);
+    background-image: linear-gradient(var(--pen-highlight), var(--pen-highlight)) !important;
+  }
+}
 
 /* cut out: each card on its own, turned over with a click */
 .lp-card-deck {
-  container-type: inline-size;
   width: min(100%, 794px);
   margin: 0 auto;
   display: grid;
@@ -314,17 +401,41 @@ body.lp-cards-label .lp-card-label { display: block; }
   position: relative;
   aspect-ratio: var(--card-ratio, 105 / 74.25);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 4px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.06);
   background: var(--card-paper);
 }
 .lp-cards-wrap[data-size="small"] .lp-deck-card { --card-ratio: 70 / 49.5; }
 .lp-cards-wrap[data-size="large"] .lp-deck-card { --card-ratio: 105 / 99; }
 .lp-cards-wrap[data-size="big"] .lp-deck-card { --card-ratio: 105 / 148.5; }
-.lp-deck-card .lp-card-cell { position: absolute; inset: 0; border-radius: 6px; }
+.lp-deck-card .lp-card-cell { position: absolute; inset: 0; border-radius: 4px; }
 .lp-deck-card .lp-card-cell.lp-back,
 .lp-deck-card.lp-flip .lp-card-cell.lp-front { display: none; }
 .lp-deck-card.lp-flip .lp-card-cell.lp-back { display: block; }
+
+/* beside the note (the side panel): one card under another, as wide as the panel */
+.lp-card-panel { padding: 10px 12px !important; }
+.lp-card-panel .lp-card-deck { grid-template-columns: 1fr !important; gap: 12px; }
+.lp-card-panel .lp-cards-controls .lp-cards-btn:is(:nth-of-type(1), :nth-of-type(2)) { display: none; }
+.lp-card-panel-empty { color: var(--text-muted); font-size: 13px; padding: 12px 4px; text-align: center; }
+
+/* while editing: the cards drawn in place of the block, as in reading view */
+.markdown-source-view .lp-cuecards-block .lp-card-sheet { width: min(100%, 700px); }
+
+/* the card editor */
+.lp-card-editor { width: min(760px, 96vw); }
+.lp-ce-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-bottom: 12px; }
+.lp-ce-opt { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-muted); }
+.lp-ce-opt :is(input, select) { width: 100%; }
+.lp-ce-list { display: flex; flex-direction: column; gap: 10px; max-height: 58vh; overflow-y: auto; padding-right: 4px; }
+.lp-ce-card { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; border-top: 3px solid #e06666; }
+.lp-ce-head { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.lp-ce-head span { flex: 1; }
+.lp-ce-head button { padding: 0 8px; height: 22px; font-size: 12px; }
+.lp-ce-card textarea { width: 100%; resize: vertical; font-size: 13px; }
+.lp-ce-q { font-weight: 600; }
+.lp-ce-foot { display: flex; justify-content: space-between; margin-top: 12px; }
+@media (max-width: 600px) { .lp-ce-options { grid-template-columns: 1fr; } }
 
 /* printing: just the sheets, each exactly one A4 page */
 @media print {

@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-11-12
+
+### Changed
+- **Cue cards look like ruled index cards.** White, a red line under the top row (the note's name
+  and the card's number), blue lines, the writing on the lines and in the middle of the card. The
+  same on screen, while editing and in the PDF. *Settings → Cue cards → Ruled cards* (off: blank).
+- **Highlights on cue cards** look like the highlighter in your notes, in its light colours (a card
+  is white, also in dark mode), and print as solid colour. Pens, bold and lists show too.
+- The cards are now a ` ```cuecards ` block (`Q:` / `A:` lines), easy to change as text. Pages made
+  by 1.29 / 1.30 still show; make them again to edit them.
+
+### Added
+- **Edit cards:** a button on the cards and *Note: edit cue cards*. Change, add, take out and move
+  cards, and set the page's title, card size, answers and text size.
+- **The cards while you edit:** the block shows as cards in Live Preview too.
+- **Cue cards beside the note:** *Note: show cue cards beside the note* (or **▤** on the toolbar) opens
+  a side panel with the cards of the note you are in, updated as you write.
+
 ## [1.30.0] - 2026-11-12
 
 ### Added

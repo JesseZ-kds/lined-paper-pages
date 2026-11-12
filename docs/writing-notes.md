@@ -344,20 +344,43 @@ covered.
 
 ## Cue cards to print
 
-**Note: make cue cards** (or **Cards** on the toolbar) makes a printable page of cue cards from a
-Cornell note: every cue that is a **question (it ends with ?)** becomes a card, its notes on the back;
-a cue that is not a question is left out. The page is made in the *Cue cards* folder and opened.
+**Note: make cue cards** (or **Cards** on the toolbar) makes a cue card page from a Cornell note:
+every cue that is a **question (it ends with ?)** becomes a card, its notes on the back; a cue that
+is not a question is left out. The page is made in the *Cue cards* folder and opened.
 
-- **Sheets** shows the A4 pages as they print: cards all one size, the text centred (made smaller on a
-  card where it would not fit), dashed lines to cut along. **Cut out** shows each card on its own:
-  click one to turn it over (**Flip all** turns them all).
+Each card is a **ruled index card**: white, a red line under the top row (the note's name on the
+left, the card's number on the right, ✓ on the answer side), blue lines, and the writing on the
+lines, in the middle of the card. Highlights, pens, bold and lists show as in the note.
+
+- **Sheets** shows the A4 pages as they print: cards all one size, dashed lines to cut along.
+  **Cut out** shows each card on its own: click one to turn it over (**Flip all** turns them all).
+- **Edit cards** (or *Note: edit cue cards*) opens the card editor: change a question or answer, add
+  a card, take one out, move it up or down, and set this page's title, card size, where the answers
+  go and text size. **Save** draws the cards again.
+- The cards are a ` ```cuecards ` block in the page, so you can also change them as text:
+
+  ````
+  ```cuecards
+  title: Beginning of Life
+  size: standard
+
+  Q: When does ==life== begin?
+  A: - at **birth**
+     - or at conception
+  ```
+  ````
+
+  (an answer over more lines: indent them 3 spaces.) The cards show while you edit the page too.
+- **Cards beside the note:** *Note: show cue cards beside the note* (or **▤** on the toolbar) opens a
+  side panel with the cards of the note you are in, updated as you write.
 - **Print:** *Export to PDF* with Page size **A4** and Margin **None**, then print **double-sided,
   flipping on the long edge**: each answer is printed right behind its question.
 - *Settings → Cue cards*: the card size (18, 8, 6 or 4 a page), where the answers go (on the back for
-  double-sided printing, beside the question to fold, or on pages of their own), the text size, cut
-  lines, handwriting or a plain font, the note's name on each card, and the folder.
+  double-sided printing, beside the question to fold, or on pages of their own), the text size, ruled
+  or blank cards, cut lines, handwriting or a plain font, the note's name on each card, and the
+  folder. A page's own options (Edit cards) win over these.
 
-Made again from the note whenever you run it (after you change the note).
+Making the cards again from the note replaces the page (and any changes made in Edit cards).
 
 ## The toolbar
 

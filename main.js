@@ -26,7 +26,7 @@
  *
  * Nothing is ever written into a note. Every layout starts by undoing the previous one.
  */
-const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer, requestUrl } = require('obsidian');
+const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer, requestUrl, ItemView } = require('obsidian');
 
 // ---------- settings ----------
 // Every option of the settings page. Each sets the CSS variable --<key> (read by lined-paper.css /
@@ -134,7 +134,8 @@ const SETTINGS = [
     desc: 'Text that does not fit is made smaller on its card, so every card shows all of it.' },
   { key: 'cards-cut', type: 'toggle', cls: 'lp-cards-nocut', invert: true, def: true, name: 'Cut lines', desc: 'Dashed lines to cut along.' },
   { key: 'cards-hand', type: 'toggle', cls: 'lp-cards-plain', invert: true, def: true, name: 'Handwriting on the cards', desc: 'Off: a plain print font.' },
-  { key: 'cards-label', type: 'toggle', cls: 'lp-cards-label', def: false, name: 'The note\'s name on each card', desc: 'Small, in a corner, so mixed cards can be sorted.' },
+  { key: 'cards-lines', type: 'toggle', cls: 'lp-cards-blank', invert: true, def: true, name: 'Ruled cards', desc: 'Like an index card: a red line under the top row, blue lines for the writing. Off: blank cards.' },
+  { key: 'cards-label', type: 'toggle', cls: 'lp-cards-nolabel', invert: true, def: true, name: 'The note\'s name on each card', desc: 'In the top row (the title in Edit cards), so mixed cards can be sorted.' },
   { key: 'cards-folder', type: 'path', def: 'Cue cards', name: 'Folder for cue card pages' },
 
   { section: 'Toolbar and buttons', desc: 'The toolbar on lined-paper notes, and the buttons on the pages. (Toolbar on / off: Pages and text.)' },
@@ -1544,43 +1545,80 @@ async function fetchPluginFile(fetch, version, file, check = () => true) {
 
 // ---------- cue cards: a printable page from a Cornell note ----------
 // Every cue that is a question (it ends with ?) with its notes: the question on the front of a card, the
-// notes on the back. The cards go in a note of their own (format: cuecards) as a plain list; the
-// plugin lays them out (layoutCards) on A4 sheets for the size and the way of printing set, so a
-// change of setting needs no new note. Columns × rows on a portrait A4:
+// notes on the back. The cards are kept as plain text, easy to change, in a ```cuecards block:
+//     title: Beginning of Life          (and size: / back: / text: for this page only)
+//     Q: At which point does Judaism hold life begins?
+//     A: Rabbinical scholars hold … life begins at ==birth==.
+// The plugin draws them as ruled index cards (a red line under the top row, blue lines under the rest,
+// the writing on the lines), on A4 sheets for the size and the way of printing set, in reading view,
+// while editing and in the PDF. Columns × rows of cards on a portrait A4, and ruled rows on a card:
 const CARD_GRIDS = { small: [3, 6], standard: [2, 4], large: [2, 3], big: [2, 2] };
-// the question / answer pairs of a rendered note (in the order they come)
-function cardsFromDom(root) {
+const CARD_ROWS = { small: 8, standard: 10, large: 13, big: 18 };
+const CARD_BACKS = ['mirror', 'fold', 'separate'];
+// the question / answer pairs of a Cornell note's source (cue + notes groups, written >> [!cue] … or
+// > [!cue] …): the markdown of each, as written
+function cornellCards(md) {
+  const lines = String(md || '').replace(/^---\n[\s\S]*?\n---\n/, '').split('\n');
+  const parts = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^((?:>\s?)+)\[!(cue|notes)\][+-]?(.*)$/i.exec(lines[i]);
+    if (!m) continue;
+    const depth = (m[1].match(/>/g) || []).length;
+    const body = [];
+    const title = m[3].trim();
+    if (title) body.push(title);
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      const q = /^((?:>\s?)*)(.*)$/.exec(lines[j]);
+      const d = (q[1].match(/>/g) || []).length;
+      if (d < depth || /^\s*\[![\w-]+\]/.test(q[2])) break;
+      body.push(q[2]);
+    }
+    i = j - 1;
+    parts.push({ kind: m[2].toLowerCase(), text: body.join('\n').replace(/^\s+|\s+$/g, '') });
+  }
   const cards = [];
-  const all = Array.from(root.querySelectorAll('.callout[data-callout="cue"], .callout[data-callout="notes"]')).filter((c) => !c.closest('.cn-sum-sizer'));
-  const clean = (el) => {
-    const c = el.cloneNode(true);
-    c.querySelectorAll('.list-collapse-indicator, .collapse-indicator, .callout-fold, .copy-code-button, .cn-sum-sizer, .lp-revise, .lp-embed-unwrapped, script, style').forEach((x) => x.remove());
-    // (an embed: its text, as typed there)
-    c.querySelectorAll('.internal-embed').forEach((x) => {
-      const inner = x.querySelector('.callout-content, .markdown-preview-sizer') || x;
-      const d = document.createElement('div');
-      d.innerHTML = inner.innerHTML;
-      d.querySelectorAll('.markdown-preview-pusher, .mod-header, .mod-footer, .embed-title, .markdown-embed-link, .callout-title').forEach((y) => y.remove());
-      x.replaceWith(...d.childNodes);
-    });
-    return c.innerHTML.replace(/\s*\n\s*/g, ' ').trim();
-  };
-  all.forEach((c, i) => {
-    if (c.dataset.callout !== 'cue') return;
-    const body = c.querySelector(':scope > .callout-content') || c;
-    const q = body.textContent.replace(/[\s*_"'”’)\]]+$/, '');
-    if (!q.endsWith('?')) return;                      // (not a question: no card)
-    const next = all[i + 1];
-    const a = next && next.dataset.callout === 'notes' ? (next.querySelector(':scope > .callout-content') || next) : null;
-    cards.push({ q: clean(body), a: a ? clean(a) : '' });
+  parts.forEach((p, k) => {
+    if (p.kind !== 'cue') return;
+    const plain = p.text.replace(/[\s*_"'”’)\]=]+$/, '');
+    if (!plain.endsWith('?')) return;                 // (not a question: no card)
+    const next = parts[k + 1];
+    cards.push({ q: p.text, a: next && next.kind === 'notes' ? next.text : '' });
   });
   return cards;
 }
-const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-// the cue card note: its properties, then the cards as one HTML block (no blank line in it)
+// the ```cuecards block of the cards (its options first)
+function cueBlockText(cards, opts = {}) {
+  const head = Object.entries(opts).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => `${k}: ${v}`);
+  const one = (prefix, s) => String(s || '').split('\n').map((l, i) => (i ? '   ' + l : prefix + l)).join('\n');
+  const body = cards.map((c) => `${one('Q: ', c.q)}\n${one('A: ', c.a)}`).join('\n\n');
+  return '```cuecards\n' + (head.length ? head.join('\n') + '\n\n' : '') + body + '\n```';
+}
+// a ```cuecards block's options and cards
+function parseCueBlock(src) {
+  const opts = {}, cards = [];
+  let cur = null, field = null;
+  for (const raw of String(src || '').split('\n')) {
+    const qa = /^([QA]):\s?(.*)$/i.exec(raw);
+    if (qa) {
+      field = qa[1].toUpperCase() === 'Q' ? 'q' : 'a';
+      if (field === 'q' || !cur) { cur = { q: '', a: '' }; cards.push(cur); }
+      cur[field] = qa[2];
+      continue;
+    }
+    if (!cur) {
+      const o = /^\s*([\w-]+)\s*:\s*(.*?)\s*$/.exec(raw);
+      if (o) opts[o[1].toLowerCase()] = o[2];
+      continue;
+    }
+    cur[field] += '\n' + raw.replace(/^ {1,3}/, '');
+  }
+  for (const c of cards) { c.q = c.q.replace(/\s+$/, ''); c.a = c.a.replace(/\s+$/, ''); }
+  return { opts, cards };
+}
+// the note made from a Cornell note: its properties and its cards
 function cueCardsNote(cards, title) {
-  const list = cards.map((c) => `<div class="lp-card"><div class="lp-card-q">${c.q}</div><div class="lp-card-a">${c.a}</div></div>`).join('');
-  return `---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n<div class="lp-cards" data-title="${escAttr(title)}">${list}</div>\n`;
+  return `---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n${cueBlockText(cards, { title })}\n`;
 }
 // which card goes in each place of a sheet: fronts in order; backs mirrored (double-sided printing,
 // flipped on the long edge: the answer is right behind its question), or in the same places
@@ -1594,87 +1632,107 @@ function sheetOrder(n, cols, rows, back) {
   }
   return sheets;
 }
-
-// The cards of a cue card note laid out: A4 sheets as they print (Sheets), or each card on its own,
-// as if cut out, to flip with a click (Cut out). Again when the size or the way of printing changes.
+// the cards drawn: A4 sheets as they print (Sheets), or each card on its own, as if cut out, turned
+// over with a click (Cut out). cards: [{ q, a }] of elements (their writing); opts: size, back, title.
+// onEdit: the Edit button (when the cards can be changed there).
+function buildCardWrap(cards, opts = {}, onEdit = null) {
+  const size = CARD_GRIDS[opts.size] ? opts.size : 'standard';
+  const back = CARD_BACKS.includes(opts.back) ? opts.back : 'mirror';
+  const rows = CARD_ROWS[size];
+  const [cols, sheetRows] = back === 'fold' ? [2, CARD_GRIDS[size][1]] : CARD_GRIDS[size];
+  const title = opts.title || '';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const wrap = el('div', 'lp-cards-wrap');
+  Object.assign(wrap.dataset, { size, back, view: opts.view || 'sheets', key: size + '|' + back });
+  wrap.style.setProperty('--cols', cols);
+  wrap.style.setProperty('--rows', sheetRows);
+  wrap.style.setProperty('--card-rows', rows);
+  if (opts.text && !isNaN(parseFloat(opts.text))) wrap.style.setProperty('--lp-cards-text', String(parseFloat(opts.text) > 3 ? parseFloat(opts.text) / 100 : parseFloat(opts.text)));
+  const bar = el('div', 'lp-cards-controls');
+  const btn = (label, f) => { const b = el('button', 'lp-cards-btn', label); b.type = 'button'; b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); f(b); }); bar.appendChild(b); return b; };
+  bar.appendChild(el('span', 'lp-cards-count', `${cards.length} card${cards.length === 1 ? '' : 's'}`));
+  btn('Sheets', () => { wrap.dataset.view = 'sheets'; fitCards(wrap); });
+  btn('Cut out', () => { wrap.dataset.view = 'deck'; fitCards(wrap); });
+  btn('Flip all', () => { const on = !wrap.classList.contains('lp-flipped'); wrap.classList.toggle('lp-flipped', on); wrap.querySelectorAll('.lp-deck-card').forEach((c) => c.classList.toggle('lp-flip', on)); fitCards(wrap); });
+  if (onEdit) btn('Edit cards', onEdit);
+  wrap.appendChild(bar);
+  // a face: a ruled card, its writing on the lines; the top row: the note's name and the card's number
+  const face = (src, side, k) => {
+    const cell = el('div', 'lp-card-cell lp-' + side);
+    const f = el('div', 'lp-card-face');
+    f.dataset.rows = rows;
+    const t = el('div', 'lp-card-text');
+    if (src) t.append(...Array.from(src.childNodes, (n) => n.cloneNode(true)));
+    f.appendChild(t);
+    cell.appendChild(f);
+    const top = el('div', 'lp-card-top');
+    top.append(el('span', 'lp-card-label', title), el('span', 'lp-card-no', `${k + 1}${side === 'back' ? ' ✓' : ''}`));
+    cell.appendChild(top);
+    return cell;
+  };
+  const sheets = el('div', 'lp-card-sheets');
+  if (back === 'fold') {
+    for (let s = 0; s < cards.length; s += sheetRows) {
+      const sheet = el('div', 'lp-card-sheet lp-fold');
+      for (let k = s; k < s + sheetRows; k++) {
+        const c = cards[k];
+        sheet.appendChild(c ? face(c.q, 'front', k) : el('div', 'lp-card-cell lp-empty'));
+        sheet.appendChild(c ? face(c.a, 'back', k) : el('div', 'lp-card-cell lp-empty'));
+      }
+      sheets.appendChild(sheet);
+    }
+  } else {
+    for (const sh of sheetOrder(cards.length, cols, sheetRows, back)) {
+      const sheet = el('div', 'lp-card-sheet lp-' + sh.side);
+      for (const i of sh.cells) sheet.appendChild(i < 0 ? el('div', 'lp-card-cell lp-empty') : face(sh.side === 'front' ? cards[i].q : cards[i].a, sh.side, i));
+      sheets.appendChild(sheet);
+    }
+  }
+  wrap.appendChild(sheets);
+  const deck = el('div', 'lp-card-deck');
+  cards.forEach((c, k) => {
+    const card = el('div', 'lp-deck-card');
+    card.append(face(c.q, 'front', k), face(c.a, 'back', k));
+    card.addEventListener('click', (e) => { if (e.target.closest('a')) return; card.classList.toggle('lp-flip'); fitCards(card); });
+    deck.appendChild(card);
+  });
+  wrap.appendChild(deck);
+  return wrap;
+}
+// the cue card pages made by 1.29 / 1.30 (the cards as HTML, <div class="lp-cards">): drawn the same way
 function layoutCards(root, settings = {}) {
   for (const list of root.querySelectorAll('.lp-cards')) {
     const size = CARD_GRIDS[settings['cards-size']] ? settings['cards-size'] : 'standard';
-    const back = ['mirror', 'fold', 'separate'].includes(settings['cards-back']) ? settings['cards-back'] : 'mirror';
-    const key = size + '|' + back;
+    const back = CARD_BACKS.includes(settings['cards-back']) ? settings['cards-back'] : 'mirror';
     const old = list.nextElementSibling && list.nextElementSibling.classList.contains('lp-cards-wrap') ? list.nextElementSibling : null;
-    if (old && old.dataset.key === key) continue;
-    const mode = old ? old.dataset.view : 'sheets';
+    if (old && old.dataset.key === size + '|' + back) continue;
+    const view = old ? old.dataset.view : 'sheets';
     if (old) old.remove();
     list.classList.add('lp-cards-src');
-    const title = list.dataset.title || '';
     const cards = Array.from(list.querySelectorAll(':scope > .lp-card')).map((c) => ({ q: c.querySelector('.lp-card-q'), a: c.querySelector('.lp-card-a') }));
-    const [cols, rows] = back === 'fold' ? [2, CARD_GRIDS[size][1]] : CARD_GRIDS[size];
-    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
-    const wrap = el('div', 'lp-cards-wrap');
-    Object.assign(wrap.dataset, { key, size, back, view: mode });
-    wrap.style.setProperty('--cols', cols);
-    wrap.style.setProperty('--rows', rows);
-    // the buttons over it (never printed)
-    const bar = el('div', 'lp-cards-controls');
-    const btn = (label, f) => { const b = el('button', 'lp-cards-btn', label); b.type = 'button'; b.addEventListener('click', (e) => { e.preventDefault(); f(b); }); bar.appendChild(b); return b; };
-    bar.appendChild(el('span', 'lp-cards-count', `${cards.length} card${cards.length === 1 ? '' : 's'}`));
-    btn('Sheets', () => { wrap.dataset.view = 'sheets'; });
-    btn('Cut out', () => { wrap.dataset.view = 'deck'; fitCards(wrap); });
-    btn('Flip all', () => { const on = !wrap.classList.contains('lp-flipped'); wrap.classList.toggle('lp-flipped', on); wrap.querySelectorAll('.lp-deck-card').forEach((c) => c.classList.toggle('lp-flip', on)); fitCards(wrap); });
-    wrap.appendChild(bar);
-    // a face: a copy of the question / answer, its text centred
-    const face = (src, side) => {
-      const cell = el('div', 'lp-card-cell lp-' + side);
-      const f = el('div', 'lp-card-face');
-      if (src) f.innerHTML = src.innerHTML;
-      cell.appendChild(f);
-      if (title) cell.appendChild(el('span', 'lp-card-label', title));
-      return cell;
-    };
-    const sheets = el('div', 'lp-card-sheets');
-    if (back === 'fold') {
-      for (let s = 0; s < cards.length; s += rows) {
-        const sheet = el('div', 'lp-card-sheet lp-fold');
-        for (let k = s; k < s + rows; k++) {
-          const c = cards[k];
-          sheet.appendChild(c ? face(c.q, 'front') : el('div', 'lp-card-cell lp-empty'));
-          sheet.appendChild(c ? face(c.a, 'back') : el('div', 'lp-card-cell lp-empty'));
-        }
-        sheets.appendChild(sheet);
-      }
-    } else {
-      for (const sh of sheetOrder(cards.length, cols, rows, back)) {
-        const sheet = el('div', 'lp-card-sheet lp-' + sh.side);
-        for (const i of sh.cells) sheet.appendChild(i < 0 ? el('div', 'lp-card-cell lp-empty') : face(sh.side === 'front' ? cards[i].q : cards[i].a, sh.side));
-        sheets.appendChild(sheet);
-      }
-    }
-    wrap.appendChild(sheets);
-    // cut out: each card on its own, a click turns it over
-    const deck = el('div', 'lp-card-deck');
-    for (const c of cards) {
-      const card = el('div', 'lp-deck-card');
-      card.append(face(c.q, 'front'), face(c.a, 'back'));
-      card.addEventListener('click', () => { card.classList.toggle('lp-flip'); fitCards(card); });
-      deck.appendChild(card);
-    }
-    wrap.appendChild(deck);
-    list.after(wrap);
+    list.after(buildCardWrap(cards, { size, back, view, title: list.dataset.title || '' }));
   }
 }
-// a card's text that does not fit is made smaller (on that card only), down to 40 %
+// each card's writing on its lines: made smaller (on that card only) where it would not fit, then put
+// in the middle of the card's lines, on a line
 function fitCards(root) {
-  const faces = Array.from(root.querySelectorAll('.lp-card-face')).filter((f) => f.offsetParent && f.clientHeight);
-  for (const f of faces) {
-    if (f.dataset.fitW === String(f.clientWidth)) continue;
-    f.style.removeProperty('font-size');
+  for (const f of root.querySelectorAll('.lp-card-face')) {
+    if (!f.offsetParent || !f.clientHeight) continue;
+    const key = f.clientWidth + 'x' + f.clientHeight;
+    if (f.dataset.fit === key) continue;
+    const rows = +f.dataset.rows || 10, row = f.clientHeight / rows, body = rows - 1;
+    const t = f.querySelector('.lp-card-text');
+    if (!t) continue;
+    t.style.removeProperty('font-size');
+    t.style.removeProperty('margin-top');
     let k = 1;
-    while (k > 0.4 && (f.scrollHeight > f.clientHeight + 1 || f.scrollWidth > f.clientWidth + 1)) {
-      k -= 0.06;
-      f.style.setProperty('font-size', `calc(var(--card-font) * ${k.toFixed(2)})`);
+    while (k > 0.45 && (t.offsetHeight > body * row + 1 || t.scrollWidth > t.clientWidth + 1)) {
+      k -= 0.07;
+      t.style.setProperty('font-size', `calc(var(--card-font) * ${k.toFixed(2)})`);
     }
-    f.dataset.fitW = String(f.clientWidth);
+    const n = Math.max(1, Math.min(body, Math.round(t.offsetHeight / row)));
+    t.style.setProperty('margin-top', Math.floor((body - n) / 2) * row + 'px');
+    f.dataset.fit = key;
   }
 }
 
@@ -1951,6 +2009,17 @@ function addPaperCommands(plugin) {
     },
   });
   add({ id: 'update', name: 'Paper: update Lined Paper Pages (look for a new version)', callback: () => plugin.checkForUpdate(false) });
+  add({ id: 'show-cue-cards', name: 'Note: show cue cards beside the note (as you write)', callback: () => plugin.showCardPanel() });
+  add({
+    id: 'edit-cue-cards', name: 'Note: edit cue cards (change, add, take out, move)',
+    checkCallback: (checking) => {
+      const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
+      const fm = file && app.metadataCache && (app.metadataCache.getFileCache(file) || {}).frontmatter;
+      if (!fm || fm.format !== 'cuecards') return false;
+      if (!checking) plugin.editCueCards(file);
+      return true;
+    },
+  });
   add({
     id: 'cue-cards', name: 'Note: make cue cards (a printable page, from the cues that are questions)',
     checkCallback: (checking) => {
@@ -2061,6 +2130,15 @@ function addPaperCommands(plugin) {
   } });
 }
 
+// the side panel: the cue cards of the note you are in
+const CueCardsView = class extends (ItemView || class {}) {
+  constructor(leaf, plugin) { super(leaf); this.plugin = plugin; }
+  getViewType() { return 'lp-cue-cards'; }
+  getDisplayText() { return 'Cue cards'; }
+  getIcon() { return 'layers'; }
+  async onOpen() { this.plugin.refreshCardPanel().catch(() => {}); }
+};
+
 module.exports = class LinedPaperPages extends Plugin {
   onload() {
     this.states = new WeakMap();
@@ -2140,6 +2218,12 @@ module.exports = class LinedPaperPages extends Plugin {
     }, true);
     // the date in the title bar (reading view): click it to change it
     this.registerDomEvent(document, 'click', (e) => this.onDateClick(e), true);
+    // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
+    if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
+    if (this.registerView && ItemView) this.registerView('lp-cue-cards', (leaf) => new CueCardsView(leaf, this));
+    const panel = () => { window.clearTimeout(this._panelT); this._panelT = window.setTimeout(() => this.refreshCardPanel().catch(() => {}), 500); };
+    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => { const v = leaf && leaf.view; if (v && v.file && v.getViewType && v.getViewType() === 'markdown') { this.cardSource = v.file; panel(); } }));
+    if (this.app.workspace.on) this.registerEvent(this.app.workspace.on('editor-change', (ed, info) => { if (info && info.file && info.file === this.cardSource) panel(); }));
     // review mode: a click on a covered notes column shows it (and hides it again)
     this.registerDomEvent(document, 'click', (e) => this.onReviewClick(e), true);
     // the toolbar on each lined-paper note
@@ -2281,7 +2365,7 @@ module.exports = class LinedPaperPages extends Plugin {
     this.applyPaperThemes();
     try { this.syncToolbars(); } catch (e) { /* */ }
     // (cue card pages: laid out again for the size / the way of printing, their text fitted again)
-    try { layoutCards(document.body, this.settings); document.querySelectorAll('.lp-card-face').forEach((f) => { delete f.dataset.fitW; }); window.setTimeout(() => fitCards(document.body), 50); } catch (e) { /* */ }
+    try { layoutCards(document.body, this.settings); this.redrawCueBlocks(); document.querySelectorAll('.lp-card-face').forEach((f) => { delete f.dataset.fit; }); window.setTimeout(() => fitCards(document.body), 50); } catch (e) { /* */ }
     // (editors redraw their arrows: drawn, or as typed)
     try { if (this.app && this.app.workspace && this.app.workspace.updateOptions) this.app.workspace.updateOptions(); } catch (e) { /* */ }
     this.scheduleScan(true);
@@ -2652,19 +2736,7 @@ module.exports = class LinedPaperPages extends Plugin {
   async makeCueCards(file) {
     const app = this.app;
     if (!file || file.extension !== 'md') return;
-    const holder = document.createElement('div');
-    holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:800px;visibility:hidden';
-    document.body.appendChild(holder);
-    let cards = [];
-    try {
-      const md = await app.vault.cachedRead(file);
-      if (MarkdownRenderer && MarkdownRenderer.render) await MarkdownRenderer.render(app, md, holder, file.path, this);
-      else if (MarkdownRenderer && MarkdownRenderer.renderMarkdown) await MarkdownRenderer.renderMarkdown(md, holder, file.path, this);
-      await new Promise((res) => window.setTimeout(res, 400));   // (embeds fill in)
-      cards = cardsFromDom(holder);
-    } finally {
-      holder.remove();
-    }
+    const cards = cornellCards(await app.vault.cachedRead(file));
     if (!cards.length) { new Notice('Lined Paper Pages: no cue ends with a question mark, so no cue cards were made.'); return; }
     try {
       const set = this.settings['cards-folder'];
@@ -2676,9 +2748,126 @@ module.exports = class LinedPaperPages extends Plugin {
       if (out) await app.vault.modify(out, text); else out = await app.vault.create(path, text);
       const leaf = app.workspace.getLeaf('tab');
       await leaf.openFile(out, { state: { mode: 'preview' } });
-      new Notice(`Lined Paper Pages: ${cards.length} cue card${cards.length === 1 ? '' : 's'}. Print with Export to PDF (A4, margin: none).`);
+      new Notice(`Lined Paper Pages: ${cards.length} cue card${cards.length === 1 ? '' : 's'}. Change them with Edit cards; print with Export to PDF (A4, margin: none).`);
     } catch (e) {
       new Notice('Lined Paper Pages: could not make the cue cards: ' + (e && e.message ? e.message : e));
+    }
+  }
+
+  // a card's writing (markdown) as it shows: highlights, pens, bold, links, arrows
+  async renderCardText(text, sourcePath) {
+    const d = document.createElement('div');
+    try {
+      if (MarkdownRenderer && MarkdownRenderer.render) await MarkdownRenderer.render(this.app, text, d, sourcePath || '', this);
+      else if (MarkdownRenderer && MarkdownRenderer.renderMarkdown) await MarkdownRenderer.renderMarkdown(text, d, sourcePath || '', this);
+      else d.textContent = text;
+    } catch (e) { d.textContent = text; }
+    drawArrows(d);
+    return d;
+  }
+  // a ```cuecards block drawn as cards (reading view, editing view, the PDF)
+  async renderCueBlock(src, el, sourcePath) {
+    el._lpCue = { src, sourcePath };
+    const { opts, cards } = parseCueBlock(src);
+    const o = { size: opts.size || this.settings['cards-size'], back: opts.back || this.settings['cards-back'], title: opts.title || '', text: opts.text };
+    const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, sourcePath), a: await this.renderCardText(c.a, sourcePath) })));
+    const view = el.querySelector('.lp-cards-wrap') ? el.querySelector('.lp-cards-wrap').dataset.view : 'sheets';
+    const file = sourcePath && this.app.vault.getAbstractFileByPath(sourcePath);
+    el.replaceChildren(buildCardWrap(els, { ...o, view }, file ? () => this.editCueCards(file) : null));
+    el.classList.add('lp-cuecards-block');
+    // (its writing fitted once it is on the page)
+    let tries = 0;
+    const fit = () => { if (el.isConnected && el.offsetParent) fitCards(el); else if (tries++ < 40) window.setTimeout(fit, 100); };
+    fit();
+  }
+  // draw every cue card block again (a setting changed)
+  redrawCueBlocks() {
+    for (const el of document.querySelectorAll('.lp-cuecards-block')) if (el._lpCue) this.renderCueBlock(el._lpCue.src, el, el._lpCue.sourcePath);
+    this.refreshCardPanel();
+  }
+
+  // ---------- the card editor: change, add, take out and move cards, and the page's options ----------
+  async editCueCards(file) {
+    const app = this.app;
+    if (!Modal) { new Notice('Lined Paper Pages: this needs a newer Obsidian'); return; }
+    const text = await app.vault.read(file);
+    const m = /```cuecards[^\n]*\n([\s\S]*?)\n```/.exec(text);
+    if (!m) { new Notice('Lined Paper Pages: no cue cards in this note (make them with Note: make cue cards)'); return; }
+    const { opts, cards } = parseCueBlock(m[1]);
+    const modal = new Modal(app);
+    modal.titleEl.setText('Edit cue cards');
+    modal.modalEl.addClass('lp-card-editor');
+    const page = modal.contentEl.createDiv({ cls: 'lp-ce-options' });
+    const opt = (name, el) => { const r = page.createDiv({ cls: 'lp-ce-opt' }); r.createSpan({ text: name }); r.appendChild(el); return el; };
+    const input = (v, ph) => { const i = document.createElement('input'); i.type = 'text'; i.value = v || ''; if (ph) i.placeholder = ph; return i; };
+    const select = (v, options) => { const s = document.createElement('select'); for (const [k, l] of Object.entries(options)) { const o = s.createEl ? s.createEl('option', { text: l, value: k }) : Object.assign(document.createElement('option'), { textContent: l, value: k }); if (!s.createEl) s.appendChild(o); } s.value = v; return s; };
+    const fTitle = opt('Title (top of each card)', input(opts.title, 'Beginning of Life'));
+    const fSize = opt('Card size', select(opts.size || '', { '': 'As in the settings', small: 'Small (18 a page)', standard: 'Standard (8 a page)', large: 'Large (6 a page)', big: 'Big (4 a page)' }));
+    const fBack = opt('Answers', select(opts.back || '', { '': 'As in the settings', mirror: 'On the back (double-sided)', fold: 'Beside the question (fold)', separate: 'On their own pages' }));
+    const fText = opt('Text size', input(opts.text, '100%'));
+    const list = modal.contentEl.createDiv({ cls: 'lp-ce-list' });
+    const rows = [];
+    const draw = () => {
+      list.replaceChildren();
+      rows.forEach((r, k) => {
+        const box = list.createDiv({ cls: 'lp-ce-card' });
+        const head = box.createDiv({ cls: 'lp-ce-head' });
+        head.createSpan({ text: `Card ${k + 1}` });
+        const tool = (label, title, f) => { const b = head.createEl('button', { text: label }); b.title = title; b.addEventListener('click', (e) => { e.preventDefault(); f(); }); };
+        tool('↑', 'Move up', () => { if (k) { [rows[k - 1], rows[k]] = [rows[k], rows[k - 1]]; draw(); } });
+        tool('↓', 'Move down', () => { if (k < rows.length - 1) { [rows[k + 1], rows[k]] = [rows[k], rows[k + 1]]; draw(); } });
+        tool('✕', 'Take this card out', () => { rows.splice(k, 1); draw(); });
+        const q = box.createEl('textarea', { cls: 'lp-ce-q' }); q.value = r.q; q.placeholder = 'Question (the front)'; q.rows = 2; q.addEventListener('input', () => { r.q = q.value; });
+        const a = box.createEl('textarea', { cls: 'lp-ce-a' }); a.value = r.a; a.placeholder = 'Answer (the back): **bold**, ==highlight==, - points …'; a.rows = 4; a.addEventListener('input', () => { r.a = a.value; });
+      });
+    };
+    for (const c of cards) rows.push({ q: c.q, a: c.a });
+    draw();
+    const foot = modal.contentEl.createDiv({ cls: 'lp-ce-foot' });
+    const add = foot.createEl('button', { text: '+ Add a card' });
+    add.addEventListener('click', (e) => { e.preventDefault(); rows.push({ q: '', a: '' }); draw(); list.lastElementChild && list.lastElementChild.querySelector('textarea').focus(); });
+    const save = foot.createEl('button', { text: 'Save', cls: 'mod-cta' });
+    save.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const o = { title: fTitle.value.trim(), size: fSize.value, back: fBack.value, text: fText.value.trim() };
+      const block = cueBlockText(rows.filter((r) => r.q.trim() || r.a.trim()), o);
+      await app.vault.process(file, (data) => data.replace(/```cuecards[^\n]*\n[\s\S]*?\n```/, () => block));
+      modal.close();
+      new Notice('Lined Paper Pages: cue cards saved');
+    });
+    modal.open();
+  }
+
+  // ---------- the cue cards beside a note (a side panel): the cards of the note you are in, as you write ----------
+  async showCardPanel() {
+    const ws = this.app.workspace;
+    let leaf = ws.getLeavesOfType('lp-cue-cards')[0];
+    if (!leaf) { leaf = ws.getRightLeaf(false); await leaf.setViewState({ type: 'lp-cue-cards', active: true }); }
+    ws.revealLeaf(leaf);
+    this.refreshCardPanel();
+  }
+  async refreshCardPanel() {
+    const ws = this.app.workspace;
+    if (!ws.getLeavesOfType) return;
+    const leaves = ws.getLeavesOfType('lp-cue-cards');
+    if (!leaves.length) return;
+    const file = this.cardSource;
+    let text = '';
+    if (file) {
+      const md = ws.getLeavesOfType('markdown').map((l) => l.view).find((v) => v.file === file && v.editor);
+      text = md ? md.editor.getValue() : await this.app.vault.cachedRead(file);
+    }
+    const blk = /```cuecards[^\n]*\n([\s\S]*?)\n```/.exec(text);
+    const { opts, cards } = blk ? parseCueBlock(blk[1]) : { opts: {}, cards: cornellCards(text) };
+    const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, file ? file.path : ''), a: await this.renderCardText(c.a, file ? file.path : '') })));
+    for (const leaf of leaves) {
+      const host = leaf.view.contentEl;
+      host.replaceChildren();
+      host.classList.add('lp-card-panel');
+      if (!cards.length) { host.createDiv({ cls: 'lp-card-panel-empty', text: file ? 'No cue in this note ends with a question mark yet.' : 'Open a Cornell note.' }); continue; }
+      const wrap = buildCardWrap(els, { size: opts.size || this.settings['cards-size'], back: opts.back || this.settings['cards-back'], title: opts.title || (file ? file.basename : ''), text: opts.text, view: 'deck' }, blk && file ? () => this.editCueCards(file) : null);
+      host.appendChild(wrap);
+      window.setTimeout(() => fitCards(host), 30);
     }
   }
 
@@ -2865,6 +3054,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const rev = group('Review', 'lp-tb-review');
     button(rev, 'Review', 'Note: review: cover the notes, answer the cues, click to reveal', 'review', { cls: 'lp-tb-reviewbtn' });
     button(rev, 'Cards', 'Note: make cue cards (a printable page)', 'cue-cards');
+    button(rev, '▤', 'Note: show cue cards beside the note (as you write)', 'show-cue-cards');
     return bar;
   }
   syncToolbars() {
@@ -3543,7 +3733,10 @@ module.exports.addPaperCommands = addPaperCommands;
 module.exports.formatNoteText = formatNoteText;
 module.exports.addRevised = addRevised;
 module.exports.nameAndAliases = nameAndAliases;
-module.exports.cardsFromDom = cardsFromDom;
+module.exports.cornellCards = cornellCards;
+module.exports.cueBlockText = cueBlockText;
+module.exports.parseCueBlock = parseCueBlock;
+module.exports.buildCardWrap = buildCardWrap;
 module.exports.cueCardsNote = cueCardsNote;
 module.exports.sheetOrder = sheetOrder;
 module.exports.layoutCards = layoutCards;

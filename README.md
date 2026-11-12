@@ -127,8 +127,8 @@ commands have none, give them one there if you like.
 | Remove highlight | Alt + Shift + X | Remove marks | Mod + Alt + Shift + X |
 | | | Remove all colours, highlights and marks | Mod + Alt + Shift + A |
 
-**Note:** review (cover the notes, answer the cues, click to reveal), make cue cards (a printable page:
-question on the front, answer on the back), set the date. The same, and
+**Note:** review (cover the notes, answer the cues, click to reveal), make cue cards (ruled index cards to print:
+question on the front, answer on the back; edit them, or see them beside the note as you write), set the date. The same, and
 more, are buttons on the toolbar at the top of a lined-paper note.
 
 **Paper:** make this note lined paper / Cornell notes / a plain note again, switch between light and

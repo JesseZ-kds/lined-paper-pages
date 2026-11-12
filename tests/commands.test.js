@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, newerVersion, fetchPluginFile, UPDATE_MIRRORS } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, newerVersion, fetchPluginFile, UPDATE_MIRRORS } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -277,8 +277,21 @@ test('cue cards: answers on the back, mirrored for double-sided printing (flippe
   assert.deepEqual(sheetOrder(3, 2, 2, 'separate')[1], { side: 'back', cells: [0, 1, 2, -1] });
   assert.deepEqual(sheetOrder(9, 2, 4, 'mirror').map((s) => s.side), ['front', 'back', 'front', 'back'], '8 a sheet: 9 cards, 2 sheets of each');
   // the note: one HTML block, no blank line in it (Obsidian would end the block there)
-  const note = cueCardsNote([{ q: 'Why?', a: '<p>Because.</p>' }], 'Bio "notes"');
-  assert.match(note, /^---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n<div class="lp-cards" data-title="Bio &quot;notes&quot;"><div class="lp-card"><div class="lp-card-q">Why\?<\/div><div class="lp-card-a"><p>Because.<\/p><\/div><\/div><\/div>\n$/);
+  const note = cueCardsNote([{ q: 'Why?', a: 'Because.' }], 'Bio');
+  assert.equal(note, '---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n```cuecards\ntitle: Bio\n\nQ: Why?\nA: Because.\n```\n');
+});
+
+test('cue cards: the cues that are questions, with their notes; the card block written and read back the same', () => {
+  const md = '---\ndate: 2026-11-12\n---\n# Life\n> [!cue]\n> When does ==life== begin?\n\n> [!notes]\n> - at **birth**\n> - or at conception\n\n> [!cue]\n> Christianity view\n\n> [!notes]\n> not a card\n\n>> [!cue]\n>> What do biologists say? \n>\n>> [!notes]\n>> From fertilisation.\n';
+  const cards = cornellCards(md);
+  assert.deepEqual(cards, [{ q: 'When does ==life== begin?', a: '- at **birth**\n- or at conception' }, { q: 'What do biologists say?', a: 'From fertilisation.' }]);
+  const block = cueBlockText(cards, { title: 'Life', size: 'big', back: '' });
+  assert.equal(block, '```cuecards\ntitle: Life\nsize: big\n\nQ: When does ==life== begin?\nA: - at **birth**\n   - or at conception\n\nQ: What do biologists say?\nA: From fertilisation.\n```');
+  const back = parseCueBlock(block.split('\n').slice(1, -1).join('\n'));
+  assert.deepEqual(back, { opts: { title: 'Life', size: 'big' }, cards });
+  // (an answer with a line that starts like a card's is still one card)
+  const odd = [{ q: 'Q?', a: 'line one\nA: not a new card\n\nnew paragraph' }];
+  assert.deepEqual(parseCueBlock(cueBlockText(odd).split('\n').slice(1, -1).join('\n')).cards, odd);
 });
 
 test('updates: a newer version is found, the files come from the first mirror that answers with the right file', async () => {

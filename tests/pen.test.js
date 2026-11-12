@@ -487,32 +487,27 @@ test('the toolbar: on lined-paper notes, its buttons run the commands (the curso
 
 // Cue cards: the cues that are questions with their notes, laid out on A4 sheets (one sheet = one
 // printed page), answers behind their questions; long text made smaller to fit its card
-const cueNote = () => {
-  const { title, group } = require('./lib/notes');
-  return { name: 'cards', cornell: true, blocks: [title('Life'),
-    group('<p>At which point does Judaism hold life begins?</p>', '<p>CJ at <mark>birth</mark>.</p>'),
-    group('<p>Christianity view</p>', '<p>not a question</p>'),
-    group('<p>When does <strong>Christianity</strong> hold it begins?</p>', `<p>CC at conception. ${'A new soul comes into existence. '.repeat(14)}</p>`),
-    group('<p>What do biologists say? </p>', '<p>CB from fertilisation.</p>')] };
-};
-const cardsPage = async (page, settings) => page.evaluate((settings) => {
+const CUE_MD = '# Life\n> [!cue]\n> At which point does Judaism hold life begins?\n\n> [!notes]\n> CJ at ==birth==.\n\n> [!cue]\n> Christianity view\n\n> [!notes]\n> not a question\n\n> [!cue]\n> When does **Christianity** hold it begins?\n\n> [!notes]\n> CC at conception. ' + 'A new soul comes into existence. '.repeat(14) + '\n\n> [!cue]\n> What do biologists say? \n\n> [!notes]\n> CB from fertilisation.\n';
+// the cards drawn as the plugin draws a ```cuecards block (the markdown turned into HTML here: no Obsidian)
+const cardsPage = async (page, settings) => page.evaluate(([md, settings]) => {
   const P = window.plugin.constructor;
-  const cards = P.cardsFromDom(document.querySelector('.markdown-preview-view'));
-  const html = P.cueCardsNote(cards, 'Life').split('\n---\n')[1];
-  document.body.innerHTML = `<div class="markdown-reading-view"><div class="markdown-preview-view markdown-rendered lp-cuecards">${html}</div></div>`;
-  P.layoutCards(document.body, settings);
+  const { cards } = P.parseCueBlock(P.cueBlockText(P.cornellCards(md), { title: 'Life' }).split('\n').slice(1, -1).join('\n'));
+  const html = (t) => { const d = document.createElement('div'); d.innerHTML = '<p>' + t.replace(/==(.+?)==/g, '<mark>$1</mark>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>'; return d; };
+  document.body.innerHTML = '<div class="markdown-reading-view"><div class="markdown-preview-view markdown-rendered lp-cuecards"><div class="block-language-cuecards lp-cuecards-block"></div></div></div>';
+  const host = document.querySelector('.lp-cuecards-block');
+  host.appendChild(P.buildCardWrap(cards.map((c) => ({ q: html(c.q), a: html(c.a) })), { size: settings['cards-size'], back: settings['cards-back'], title: 'Life' }));
   P.fitCards(document.body);
-  return cards.map((c) => c.q.replace(/<[^>]+>/g, '').trim());
-}, settings);
+  return cards.map((c) => c.q.replace(/\*\*/g, ''));
+}, [CUE_MD, settings]);
 
 test('cue cards: only the cues that are questions; sheets as set; each answer behind its question; long text fitted', async () => {
-  const { page, context } = await openReading(cueNote(), { theme: 'theme-light' });
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-light' });
   try {
     const qs = await cardsPage(page, {});
     assert.deepEqual(qs, ['At which point does Judaism hold life begins?', 'When does Christianity hold it begins?', 'What do biologists say?'], 'not "Christianity view"');
     const r = await page.evaluate(() => {
       const sheets = [...document.querySelectorAll('.lp-card-sheet')];
-      const text = (cell) => cell.textContent.trim().slice(0, 2);
+      const text = (cell) => (cell.querySelector('.lp-card-text') || cell).textContent.trim().slice(0, 2);
       const over = [...document.querySelectorAll('.lp-card-sheet .lp-card-face')].filter((f) => f.scrollHeight > f.clientHeight + 1).length;
       return { sheets: sheets.map((s) => s.className.replace('lp-card-sheet lp-', '')), front: [...sheets[0].children].slice(0, 3).map(text), back: [...sheets[1].children].slice(0, 4).map(text), over };
     });
@@ -521,8 +516,49 @@ test('cue cards: only the cues that are questions; sheets as set; each answer be
     assert.deepEqual(r.back, ['CC', 'CJ', '', 'CB'], 'each answer behind its question (mirrored)');
     assert.equal(r.over, 0, 'every card shows all its text');
     // fold: question and answer side by side
-    const fold = await page.evaluate(() => { const P = window.plugin.constructor; P.layoutCards(document.body, { 'cards-back': 'fold', 'cards-size': 'small' }); return [...document.querySelector('.lp-card-sheet').children].slice(0, 2).map((c) => c.textContent.trim().slice(0, 2)); });
-    assert.deepEqual(fold, ['At', 'CJ']);
+    const fold = await page.evaluate(() => [...document.querySelectorAll('.lp-cards-wrap')].length);
+    assert.equal(fold, 1);
+    await cardsPage(page, { 'cards-back': 'fold', 'cards-size': 'small' });
+    const f2 = await page.evaluate(() => [...document.querySelector('.lp-card-sheet').children].slice(0, 2).map((c) => c.querySelector('.lp-card-text').textContent.trim().slice(0, 2)));
+    assert.deepEqual(f2, ['At', 'CJ']);
+  } finally {
+    await context.close();
+  }
+});
+
+test('cue cards look like ruled index cards: a red line under the top row, the writing on the blue lines, highlights as a highlighter', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-dark' });
+  try {
+    await cardsPage(page, {});
+    const r = await page.evaluate(() => {
+      const cell = document.querySelector('.lp-card-sheet .lp-card-cell.lp-front');
+      const face = cell.querySelector('.lp-card-face'), text = cell.querySelector('.lp-card-text');
+      const rows = +face.dataset.rows, row = cell.getBoundingClientRect().height / rows;
+      const top = cell.getBoundingClientRect().top;
+      const red = getComputedStyle(cell, '::before');
+      // each line of writing: its letters' bottom just above a ruled line
+      const range = document.createRange(); range.selectNodeContents(text);
+      const lines = [...range.getClientRects()].map((r) => (r.bottom - top) / row);
+      const mark = [...document.querySelectorAll('.lp-card-sheet.lp-back .lp-card-text mark')][0];
+      const ms = getComputedStyle(mark);
+      return {
+        rows, red: red.backgroundColor, redTop: (parseFloat(red.top) + parseFloat(red.height) / 2) / row,
+        paper: getComputedStyle(cell).backgroundColor, lines: cell.style.length >= 0 && getComputedStyle(cell).backgroundImage.includes('linear-gradient'),
+        onLine: lines.every((b) => b % 1 > 0.6 || b % 1 < 0.05), lineH: parseFloat(getComputedStyle(text).lineHeight) / row,
+        label: cell.querySelector('.lp-card-label').textContent, no: cell.querySelector('.lp-card-no').textContent,
+        mark: ms.backgroundImage.includes('255, 232, 26'), ink: getComputedStyle(text).color,
+      };
+    });
+    assert.equal(r.rows, 10);
+    assert.equal(r.red, 'rgb(224, 102, 102)', 'a red line');
+    assert.ok(Math.abs(r.redTop - 1) < 0.1, 'under the top row: ' + r.redTop);
+    assert.equal(r.paper, 'rgb(255, 255, 255)', 'white, in dark mode too');
+    assert.ok(r.lines, 'blue lines');
+    assert.ok(Math.abs(r.lineH - 1) < 0.02, 'one line of writing a row');
+    assert.ok(r.onLine, 'the writing on the lines');
+    assert.deepEqual([r.label, r.no], ['Life', '1']);
+    assert.ok(r.mark, 'the light highlighter, on the white card');
+    assert.equal(r.ink, 'rgb(31, 41, 55)', 'dark writing on the white card');
   } finally {
     await context.close();
   }
@@ -530,7 +566,7 @@ test('cue cards: only the cues that are questions; sheets as set; each answer be
 
 test('cue cards print one sheet per A4 page, and nothing else', async () => {
   const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
-  const { page, context } = await openReading(cueNote(), { theme: 'theme-light' });
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-light' });
   try {
     await cardsPage(page, { 'cards-size': 'big' });   // (4 a sheet: 3 cards, a front sheet and its back)
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-cards-')), 'cards.pdf');
