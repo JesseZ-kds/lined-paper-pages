@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-11-12
+
+### Changed
+- **Cue cards look like the page.** The writing on a card has your page's look: your bullets (dot,
+  dash, arrow, hook …, and those typed with * or +), pens, highlighters (blue, pink …), marks,
+  arrows and links, in their colours for white paper, also in a dark note. An embedded quote or
+  definition (`![[Page#^quote]]`) shows its source and its words with a bar down the left. Every
+  line, the embed's too, sits on a ruled line.
+- **The card editor is written in as in Live Preview.** The question and answer are Obsidian's own
+  editor, on white ruled paper in your handwriting: highlights, pens, bold, bullets and embeds show
+  as you write, the markdown under the cursor. (On an Obsidian where that editor can't be made, a
+  text box, with everything else the same.)
+
+### Added
+- **A format bar in the card editor:** bold, bullet, arrow, the five pens, the five highlighters and
+  the marks (circle, box, underline, wavy, cross out), each with a remove. Their hotkeys work in the
+  editor too, and Ctrl/Cmd+B for bold.
+- **Double-click a card** (on the page or beside the note) to change it: the editor opens at that
+  card.
+
 ## [1.32.0] - 2026-11-12
 
 ### Changed

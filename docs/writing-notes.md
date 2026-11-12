@@ -350,15 +350,21 @@ is not a question is left out. The page is made in the *Cue cards* folder and op
 
 Each card is a **ruled index card**: white, a red line under the top row (the **heading** the cue is
 under, the `# Title` before it, on the left; the card's number on the right, ✓ on the answer side),
-blue lines, and the writing on the lines, in the middle of the card. Highlights, pens, bold and lists
-show as in the note. Hidden comments (`%% … %%`, such as a link to the slide) are left out.
+blue lines, and the writing on the lines, in the middle of the card. **The writing looks as it does
+on the page:** your bullets (as set in *Settings → Pen and paper*), pens, highlighters, marks,
+arrows, links and embedded quotes or definitions (`![[Page#^quote]]`), in their colours for white
+paper. Hidden comments (`%% … %%`, such as a link to the slide) are left out.
 
 - **Sheets** shows the A4 pages as they print: cards all one size, dashed lines to cut along.
   **Cut out** shows each card on its own: click one to turn it over (**Flip all** turns them all).
-- **Edit cards** (or *Note: edit cue cards*) opens the card editor, **one card at a time**: flip
-  through with **‹ ›** (or Page Up / Page Down), or pick a card from the list. Change its heading,
-  question and answer, and see the front and back as they will look. **+ Card after this**, **Move
-  earlier / later**, **Take out**; *Page options* for the card size, answers and text size.
+- **Edit cards** (or *Note: edit cue cards*, or **double-click a card**) opens the card editor, **one
+  card at a time**: flip through with **‹ ›** (or Page Up / Page Down), or pick a card from the list.
+  The question and answer are written in **as in Live Preview**, on white ruled paper in your
+  handwriting: highlights, pens, bold, bullets and embeds show as you write, the markdown under the
+  cursor. The bar above them has the pens, highlighters and marks of the toolbar, plus bold, bullet
+  and arrow; their hotkeys work there too (Mod+Alt+B blue pen, Alt+Shift+Y yellow highlighter …,
+  Ctrl/Cmd+B bold). Under the card, its front and back as they will print. **+ Card after this**,
+  **Move earlier / later**, **Take out**; *Page options* for the card size, answers and text size.
   **Save** (Ctrl/Cmd + Enter) draws the cards again.
 - The cards are a ` ```cuecards ` block in the page, so you can also change them as text:
 

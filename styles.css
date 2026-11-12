@@ -275,9 +275,7 @@ body.lp-cards-nocut .lp-card-sheet .lp-card-cell { outline: 0; }
   overflow: hidden;
   container-type: size;
   background-color: var(--card-paper);
-  background-image: linear-gradient(to bottom, var(--card-paper) 0, var(--card-paper) calc(100% - 0.25mm), var(--card-rule) calc(100% - 0.25mm), var(--card-rule) 100%);
-  background-size: 100% calc(100% / var(--card-rows, 10));
-  background-repeat: repeat-y;
+  background-image: repeating-linear-gradient(to bottom, var(--card-paper) 0, var(--card-paper) calc(100% / var(--card-rows, 10) - 0.3mm), var(--card-rule) calc(100% / var(--card-rows, 10) - 0.3mm), var(--card-rule) calc(100% / var(--card-rows, 10)));
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -306,28 +304,131 @@ body.lp-cards-blank .lp-card-cell::before { display: none; }
   text-align: center;
 }
 body.lp-cards-plain .lp-card-face { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-.lp-card-text {
+/* the writing: as on the page (it is marked lined-paper, light paper: the page's bullets, pens,
+   highlighters, marks, arrows and links, as you set them), its lines the card's rows */
+.lp-cards-wrap .lp-card-text.lined-paper {
+  --line: var(--row);
+  --text: var(--card-font);
+  --shift: 0px;
+  --callout-scale: 1;          /* (a callout's line: a whole row of the card) */
+  --callout-lift: 0;
+  --callout-text-size: 1;
+  --paper: var(--card-paper);
+  --bar: var(--card-paper);
+  font-family: var(--hand);
   font-size: var(--card-font);
   line-height: var(--row);
+  color: var(--ink);
   overflow-wrap: anywhere;
+  text-align: center;
+  background: none;
 }
-.lp-card-cell.lp-front .lp-card-text { font-weight: 600; }
-.lp-cards-wrap .lp-card-face .lp-card-text :is(p, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, div) {
+/* (the pens and highlighters in their colours for white paper, also on a card in a dark note) */
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live).lined-paper {
+  --pen-blue: #1e4fbf; --pen-red: #c62828; --pen-green: #2e7d32; --pen-purple: #6a1b9a; --pen-orange: #d84315;
+  --pen-highlight-rgb: 255 232 26; --pen-highlight-a: 0.55;
+}
+body.lp-hl-green :is(.lp-cards-wrap .lp-card-text, .lp-ce-live).lined-paper { --pen-highlight-rgb: 120 220 90; --pen-highlight-a: 0.45; }
+body.lp-hl-pink :is(.lp-cards-wrap .lp-card-text, .lp-ce-live).lined-paper { --pen-highlight-rgb: 255 120 190; --pen-highlight-a: 0.38; }
+body.lp-hl-blue :is(.lp-cards-wrap .lp-card-text, .lp-ce-live).lined-paper { --pen-highlight-rgb: 90 190 255; --pen-highlight-a: 0.4; }
+body.lp-hl-orange :is(.lp-cards-wrap .lp-card-text, .lp-ce-live).lined-paper { --pen-highlight-rgb: 255 170 60; --pen-highlight-a: 0.45; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) :is(mark, .cm-highlight).hl-yellow { --pen-highlight-rgb: 255 232 26 !important; --pen-highlight-a: 0.55 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) :is(mark, .cm-highlight).hl-green { --pen-highlight-rgb: 120 220 90 !important; --pen-highlight-a: 0.45 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) :is(mark, .cm-highlight).hl-pink { --pen-highlight-rgb: 255 120 190 !important; --pen-highlight-a: 0.38 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) :is(mark, .cm-highlight).hl-blue { --pen-highlight-rgb: 90 190 255 !important; --pen-highlight-a: 0.4 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) :is(mark, .cm-highlight).hl-orange { --pen-highlight-rgb: 255 170 60 !important; --pen-highlight-a: 0.45 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#4f81bd" i] { color: #4f81bd !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#c0504d" i] { color: #c0504d !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#9bbb59" i] { color: #9bbb59 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#8064a2" i] { color: #8064a2 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#4bacc6" i] { color: #4bacc6 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#f79646" i] { color: #f79646 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#1e4fbf" i] { color: #1e4fbf !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#c62828" i] { color: #c62828 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#2e7d32" i] { color: #2e7d32 !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#6a1b9a" i] { color: #6a1b9a !important; }
+:is(.lp-cards-wrap .lp-card-text, .lp-ce-live) font[color="#d84315" i] { color: #d84315 !important; }
+body.lp-cards-plain .lp-cards-wrap .lp-card-text.lined-paper { --hand: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.lp-cards-wrap .lp-card-cell.lp-front .lp-card-text { font-weight: 600; }
+.lp-cards-wrap .lp-card-face .lp-card-text.lined-paper :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th) {
+  font-size: inherit !important;
+  line-height: var(--row) !important;
   margin: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-  line-height: inherit !important;
-  font-size: inherit !important;
+  text-align: inherit;
 }
-.lp-card-text :is(h1, h2, h3, h4, h5, h6) { font-weight: 700; color: inherit; }
-.lp-card-text :is(ul, ol) { display: inline-block; text-align: left; padding-left: 1.1em !important; max-width: 100%; box-sizing: border-box; }
-.lp-card-text ul ul, .lp-card-text ol ol, .lp-card-text ul ol, .lp-card-text ol ul { display: block; }
-.lp-card-text .list-bullet, .lp-card-text .list-collapse-indicator { display: none; }
-.lp-card-text li { list-style: disc; }
-.lp-card-text ol > li { list-style: decimal; }
+.lp-cards-wrap .lp-card-face .lp-card-text.lined-paper h1 { font-family: inherit; font-weight: 700; color: inherit; border: none !important; background: none !important; }
+/* lists: their bullets as on the page; the list in the middle of the card, its points written from the left */
+.lp-cards-wrap .lp-card-face .lp-card-text.lined-paper :is(ul, ol) { display: inline-block; vertical-align: top; text-align: left; max-width: 100%; box-sizing: border-box; }
+.lp-cards-wrap .lp-card-face .lp-card-text.lined-paper :is(ul, ol) :is(ul, ol) { display: block; }
+.lp-cards-wrap .lp-card-face .lp-card-text.lined-paper li { text-align: left; }
+.lp-card-text .list-collapse-indicator { display: none; }
 .lp-card-text img { max-height: calc(var(--row) * 4); object-fit: contain; vertical-align: bottom; }
-.lp-card-text :is(a, .internal-link) { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, var(--card-paper)); }
 .lp-card-text .lp-arrow-src { font-size: 0 !important; }
+/* an embed (![[Page#^quote]], a definition): its callout as a bar down the left, its title on the
+   first line, its writing on the lines under it */
+.lp-cards-wrap .lp-card-text :is(.internal-embed, .markdown-embed) {
+  display: block;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+.lp-cards-wrap .lp-card-text :is(.markdown-embed-link, .embed-title, .markdown-embed-title, .mod-header, .mod-footer, .markdown-preview-pusher, .metadata-container, .frontmatter-container, .inline-title, .callout-fold) { display: none !important; }
+.lp-cards-wrap .lp-card-text :is(.markdown-embed-content, .markdown-preview-view, .markdown-preview-sizer, .markdown-rendered) {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  font-size: inherit !important;
+  background: none !important;
+  width: auto !important;
+  max-width: none !important;
+}
+.lp-cards-wrap .lp-card-text.lined-paper .callout.callout {
+  margin: 0 !important;
+  padding: 0 0 0 0.6em !important;
+  border: none !important;
+  border-left: 0.5mm solid rgb(var(--callout-color, 120 120 120)) !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+  transform: none !important;
+  top: 0 !important;
+  text-align: left;
+  font-size: inherit !important;
+  line-height: var(--row) !important;
+}
+.lp-cards-wrap .lp-card-text.lined-paper .callout-title {
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  font-size: inherit !important;
+  line-height: var(--row) !important;
+  color: rgb(var(--callout-color, 120 120 120)) !important;
+  background: none !important;
+  border: none !important;
+  transform: none !important;
+}
+.lp-cards-wrap .lp-card-text.lined-paper .callout-icon { display: none !important; }
+.lp-cards-wrap .lp-card-text.lined-paper .callout-title-inner { font-weight: 600; font-size: inherit !important; line-height: inherit !important; }
+.lp-cards-wrap .lp-card-text.lined-paper .callout-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  border: none !important;
+  transform: none !important;
+  font-size: inherit !important;
+  line-height: var(--row) !important;
+}
+.lp-cards-wrap .lp-card-text.lined-paper .callout-content :is(p, li) { font-size: inherit !important; line-height: var(--row) !important; }
 /* the top row: the note's name (left) and the card's number (right; a ✓ on the answer side) */
 .lp-card-top {
   position: absolute;
@@ -350,50 +451,6 @@ body.lp-cards-plain .lp-card-face { font-family: system-ui, -apple-system, "Sego
 }
 .lp-card-label { overflow: hidden; text-overflow: ellipsis; }
 body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
-
-/* highlights on a card: the highlighter as on the page, its light colours (a card is white paper,
-   also in dark mode), solid in the PDF */
-.lp-cards-wrap .lp-card-text mark {
-  --pen-highlight-rgb: 255 232 26 !important;
-  --pen-highlight-a: 0.55 !important;
-  --pen-highlight: rgb(var(--pen-highlight-rgb) / var(--pen-highlight-a));
-  --pen-highlight-cut: 0.07em;
-  color: inherit !important;
-  background-color: transparent !important;
-  background-image: linear-gradient(104deg, transparent var(--pen-highlight-cut), var(--pen-highlight) var(--pen-highlight-cut), var(--pen-highlight) calc(100% - var(--pen-highlight-cut)), transparent calc(100% - var(--pen-highlight-cut))) !important;
-  background-size: 100% 0.88em !important;
-  background-position: 0 72% !important;
-  background-repeat: no-repeat !important;
-  padding: 0 0.15em !important;
-  margin: 0 -0.15em !important;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-.lp-cards-wrap .lp-card-text mark.hl-yellow { --pen-highlight-rgb: 255 232 26 !important; --pen-highlight-a: 0.55 !important; }
-.lp-cards-wrap .lp-card-text mark.hl-green { --pen-highlight-rgb: 120 220 90 !important; --pen-highlight-a: 0.45 !important; }
-.lp-cards-wrap .lp-card-text mark.hl-pink { --pen-highlight-rgb: 255 120 190 !important; --pen-highlight-a: 0.38 !important; }
-.lp-cards-wrap .lp-card-text mark.hl-blue { --pen-highlight-rgb: 90 190 255 !important; --pen-highlight-a: 0.4 !important; }
-.lp-cards-wrap .lp-card-text mark.hl-orange { --pen-highlight-rgb: 255 170 60 !important; --pen-highlight-a: 0.45 !important; }
-.lp-cards-wrap .lp-card-text mark mark { background-image: linear-gradient(104deg, transparent var(--pen-highlight-cut), var(--pen-highlight) var(--pen-highlight-cut), var(--pen-highlight) calc(100% - var(--pen-highlight-cut)), transparent calc(100% - var(--pen-highlight-cut))), linear-gradient(var(--card-paper), var(--card-paper)) !important; }
-.lp-cards-wrap .lp-card-text mark :is(a, .internal-link) { color: inherit !important; }
-/* the pens, as written on white paper */
-.lp-cards-wrap .lp-card-text font[color="#1e4fbf" i] { color: #1e4fbf !important; }
-.lp-cards-wrap .lp-card-text font[color="#c62828" i] { color: #c62828 !important; }
-.lp-cards-wrap .lp-card-text font[color="#2e7d32" i] { color: #2e7d32 !important; }
-.lp-cards-wrap .lp-card-text font[color="#6a1b9a" i] { color: #6a1b9a !important; }
-.lp-cards-wrap .lp-card-text font[color="#d84315" i] { color: #d84315 !important; }
-@media print {
-  .lp-cards-wrap .lp-card-text mark,
-  .lp-cards-wrap .lp-card-text mark mark {
-    --pen-highlight: color-mix(in srgb, rgb(var(--pen-highlight-rgb)) calc(var(--pen-highlight-a) * 100%), #ffffff);
-    background-image: linear-gradient(var(--pen-highlight), var(--pen-highlight)) !important;
-  }
-}
 
 /* cut out: each card on its own, turned over with a click */
 .lp-card-deck {
@@ -444,9 +501,78 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
 .lp-ce-nav { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
 .lp-ce-pick { flex: 1; min-width: 0; }
 .lp-ce-flip { font-size: 18px; padding: 0 14px; }
-.lp-ce-card { display: flex; flex-direction: column; gap: 8px; border-top: 3px solid #e06666; padding-top: 10px; }
-.lp-ce-card textarea { resize: vertical; font-size: 14px; }
-.lp-ce-q { font-weight: 600; }
+.lp-ce-card { display: flex; flex-direction: column; gap: 8px; }
+/* the format bar: pens, highlighters, marks */
+.lp-ce-format { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 0 0 8px; padding: 4px 6px; border-radius: 6px; background: var(--background-secondary, rgba(127, 127, 127, 0.1)); }
+.lp-ce-fgroup { display: flex; gap: 2px; align-items: center; }
+.lp-ce-fgroup + .lp-ce-fgroup { border-left: 1px solid var(--background-modifier-border, rgba(127, 127, 127, 0.3)); padding-left: 10px; }
+.lp-ce-fmt { height: 26px; min-width: 26px; padding: 0 6px; font-size: 14px; line-height: 1; box-shadow: none; background: transparent; cursor: pointer; }
+.lp-ce-fmt:hover { background: var(--background-modifier-hover, rgba(127, 127, 127, 0.2)); }
+.lp-ce-bold { font-weight: 800; }
+.lp-ce-swatch { font-size: 16px; }
+.lp-ce-fmt.lp-tb-hl.hl-yellow { color: rgb(255 214 0); }
+.lp-ce-fmt.lp-tb-hl.hl-orange { color: rgb(255 160 50); }
+.lp-ce-fmt.lp-tb-hl.hl-blue { color: rgb(80 170 255); }
+.lp-ce-fmt.lp-tb-hl.hl-green { color: rgb(90 200 80); }
+.lp-ce-fmt.lp-tb-hl.hl-pink { color: rgb(255 110 185); }
+/* the question and answer: written in as in Live Preview, on white ruled paper in your handwriting,
+   as on the card (the pens, highlighters, bullets and embeds show as you write) */
+.lp-ce-live.lined-paper {
+  --line: 30px;
+  --text: 19px;
+  --shift: 0px;
+  --paper: #ffffff;
+  --callout-scale: 1;
+  --callout-lift: 0;
+  position: relative;
+  min-height: calc(var(--line) * 2 + 8px);
+  padding: 4px 12px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  color: var(--ink);
+  font-family: var(--hand);
+  font-size: var(--text);
+  line-height: var(--line);
+  background-color: #ffffff;
+  background-image: repeating-linear-gradient(to bottom, #ffffff 0, #ffffff calc(var(--line) - 1px), #9cc3e6 calc(var(--line) - 1px), #9cc3e6 var(--line));
+  background-position: 0 4px;
+  border-top: 2px solid #e06666;
+  cursor: text;
+}
+.lp-ce-live.lp-ce-a { min-height: calc(var(--line) * 5 + 8px); }
+.lp-ce-live.lp-ce-q .cm-line, .lp-ce-live.lp-ce-q textarea { font-weight: 600; }
+.lp-ce-live :is(.markdown-source-view, .cm-editor, .cm-scroller, .cm-sizer, .cm-contentContainer, .cm-content) {
+  background: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+.lp-ce-live .cm-content { min-height: calc(var(--line) * 2) !important; caret-color: var(--ink); }
+.lp-ce-live.lp-ce-a .cm-content { min-height: calc(var(--line) * 5) !important; }
+.lp-ce-live .cm-line { padding: 0 !important; }
+.lp-ce-live .cm-editor.cm-focused { outline: none; }
+.lp-ce-live :is(.inline-title, .metadata-container, .embedded-backlinks, .cm-gutters, .markdown-source-view > .cm-panels) { display: none !important; }
+.lp-ce-live:focus-within { box-shadow: 0 0 0 2px var(--interactive-accent, #7c6cf0); }
+.lp-ce-live textarea {
+  display: block;
+  width: 100%;
+  min-height: inherit;
+  margin: 0;
+  padding: 0;
+  border: none !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--ink);
+  font: inherit;
+  line-height: var(--line);
+  resize: vertical;
+}
+.lp-ce-live textarea:focus { outline: none; }
+.lp-ce-field small { margin-top: 2px; }
 .lp-ce-preview { margin-top: 4px; }
 .lp-ce-preview .lp-cards-controls { display: none; }
 .lp-ce-preview .lp-card-deck { grid-template-columns: 1fr 1fr !important; gap: 12px; }

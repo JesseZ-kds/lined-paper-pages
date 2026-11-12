@@ -521,6 +521,17 @@ test('cue cards: only the cues that are questions; sheets as set; each answer be
     await cardsPage(page, { 'cards-back': 'fold', 'cards-size': 'small' });
     const f2 = await page.evaluate(() => [...document.querySelector('.lp-card-sheet').children].slice(0, 2).map((c) => c.querySelector('.lp-card-text').textContent.trim().slice(0, 2)));
     assert.deepEqual(f2, ['At', 'CJ']);
+    // a double click on a card: the editor at that card; Edit cards: at the first
+    const asked = await page.evaluate(() => {
+      const P = window.plugin.constructor, seen = [];
+      const d = (t) => { const x = document.createElement('div'); x.textContent = t; return x; };
+      const w = P.buildCardWrap([{ q: d('A?'), a: d('a') }, { q: d('B?'), a: d('b') }, { q: d('C?'), a: d('c') }], {}, (k) => seen.push(k));
+      document.body.appendChild(w);
+      w.querySelectorAll('.lp-card-sheet.lp-back .lp-card-cell[data-card="2"] .lp-card-text')[0].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      [...w.querySelectorAll('button')].find((b) => b.textContent === 'Edit cards').click();
+      return seen;
+    });
+    assert.deepEqual(asked, [2, 0]);
   } finally {
     await context.close();
   }
@@ -579,7 +590,7 @@ test('cue cards in a dark lined-paper note (Obsidian\'s markup: lists with bulle
       for (const font of ['serif', 'sans-serif', 'cursive']) {
         const block = host.firstChild;
         block.replaceChildren(P.buildCardWrap(cards, { title: 'Life' }));
-        block.querySelector('.lp-cards-wrap').style.setProperty('--card-hand', font);
+        block.querySelectorAll('.lp-card-text').forEach((t) => t.style.setProperty('--hand', font));
         P.fitCards(block);
         const bad = [];
         for (const cell of block.querySelectorAll('.lp-card-sheet .lp-card-cell:not(.lp-empty)')) {
@@ -612,6 +623,77 @@ test('cue cards in a dark lined-paper note (Obsidian\'s markup: lists with bulle
   }
 });
 
+test('a card looks like the page: its bullets, pens, links, highlighters and an embedded quote, as the note shows them; every line on a ruled line', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-dark lp-bullet-arrow lp-star-hook' });
+  try {
+    const r = await page.evaluate(() => {
+      const P = window.plugin.constructor;
+      const view = document.querySelector('.markdown-preview-view');
+      // (the same writing on the page, to compare with)
+      const onPage = document.createElement('div');
+      onPage.innerHTML = '<ul class="has-list-bullet"><li data-line="0" dir="auto"><span class="list-bullet"></span><font color="#1e4fbf">Rabbinic Scholars</font> hold that</li></ul>';
+      (view.querySelector('.markdown-preview-sizer') || view).appendChild(onPage);
+      const host = document.createElement('div');
+      host.innerHTML = '<div class="block-language-cuecards lp-cuecards-block"></div>';
+      (view.querySelector('.markdown-preview-sizer') || view).appendChild(host);
+      const html = (s) => { const d = document.createElement('div'); d.innerHTML = s; return d; };
+      // (Obsidian's markup for ![[Jewish View on Abortion#^quote]] and the bullet under it)
+      // (built element by element, as Obsidian makes it: its <div>s inside a <p>)
+      const answerEl = () => {
+        const d = document.createElement('div'), p = document.createElement('p'), span = document.createElement('span');
+        span.className = 'internal-embed markdown-embed inline-embed is-loaded';
+        span.setAttribute('src', 'Jewish View on Abortion#^quote');
+        span.innerHTML = '<div class="markdown-embed-title"></div><div class="markdown-preview-view markdown-rendered node-insert-event"><div class="markdown-embed-content"><div class="markdown-preview-sizer markdown-preview-section"><div><div data-callout-metadata="" data-callout-fold="" data-callout="quote" class="callout"><div class="callout-title" dir="auto"><div class="callout-icon"><svg width="24" height="24"></svg></div><div class="callout-title-inner">Rabbi Moshe Feinstein</div></div><div class="callout-content"><p dir="auto">The foetus is not yet a person.</p></div></div></div></div></div></div><div class="markdown-embed-link"></div>';
+        p.appendChild(span);
+        d.appendChild(p);
+        d.insertAdjacentHTML('beforeend', '<ul class="has-list-bullet"><li data-line="1" dir="auto" class="lp-mark-dash"><span class="list-bullet"></span><font color="#1e4fbf">Rabbinic Scholars</font> hold that though the <a data-href="foetus" href="foetus" class="internal-link" target="_blank" rel="noopener nofollow">foetus</a> is special, <a data-href="life" href="life" class="internal-link">life</a> begins <mark class="hl-blue">at birth</mark>.</li></ul>');
+        return d;
+      };
+      host.firstChild.appendChild(P.buildCardWrap([{ q: html('<p>When does Judaism hold life begins?</p>'), a: answerEl(), h: 'Judaism' }], { title: 'Life', size: 'large' }));
+      P.fitCards(host);
+      const back = host.querySelector('.lp-card-sheet.lp-back .lp-card-cell:not(.lp-empty)');
+      const t = back.querySelector('.lp-card-text');
+      const box = back.getBoundingClientRect(), row = parseFloat(getComputedStyle(t).lineHeight);
+      const li = t.querySelector('li'), pageLi = onPage.querySelector('li');
+      const look = (e) => { const b = getComputedStyle(e, '::before'); return [getComputedStyle(e).listStyleType, b.content, b.borderTopStyle].join('|'); };
+      const font = t.querySelector('font');
+      const mark = getComputedStyle(t.querySelector('mark')).backgroundImage;
+      const callout = t.querySelector('.callout');
+      // every line of writing: its baseline on a ruled line
+      const probes = [];
+      const walk = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+      const texts = []; for (let n; (n = walk.nextNode());) if (n.textContent.trim()) texts.push(n);
+      for (const n of texts) {
+        const frag = document.createDocumentFragment();
+        for (const w of n.textContent.split(/(\s+)/)) { frag.appendChild(document.createTextNode(w)); if (w.trim()) { const p = document.createElement('i'); p.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'; frag.appendChild(p); probes.push(p); } }
+        n.replaceWith(frag);
+      }
+      const ys = [...new Set(probes.map((p) => Math.round((p.getBoundingClientRect().bottom - box.top) * 10) / 10))];
+      return {
+        bullet: look(li) === look(pageLi), bulletLook: look(li), pageLook: look(pageLi),
+        pen: getComputedStyle(font).color, mark: /90, 190, 255/.test(mark), link: getComputedStyle(t.querySelector('a')).textDecorationLine,
+        pageLink: getComputedStyle(onPage.querySelector('font')).textDecorationLine,
+        bar: getComputedStyle(callout).borderLeftStyle, title: t.querySelector('.callout-title-inner').getBoundingClientRect().height > 0,
+        hidden: getComputedStyle(t.querySelector('.markdown-embed-link')).display + getComputedStyle(t.querySelector('.callout-icon')).display,
+        off: ys.map((y) => (y / row)).filter((v) => v % 1 < 0.7 || v % 1 > 0.97).map((v) => v.toFixed(2)),
+        row, lines: ys.length, theme: getComputedStyle(t).color, which: probes.map((p) => [p.previousSibling.textContent, ((p.getBoundingClientRect().bottom - box.top) / row).toFixed(2)].join('@')).join(' '),
+        css: [...t.querySelectorAll('.internal-embed *, .internal-embed')].filter((e) => e.getBoundingClientRect().height > row * 3).map((e) => e.className + '=' + Math.round(e.getBoundingClientRect().height / row) + ':' + getComputedStyle(e).minHeight + ',' + getComputedStyle(e).paddingBottom + ',' + getComputedStyle(e, '::after').height + ',' + getComputedStyle(e, '::after').content).join(' ; ') + ' ## ' + [t.querySelector('p'), t.querySelector('.callout'), t.querySelector('.callout-title'), t.querySelector('.callout-content'), t.querySelector('.callout-content p'), t.querySelector('.internal-embed'), t.querySelector('.markdown-embed-content')].map((e) => { const c = getComputedStyle(e); return e.className + ':' + [c.display, c.lineHeight, c.fontSize, c.marginTop, c.paddingTop, c.top, c.transform, Math.round(e.getBoundingClientRect().top - box.top)].join(','); }).join(' / '),
+      };
+    });
+    assert.ok(r.bullet, `the bullet as on the page: ${r.bulletLook} / ${r.pageLook}`);
+    assert.equal(r.pen, 'rgb(30, 79, 191)', 'blue pen, as on white paper');
+    assert.ok(r.mark, 'the blue highlighter');
+    assert.equal(r.bar, 'solid', 'the quote: a bar down its left');
+    assert.ok(r.title, 'the quote\'s title (its source)');
+    assert.equal(r.hidden, 'nonenone', 'no link icon, no callout icon');
+    assert.deepEqual(r.off, [], 'every line of writing on a ruled line: ' + r.which + ' | ' + r.css + ' row ' + r.row);
+    assert.ok(r.lines >= 4, 'title, quote, the point over two lines');
+    assert.equal(r.theme, 'rgb(31, 41, 55)', 'dark writing on the white card');
+  } finally {
+    await context.close();
+  }
+});
+
 // (Obsidian's Modal and ItemView, as much as the card editor and the panel use)
 const WITH_MODAL = `const __require = require;
 require = (n) => (n !== 'obsidian' ? __require(n) : Object.assign({}, __require(n), {
@@ -637,7 +719,7 @@ test('the card editor: one card at a time (flip through), how it looks under it;
         shown: ed.querySelectorAll('.lp-ce-card').length,
         pick: [...ed.querySelectorAll('.lp-ce-pick option')].map((o) => o.textContent),
         at: ed.querySelector('.lp-ce-pick').value,
-        h: ed.querySelector('.lp-ce-field input').value, q: ed.querySelector('.lp-ce-q').value,
+        h: ed.querySelector('.lp-ce-field input').value, q: ed.querySelector('.lp-ce-q textarea').value,
         look: [...ed.querySelectorAll('.lp-ce-preview .lp-deck-card')].map((c) => [...c.querySelectorAll('.lp-card-cell')].find((x) => getComputedStyle(x).display !== 'none').textContent.replace(/\s+/g, ' ').trim()),
       });
       const first = state();
@@ -645,15 +727,21 @@ test('the card editor: one card at a time (flip through), how it looks under it;
       btn('›').click(); await wait(300);
       const third = state();
       // change the question, move it earlier, add one after it, take the first out, save
-      const q = ed.querySelector('.lp-ce-q'); q.value = 'Who opposes IVF?'; q.dispatchEvent(new Event('input'));
+      const q = ed.querySelector('.lp-ce-q textarea'); q.value = 'Who opposes IVF?'; q.dispatchEvent(new Event('input'));
+      // the format bar and the hotkeys, on the selected words
+      q.focus(); q.setSelectionRange(12, 15);
+      btn('▬').click();                                     // (the first highlighter: yellow)
+      q.focus(); q.setSelectionRange(0, 3);
+      q.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', code: 'KeyB', ctrlKey: !/Mac/.test(navigator.platform), metaKey: /Mac/.test(navigator.platform), altKey: true, bubbles: true }));
+      const styled = q.value;
       btn('Move earlier').click(); await wait(50);
       btn('Card after this').click(); await wait(50);
-      ed.querySelector('.lp-ce-q').value = 'New?'; ed.querySelector('.lp-ce-q').dispatchEvent(new Event('input'));
-      ed.querySelector('.lp-ce-a').value = 'Yes.'; ed.querySelector('.lp-ce-a').dispatchEvent(new Event('input'));
+      ed.querySelector('.lp-ce-q textarea').value = 'New?'; ed.querySelector('.lp-ce-q textarea').dispatchEvent(new Event('input'));
+      ed.querySelector('.lp-ce-a textarea').value = 'Yes.'; ed.querySelector('.lp-ce-a textarea').dispatchEvent(new Event('input'));
       ed.querySelector('.lp-ce-pick').value = '0'; ed.querySelector('.lp-ce-pick').dispatchEvent(new Event('change'));
       btn('Take out').click(); await wait(50);
       btn('Save').click(); await wait(100);
-      return { first, third, text, open: !!document.querySelector('.lp-card-editor') };
+      return { first, third, text, styled, open: !!document.querySelector('.lp-card-editor') };
     }, BLOCK);
     assert.equal(r.first.shown, 1, 'one card at a time');
     assert.deepEqual(r.first.pick, ['1. When does life begin?', '2. What do biologists say?', '3. Who opposes it?']);
@@ -661,8 +749,49 @@ test('the card editor: one card at a time (flip through), how it looks under it;
     assert.deepEqual([r.first.h, r.first.q], ['Beginning of Life', 'What do biologists say?']);
     assert.deepEqual(r.first.look, ['What do biologists say?Beginning of Life2', 'From fertilisation.Beginning of Life2 ✓'], 'the front and the back, as they will look');
     assert.deepEqual([r.third.at, r.third.h, r.third.q], ['2', 'Abortion', 'Who opposes it?']);
+    assert.equal(r.styled, '<font color="#1e4fbf">Who</font> opposes <mark class="hl-yellow">IVF</mark>?', 'the highlighter button, then the blue pen hotkey (Mod+Alt+B)');
     assert.equal(r.open, false);
-    assert.equal(r.text, 'intro\n```cuecards\nsize: standard\n\n# Abortion\nQ: Who opposes IVF?\nA: The Church.\n\nQ: New?\nA: Yes.\n\n# Beginning of Life\nQ: What do biologists say?\nA: From fertilisation.\n```\nafter');
+    assert.equal(r.text, 'intro\n```cuecards\nsize: standard\n\n# Abortion\nQ: <font color="#1e4fbf">Who</font> opposes <mark class="hl-yellow">IVF</mark>?\nA: The Church.\n\nQ: New?\nA: Yes.\n\n# Beginning of Life\nQ: What do biologists say?\nA: From fertilisation.\n```\nafter');
+  } finally {
+    await context.close();
+  }
+});
+
+test('the card editor writes in Obsidian\'s own editor (Live Preview) when it can be made: the card\'s text in it, changes kept, closed with the editor', async () => {
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-light', src: WITH_MODAL });
+  try {
+    const r = await page.evaluate(async (block) => {
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const plugin = window.plugin;
+      let text = '```cuecards\n' + block + '\n```';
+      plugin.app.vault = { read: async () => text, process: async (f, fn) => { text = fn(text); } };
+      // (a stand-in for Obsidian's markdown editor, found the way the plugin finds it)
+      const log = [];
+      class MarkdownEditor {
+        constructor(app, container, owner) { this.app = app; this.owner = owner; this.value = ''; const cm = document.createElement('div'); cm.className = 'cm-editor'; const content = document.createElement('div'); content.className = 'cm-content'; content.contentEditable = 'true'; cm.appendChild(content); container.appendChild(cm); const self = this; this.editor = { cm: { contentDOM: content }, getValue: () => self.value, focus: () => content.focus(), getSelection: () => '', replaceSelection: (t) => { self.value += t; self.onUpdate({}, true); }, getCursor: () => ({ line: 0, ch: 0 }), getLine: () => self.value.split('\n')[0], replaceRange: () => {}, setCursor: () => {}, setSelection: () => {} }; }
+        set(v) { this.value = v; this.onUpdate({}, true); }
+        onUpdate() {}
+        load() { log.push('load'); } unload() { log.push('unload'); }
+      }
+      class EmbedEditMode extends MarkdownEditor {}
+      plugin.app.embedRegistry = { embedByExtension: { md: () => ({ showEditor() { this.editMode = Object.create(EmbedEditMode.prototype); }, unload() {} }) } };
+      await plugin.editCueCards({ path: 'x.md', basename: 'Life cue cards' }, 0);
+      await wait(300);
+      const ed = document.querySelector('.lp-card-editor');
+      const live = [...ed.querySelectorAll('.lp-ce-live')].map((h) => h.classList.contains('lp-ce-is-live') && !!h.querySelector('.cm-content'));
+      const q = plugin._editor.fields.q;
+      const shownQ = q.get();
+      q.editor.cm.contentDOM.dispatchEvent(new FocusEvent('focusin'));
+      [...ed.querySelectorAll('button')].find((b) => b.title.startsWith('Arrow')).click();
+      await wait(50);
+      const row = plugin._editor.rows[0].q;
+      plugin._editor.modal.close();
+      return { live, shownQ, row, log };
+    }, BLOCK);
+    assert.deepEqual(r.live, [true, true], 'the question and the answer: Obsidian\'s editor');
+    assert.equal(r.shownQ, 'When does life begin?');
+    assert.equal(r.row, 'When does life begin?-> ', 'a change made in it is the card\'s');
+    assert.deepEqual(r.log, ['load', 'load', 'unload', 'unload']);
   } finally {
     await context.close();
   }

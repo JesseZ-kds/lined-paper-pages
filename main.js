@@ -436,6 +436,7 @@ const nextPageBlock = (b) => !!(b && b.querySelector(':scope > .callout[data-cal
 function autoBreaks(root, undo) {
   const off = document.body.classList.contains('lp-no-auto-break');
   for (const h of root.querySelectorAll('.lined-paper h1')) {
+    if (h.closest('.lp-card-paper')) continue;
     const block = h.parentElement;
     const view = h.closest('.markdown-preview-view');
     if (!block || !view || block.tagName !== 'DIV' || h.closest('.markdown-embed, .callout')) continue;
@@ -547,7 +548,7 @@ function writtenRows(n) {
 }
 function alignEmbeds(root, undo) {
   const embeds = Array.from(root.querySelectorAll('.internal-embed[src*="#^"]'))
-    .filter((e) => e.closest('.lined-paper, .print') && !e.closest('.lp-embed-unwrapped') && !e.parentElement.closest('.internal-embed') && e.getClientRects().length);
+    .filter((e) => e.closest('.lined-paper, .print') && !e.closest('.lp-embed-unwrapped, .lp-card-paper') && !e.parentElement.closest('.internal-embed') && e.getClientRects().length);
   for (const e of embeds) e.style.removeProperty('--lp-embed-pull');
   const walk = (el, f, skip) => {
     const tw = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
@@ -600,7 +601,7 @@ function alignEmbeds(root, undo) {
 // whole rows it sits too low are taken off its top margin.
 function alignEmbedCopies(root, undo) {
   // (not a summary: that goes to the bottom of its page; nor anything else placed on its own)
-  const copies = Array.from(root.querySelectorAll('.lp-embed-copy')).filter((c) => c.getClientRects().length && !c.parentElement.closest('.lp-embed-copy') &&
+  const copies = Array.from(root.querySelectorAll('.lp-embed-copy')).filter((c) => c.getClientRects().length && !c.parentElement.closest('.lp-embed-copy, .lp-card-paper') &&
     !c.matches('[data-callout="summary"], [data-callout="nextpage"], [data-callout="divider"]') && !/absolute|fixed/.test(getComputedStyle(c).position));
   for (const c of copies) if (c._lpPull) { c.style.removeProperty('margin-top'); c._lpPull = 0; }
   const L = copies.length ? px(copies[0].closest('.lined-paper, .print') || root, 'var(--line)') : 0;
@@ -639,7 +640,7 @@ function alignEmbedCopies(root, undo) {
 // little shorter one is made up. So the rows don't creep off the lines one by one, and the table ends
 // on a ruled line. (Typed and embedded tables. The look of the table is kept.) Measured, then set.
 function evenRows(root, undo) {
-  const tables = Array.from(root.querySelectorAll('table')).filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print'));
+  const tables = Array.from(root.querySelectorAll('table')).filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print') && !t.closest('.lp-card-paper'));
   if (!tables.length) return;
   for (const t of tables) for (const tr of t.rows) {
     if (tr._lpH) { tr.style.removeProperty('height'); tr._lpH = 0; }
@@ -720,7 +721,7 @@ function toNextLine(el, L) {
 // same way by alignEmbeds. Measured, then set: the table takes the rest of its last line.
 function roundTables(root, undo) {
   const blocks = Array.from(root.querySelectorAll('table'))
-    .filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print') && !t.closest('.internal-embed, .markdown-embed'))
+    .filter((t) => t.getClientRects().length && t.closest('.lined-paper, .print') && !t.closest('.internal-embed, .markdown-embed, .lp-card-paper'))
     .map((t) => t.closest('.table-wrapper') || t);
   if (!blocks.length) return;
   for (const b of blocks) if (b._lpPush) { b.style.removeProperty('margin-bottom'); b.style.removeProperty('margin-top'); b._lpPush = 0; }
@@ -1679,7 +1680,17 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
   btn('Sheets', () => { wrap.dataset.view = 'sheets'; fitCards(wrap); });
   btn('Cut out', () => { wrap.dataset.view = 'deck'; fitCards(wrap); });
   btn('Flip all', () => { const on = !wrap.classList.contains('lp-flipped'); wrap.classList.toggle('lp-flipped', on); wrap.querySelectorAll('.lp-deck-card').forEach((c) => c.classList.toggle('lp-flip', on)); fitCards(wrap); });
-  if (onEdit) btn('Edit cards', onEdit);
+  if (onEdit) {
+    btn('Edit cards', () => onEdit(wrap.dataset.at ? +wrap.dataset.at : 0));
+    // (a double click on a card: the editor, at that card)
+    wrap.addEventListener('dblclick', (e) => {
+      const cell = e.target.closest && e.target.closest('.lp-card-cell[data-card]');
+      if (!cell || e.target.closest('a')) return;
+      e.preventDefault(); e.stopPropagation();
+      onEdit(+cell.dataset.card);
+    });
+    wrap.title = 'Double-click a card to change it';
+  }
   wrap.appendChild(bar);
   // flip through (beside the note, in the editor): one card at a time, ‹ 3 / 12 ›
   if (opts.flip) {
@@ -1709,9 +1720,11 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
   // a face: a ruled card, its writing on the lines; the top row: the note's name and the card's number
   const face = (src, side, k) => {
     const cell = el('div', 'lp-card-cell lp-' + side);
+    cell.dataset.card = k;
     const f = el('div', 'lp-card-face');
     f.dataset.rows = rows;
-    const t = el('div', 'lp-card-text');
+    // (the writing styled as on the page: bullets, pens, highlighters, marks, arrows, embeds; on white paper)
+    const t = el('div', 'lp-card-text lp-card-paper lined-paper light-paper lp-light');
     if (src) t.append(...Array.from(src.childNodes, (n) => n.cloneNode(true)));
     f.appendChild(t);
     cell.appendChild(f);
@@ -1776,11 +1789,13 @@ function fitCards(root) {
     const row = parseFloat(getComputedStyle(t).lineHeight) || f.clientHeight / ((+f.dataset.rows || 10) - 1);
     const body = Math.max(1, Math.round(f.clientHeight / row));
     t.style.removeProperty('font-size');
+    t.style.removeProperty('--text');
     t.style.removeProperty('margin-top');
     let k = 1;
     while (k > 0.45 && (t.offsetHeight > body * row + 1 || t.scrollWidth > t.clientWidth + 1)) {
       k -= 0.07;
       t.style.setProperty('font-size', `calc(var(--card-font) * ${k.toFixed(2)})`);
+      t.style.setProperty('--text', `calc(var(--card-font) * ${k.toFixed(2)})`);
     }
     const n = Math.max(1, Math.min(body, Math.round(t.offsetHeight / row)));
     t.style.setProperty('margin-top', Math.floor((body - n) / 2) * row + 'px');
@@ -2033,7 +2048,7 @@ function addPaperCommands(plugin) {
   const activePage = () => {
     const leaf = app && app.workspace && app.workspace.activeLeaf;
     const el = leaf && leaf.view && leaf.view.containerEl;
-    return el && el.querySelector('.lined-paper:not(.lined-paper .lined-paper)');
+    return el && el.querySelector('.lined-paper:not(.lined-paper .lined-paper):not(.lp-card-paper)');
   };
   const isDark = () => { const el = activePage(); return el ? plugin.paperTheme(el) === 'dark' : document.body.classList.contains('theme-dark'); };
   plugin.togglePaperTheme = async () => {
@@ -2180,6 +2195,121 @@ function addPaperCommands(plugin) {
     editor.replaceRange(m[1] + '- [ ] ', { line: cur.line, ch: 0 }, { line: cur.line, ch: m[0].length });
     editor.setCursor({ line: cur.line, ch: editor.getLine(cur.line).length });
   } });
+}
+
+// ---------- the card editor's fields: written in as in Live Preview ----------
+// Obsidian's own editor (the one in a note, Live Preview: highlights, pens, bold, lists and embeds
+// shown as you write, the markdown under the cursor) made inside the card editor. Obsidian has no
+// public way to make one, so it is found the way other plugins do it, through an embedded note's
+// editor; if that is not there (another Obsidian version), a plain text box. Either way the same
+// small editor API (getCursor, getLine, getSelection, replaceSelection, replaceRange, setCursor,
+// setSelection), so the pens, highlighters and marks work on both.
+let LiveEditor = null;
+function liveEditorClass(app) {
+  if (LiveEditor !== null) return LiveEditor;
+  LiveEditor = false;
+  try {
+    const make = app && app.embedRegistry && app.embedRegistry.embedByExtension && app.embedRegistry.embedByExtension.md;
+    if (typeof make !== 'function') return LiveEditor;
+    const probe = make({ app, containerEl: document.createElement('div') }, null, '');
+    probe.editable = true;
+    probe.showEditor();
+    const Base = Object.getPrototypeOf(Object.getPrototypeOf(probe.editMode)).constructor;
+    probe.unload();
+    if (typeof Base !== 'function') return LiveEditor;
+    LiveEditor = class extends Base {
+      onUpdate(update, changed) { super.onUpdate(update, changed); if (changed && this.lpChange && !this.lpQuiet) this.lpChange(); }
+    };
+  } catch (e) { LiveEditor = false; }
+  return LiveEditor;
+}
+// a text box with the editor API
+function textareaEditor(ta) {
+  const pos = (o) => { const b = ta.value.slice(0, o).split('\n'); return { line: b.length - 1, ch: b[b.length - 1].length }; };
+  const off = (p) => { const ls = ta.value.split('\n'); let o = 0; for (let i = 0; i < p.line && i < ls.length; i++) o += ls[i].length + 1; return o + Math.min(p.ch, (ls[p.line] || '').length); };
+  const changed = () => ta.dispatchEvent(new Event('input'));
+  return {
+    getCursor: (w) => pos(w === 'from' ? Math.min(ta.selectionStart, ta.selectionEnd) : w === 'to' ? Math.max(ta.selectionStart, ta.selectionEnd) : ta.selectionEnd),
+    getLine: (l) => ta.value.split('\n')[l] || '',
+    getSelection: () => ta.value.slice(ta.selectionStart, ta.selectionEnd),
+    replaceSelection: (t) => { ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end'); changed(); },
+    replaceRange: (t, from, to) => { ta.setRangeText(t, off(from), off(to || from), 'preserve'); changed(); },
+    setCursor: (p) => { const o = off(p); ta.setSelectionRange(o, o); },
+    setSelection: (a, h) => { const x = off(a), y = off(h || a); ta.setSelectionRange(Math.min(x, y), Math.max(x, y)); },
+    getValue: () => ta.value,
+    focus: () => ta.focus(),
+  };
+}
+// a field of the card editor: { editor, get, set, focus, destroy, live }
+function cardField(app, host, value, onChange, placeholder, onFocus) {
+  const Live = liveEditorClass(app);
+  if (Live) {
+    try {
+      const owner = { app, onMarkdownScroll: () => {}, getMode: () => 'source' };
+      const ed = new Live(app, host, owner);
+      owner.editMode = ed;
+      owner.editor = ed.editor;
+      ed.lpQuiet = true;
+      ed.set(value || '', false);
+      ed.lpQuiet = false;
+      if (ed.load) ed.load();
+      ed.lpChange = () => onChange(ed.editor.getValue());
+      const cm = ed.editor && ed.editor.cm;
+      if (cm && cm.contentDOM) {
+        cm.contentDOM.addEventListener('focusin', () => { if (onFocus) onFocus(); });
+        if (placeholder) cm.contentDOM.setAttribute('aria-placeholder', placeholder);
+      }
+      host.classList.add('lp-ce-is-live');
+      return {
+        live: true, editor: ed.editor,
+        get: () => ed.editor.getValue(),
+        set: (v) => { ed.lpQuiet = true; ed.set(v || '', false); ed.lpQuiet = false; },
+        focus: () => ed.editor.focus(),
+        destroy: () => { try { ed.unload(); } catch (e) { /* */ } host.replaceChildren(); },
+      };
+    } catch (e) { host.replaceChildren(); }
+  }
+  const ta = document.createElement('textarea');
+  ta.value = value || '';
+  if (placeholder) ta.placeholder = placeholder;
+  ta.addEventListener('input', () => onChange(ta.value));
+  ta.addEventListener('focus', () => { if (onFocus) onFocus(); });
+  host.appendChild(ta);
+  return { live: false, editor: textareaEditor(ta), get: () => ta.value, set: (v) => { ta.value = v || ''; }, focus: () => ta.focus(), destroy: () => ta.remove(), textarea: ta };
+}
+// what the format bar and the hotkeys do in a card editor field (the commands of the same name)
+function cardAction(id, editor) {
+  const colour = COLOURS.find(([n]) => 'colour-' + n === id);
+  if (colour) return restyleSelection(editor, ['colour'], { open: `<font color="${colour[1]}">`, close: '</font>' });
+  if (id === 'highlighter') return restyleSelection(editor, ['highlight'], { open: '==', close: '==' });
+  if (id.startsWith('highlighter-')) return restyleSelection(editor, ['highlight'], { open: `<mark class="hl-${id.slice(12)}">`, close: '</mark>' });
+  const mark = PEN_MARKS.find(([m]) => 'pen-' + m === id);
+  if (mark) return restyleSelection(editor, ['mark'], { open: `<span class="pen-${mark[0]}">`, close: '</span>' });
+  const remove = { 'remove-colour': ['colour'], 'remove-highlight': ['highlight'], 'remove-marks': ['mark'], 'remove-all-styles': ['colour', 'highlight', 'mark'] }[id];
+  if (remove) return restyleSelection(editor, remove, null);
+  if (id === 'cross-out') return wrapSelection(editor, '~~', '~~');
+  if (id === 'bold') return wrapSelection(editor, '**', '**');
+  const arrow = { 'insert-arrow': '->', 'insert-arrow-double': '=>', 'insert-arrow-wavy': '~>' }[id];
+  if (arrow) { const t = editor.getSelection() ? arrow + ' ' + editor.getSelection() : arrow + ' '; editor.replaceSelection(t); return; }
+  if (id === 'bullet') {
+    const c = editor.getCursor(), line = editor.getLine(c.line), m = /^(\s*)([-*+] )?/.exec(line);
+    if (m[2]) editor.replaceRange('', { line: c.line, ch: m[1].length }, { line: c.line, ch: m[1].length + 2 });
+    else editor.replaceRange('- ', { line: c.line, ch: m[1].length });
+  }
+}
+// the command a key press is the hotkey of (the plugin's hotkeys: Settings → Hotkeys can change them,
+// these are the defaults)
+function hotkeyCommand(e) {
+  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
+  const key = /^Key[A-Z]$/.test(e.code || '') ? e.code.slice(3).toLowerCase() : String(e.key || '').toLowerCase();
+  for (const [id, list] of Object.entries(HOTKEYS)) {
+    for (const h of list) {
+      const want = { alt: h.modifiers.includes('Alt'), shift: h.modifiers.includes('Shift'), ctrl: h.modifiers.includes('Ctrl') || (!mac && h.modifiers.includes('Mod')), meta: h.modifiers.includes('Meta') || (mac && h.modifiers.includes('Mod')) };
+      if (h.key === key && e.altKey === want.alt && e.shiftKey === want.shift && e.ctrlKey === want.ctrl && e.metaKey === want.meta) return id;
+    }
+  }
+  if ((mac ? e.metaKey : e.ctrlKey) && !e.altKey && !e.shiftKey && key === 'b') return 'bold';
+  return null;
 }
 
 // the side panel: the cue cards of the note you are in
@@ -2437,7 +2567,7 @@ module.exports = class LinedPaperPages extends Plugin {
   // properties) match the paper
   applyPaperThemes() {
     const bodyDark = document.body.classList.contains('theme-dark');
-    for (const el of document.querySelectorAll('.lined-paper')) {
+    for (const el of document.querySelectorAll('.lined-paper:not(.lp-card-paper)')) {
       if (el.parentElement && el.parentElement.closest('.lined-paper')) continue;
       const dark = this.paperTheme(el) === 'dark';
       const set = (cls, on) => { if (el.classList.contains(cls) !== on) el.classList.toggle(cls, on); };
@@ -2814,7 +2944,11 @@ module.exports = class LinedPaperPages extends Plugin {
       else if (MarkdownRenderer && MarkdownRenderer.renderMarkdown) await MarkdownRenderer.renderMarkdown(text, d, sourcePath || '', this);
       else d.textContent = text;
     } catch (e) { d.textContent = text; }
+    // (bullets typed with * and + get their own look, as on the page)
+    try { markBullets(d, { getSectionInfo: () => ({ text, lineStart: 0, lineEnd: text.split('\n').length - 1 }) }); } catch (e) { /* */ }
     drawArrows(d);
+    // (an embed, ![[Page#^quote]], fills in a moment after: the card is made from it once it has)
+    for (let i = 0; i < 30 && Array.from(d.querySelectorAll('.internal-embed')).some((e) => !e.classList.contains('is-loaded') && !e.childElementCount); i++) await new Promise((ok) => window.setTimeout(ok, 50));
     return d;
   }
   // a ```cuecards block drawn as cards (reading view, editing view, the PDF)
@@ -2827,7 +2961,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const els = await Promise.all(cards.map(async (c) => ({ q: await this.renderCardText(c.q, sourcePath), a: await this.renderCardText(c.a, sourcePath), h: c.h })));
     const view = el.querySelector('.lp-cards-wrap') ? el.querySelector('.lp-cards-wrap').dataset.view : 'sheets';
     const file = sourcePath && this.app.vault.getAbstractFileByPath(sourcePath);
-    el.replaceChildren(buildCardWrap(els, { ...o, view }, file ? () => this.editCueCards(file) : null));
+    el.replaceChildren(buildCardWrap(els, { ...o, view }, file ? (at) => this.editCueCards(file, at) : null));
     el.classList.add('lp-cuecards-block');
     // (its writing fitted once it is on the page)
     let tries = 0;
@@ -2878,20 +3012,52 @@ module.exports = class LinedPaperPages extends Plugin {
     const next = button(nav, '›', 'The next card (Page Down)', () => show(k + 1), 'lp-ce-flip');
     pick.addEventListener('change', () => show(+pick.value));
 
-    // the card: its heading, question and answer, and how it looks (front, back)
+    // the format bar: pens, highlighters, marks, as on the toolbar (or their hotkeys), on the field you are in
+    const bar = mk(root, 'div', 'lp-ce-format');
+    let current = null;
+    const act = (id) => { const f = current || fields.a; if (f) { cardAction(id, f.editor); if (!f.live) f.focus(); } };
+    const fmt = (g, label, title, id, cls, style) => { const b = mk(g, 'button', 'lp-ce-fmt ' + (cls || ''), label); b.type = 'button'; b.title = title; if (style) b.setAttribute('style', style); b.addEventListener('mousedown', (e) => e.preventDefault()); b.addEventListener('click', (e) => { e.preventDefault(); act(id); }); return b; };
+    const grp = (name) => { const g = mk(bar, 'div', 'lp-ce-fgroup'); g.setAttribute('aria-label', name); return g; };
+    const g0 = grp('Write');
+    fmt(g0, 'B', 'Bold (Ctrl/Cmd+B)', 'bold', 'lp-ce-bold');
+    fmt(g0, '•', 'Bullet point (on / off)', 'bullet');
+    fmt(g0, '→', 'Arrow (Alt+A)', 'insert-arrow');
+    const g1 = grp('Pen');
+    for (const [name, hex] of COLOURS) fmt(g1, '●', `Pen: ${name} (Mod+Alt+${name[0].toUpperCase()})`, 'colour-' + name, 'lp-ce-swatch', `color: ${hex}`);
+    fmt(g1, '⌫', 'Pen: remove colour (Mod+Alt+X)', 'remove-colour');
+    const g2 = grp('Highlight');
+    for (const c of ['yellow', 'orange', 'blue', 'green', 'pink']) fmt(g2, '▬', `Highlight: ${c} (Alt+Shift+${c[0].toUpperCase()})`, 'highlighter-' + c, 'lp-ce-swatch lp-tb-hl hl-' + c);
+    fmt(g2, '⌫', 'Highlight: remove (Alt+Shift+X)', 'remove-highlight');
+    const g3 = grp('Mark');
+    for (const [l, t, c] of [['◯', 'Mark: circle (Mod+Alt+Shift+C)', 'pen-circle'], ['▢', 'Mark: box (Mod+Alt+Shift+B)', 'pen-box'], ['U̲', 'Mark: underline (Mod+Alt+Shift+U)', 'pen-underline'], ['〰', 'Mark: wavy underline (Mod+Alt+Shift+W)', 'pen-wavy'], ['S̶', 'Mark: cross out (Mod+Alt+Shift+K)', 'cross-out'], ['⌫', 'Mark: remove marks (Mod+Alt+Shift+X)', 'remove-marks']]) fmt(g3, l, t, c);
+
+    // the card: its heading, question and answer, written in as in Live Preview, and how it looks (front, back)
     const card = mk(root, 'div', 'lp-ce-card');
-    const field = (name, el, hint) => { const r = mk(card, 'label', 'lp-ce-field'); mk(r, 'span', '', name); r.appendChild(el); if (hint) mk(r, 'small', '', hint); return el; };
-    const fH = field('Heading (top of the card)', input('', 'the # heading it was under'));
-    const fQ = field('Question (the front)', document.createElement('textarea'));
-    const fA = field('Answer (the back)', document.createElement('textarea'), '**bold**, ==highlight==, - points, an indented line for a new line');
-    fQ.rows = 2; fA.rows = 6; fQ.className = 'lp-ce-q'; fA.className = 'lp-ce-a';
+    const fH = input('', 'the # heading it was under');
+    { const r = mk(card, 'label', 'lp-ce-field'); mk(r, 'span', '', 'Heading (top of the card)'); r.appendChild(fH); }
+    const fields = {};
+    const area = (name, key, ph) => {
+      const r = mk(card, 'div', 'lp-ce-field');
+      mk(r, 'span', '', name);
+      const host = mk(r, 'div', 'lp-ce-live lp-ce-' + key + ' lp-card-paper lined-paper light-paper lp-light theme-light');
+      fields[key] = cardField(app, host, '', (v) => { if (loading) return; rows[k][key] = v; dirty = true; pickLabel(k); preview(); }, ph, () => { current = fields[key]; });
+      return fields[key];
+    };
+    let loading = false;
+    area('Question (the front)', 'q', 'Question');
+    area('Answer (the back)', 'a', 'Answer: - points, ==highlight==, ![[embed]] …');
     const look = mk(card, 'div', 'lp-ce-preview');
-    const edit = () => { const r = rows[k]; r.h = fH.value; r.q = fQ.value; r.a = fA.value; dirty = true; pickLabel(k); preview(); };
-    for (const f of [fH, fQ, fA]) f.addEventListener('input', edit);
+    fH.addEventListener('input', () => { rows[k].h = fH.value; dirty = true; preview(); });
+    modal.contentEl.addEventListener('keydown', (e) => {
+      const id = hotkeyCommand(e);
+      if (!id || !current) return;
+      e.preventDefault(); e.stopPropagation();
+      act(id);
+    }, true);
 
     // add, take out, move
     const tools = mk(root, 'div', 'lp-ce-tools');
-    button(tools, '+ Card after this', 'A new card after this one', () => { rows.splice(k + 1, 0, { q: '', a: '', h: rows[k] ? rows[k].h : '' }); dirty = true; show(k + 1); fQ.focus(); });
+    button(tools, '+ Card after this', 'A new card after this one', () => { rows.splice(k + 1, 0, { q: '', a: '', h: rows[k] ? rows[k].h : '' }); dirty = true; show(k + 1); fields.q.focus(); });
     button(tools, '⇠ Move earlier', 'Swap with the card before', () => { if (k) { [rows[k - 1], rows[k]] = [rows[k], rows[k - 1]]; dirty = true; show(k - 1); } });
     button(tools, 'Move later ⇢', 'Swap with the next card', () => { if (k < rows.length - 1) { [rows[k + 1], rows[k]] = [rows[k], rows[k + 1]]; dirty = true; show(k + 1); } });
     button(tools, '✕ Take out', 'Take this card out', () => { rows.splice(k, 1); if (!rows.length) rows.push({ q: '', a: '', h: '' }); dirty = true; show(Math.min(k, rows.length - 1)); }, 'mod-warning');
@@ -2929,7 +3095,9 @@ module.exports = class LinedPaperPages extends Plugin {
       pick.replaceChildren(...rows.map((r, n) => { const o = document.createElement('option'); o.value = n; o.textContent = short(r, n); return o; }));
       pick.value = String(k);
       const r = rows[k];
-      fH.value = r.h; fQ.value = r.q; fA.value = r.a;
+      loading = true;
+      fH.value = r.h; fields.q.set(r.q); fields.a.set(r.a);
+      loading = false;
       prev.disabled = k === 0; next.disabled = k === rows.length - 1;
       preview();
     };
@@ -2937,8 +3105,12 @@ module.exports = class LinedPaperPages extends Plugin {
       if (e.key === 'PageUp') { e.preventDefault(); show(k - 1); } else if (e.key === 'PageDown') { e.preventDefault(); show(k + 1); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save.click(); }
     });
     const close = modal.onClose ? modal.onClose.bind(modal) : null;
-    modal.onClose = () => { if (close) close(); if (dirty) new Notice('Lined Paper Pages: cue card changes not saved'); };
-    this._editor = { modal, show, rows, root };
+    modal.onClose = () => {
+      if (close) close();
+      for (const f of Object.values(fields)) f.destroy();
+      if (dirty) new Notice('Lined Paper Pages: cue card changes not saved');
+    };
+    this._editor = { modal, show, rows, root, fields };
     show(k);
     modal.open();
   }
@@ -2981,7 +3153,7 @@ module.exports = class LinedPaperPages extends Plugin {
       const wrap = buildCardWrap(els, {
         size: opts.size || this.settings['cards-size'], back: opts.back || this.settings['cards-back'], title: opts.title || '', text: opts.text,
         flip: true, at: this._panelAt || 0, onShow: (k) => { this._panelAt = k; },
-      }, blk && file ? () => this.editCueCards(file, this._panelAt || 0) : null);
+      }, blk && file ? (at) => this.editCueCards(file, at) : null);
       host.appendChild(wrap);
       window.setTimeout(() => fitCards(host), 30);
     }
@@ -3180,7 +3352,7 @@ module.exports = class LinedPaperPages extends Plugin {
     for (const leaf of ws.getLeavesOfType('markdown')) {
       const v = leaf.view, host = v && v.containerEl && v.containerEl.querySelector('.view-content');
       if (!host) continue;
-      const lined = !!v.containerEl.querySelector('.view-content .lined-paper');
+      const lined = !!v.containerEl.querySelector('.view-content .lined-paper:not(.lp-card-paper)');
       let bar = host.querySelector(':scope > .lp-toolbar');
       if (off || !lined) { if (bar) bar.remove(); continue; }
       if (!bar) { bar = this.toolbarFor(v); host.appendChild(bar); }
