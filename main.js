@@ -1551,6 +1551,22 @@ async function fetchPluginFile(fetch, version, file, check = () => true) {
   throw last || new Error('no mirror answered');
 }
 
+// the three files of a version: from its tag, or, when the tag is not on GitHub (pushed without
+// --tags), from the main branch, if that is the same version (its manifest says so). All three from
+// the same place.
+async function fetchPluginVersion(get, version) {
+  let last = null;
+  for (const ref of [version, 'main']) {
+    try {
+      const manifest = await fetchPluginFile(get, ref, 'manifest.json', (t) => { try { return JSON.parse(t).version === version; } catch (e) { return false; } });
+      const main = await fetchPluginFile(get, ref, 'main.js', (t) => t.length > 10000 && t.includes('lined-paper-pages'));
+      const styles = await fetchPluginFile(get, ref, 'styles.css', (t) => t.length > 10000 && t.includes('lined-paper'));
+      return { manifest, main, styles, ref };
+    } catch (e) { last = e; }
+  }
+  throw last || new Error('version ' + version + ' not found');
+}
+
 // ---------- cue cards: a printable page from a Cornell note ----------
 // Every cue that is a question (it ends with ?) with its notes: the question on the front of a card, the
 // notes on the back. The cards are kept as plain text, easy to change, in a ```cuecards block:
@@ -2993,9 +3009,7 @@ module.exports = class LinedPaperPages extends Plugin {
     const get = async (url) => (await requestUrl({ url, throw: true })).text;
     const notice = new Notice(`Lined Paper Pages: downloading ${version} …`, 0);
     try {
-      const manifest = await fetchPluginFile(get, version, 'manifest.json', (t) => { try { return JSON.parse(t).version === version; } catch (e) { return false; } });
-      const main = await fetchPluginFile(get, version, 'main.js', (t) => t.length > 10000 && t.includes('lined-paper-pages'));
-      const styles = await fetchPluginFile(get, version, 'styles.css', (t) => t.length > 10000 && t.includes('lined-paper'));
+      const { manifest, main, styles } = await fetchPluginVersion(get, version);
       // (all three first, then written: never half an update)
       await app.vault.adapter.write(`${dir}/main.js`, main.text);
       await app.vault.adapter.write(`${dir}/styles.css`, styles.text);
@@ -4232,6 +4246,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
+module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;
 module.exports.textareaEditor = textareaEditor;

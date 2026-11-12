@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.34.1] - 2026-11-12
+
+### Fixed
+- **Update now gave a 404** when a version was pushed to GitHub without its tag (`git push` without
+  `--tags`): the updater found the new version on the main branch, then downloaded its files from the
+  tag, which wasn't there. It now takes them from the main branch in that case, only if main is that
+  same version (its manifest says so), all three files from the same place.
+
 ## [1.34.0] - 2026-11-12
 
 ### Added

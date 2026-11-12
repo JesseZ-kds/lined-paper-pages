@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, formatCard, linkedPages, hardBreaks, cardNewLine, newerVersion, fetchPluginFile, UPDATE_MIRRORS } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, formatCard, linkedPages, hardBreaks, cardNewLine, newerVersion, fetchPluginFile, fetchPluginVersion, UPDATE_MIRRORS } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -364,4 +364,25 @@ test('card editor: Enter makes a new line (a list goes on, an empty point ends i
   e = ed('- a\n- ', 1); cardNewLine(e); assert.equal(e.text, '- a\n', 'Enter on an empty point: the list ends');
   e = ed('- a point', 0); cardNewLine(e, true); assert.equal(e.text, '- a point\n', 'Shift+Enter: just a new line');
   assert.equal(hardBreaks('line one\nline two\n\n- a\n- b\n```\nx\ny\n```\nends.  \nnext'), 'line one  \nline two\n\n- a  \n- b\n```\nx\ny\n```\nends.  \nnext');
+});
+
+test('updates: a version whose tag is not on GitHub (pushed without --tags) comes from the main branch, only if main is that version', async () => {
+  const big = (s) => s + ' lined-paper-pages lined-paper '.repeat(400);
+  // (GitHub: main is at 1.34.0, the tag 1.34.0 was never pushed: 404 for it)
+  const github = (mainVersion) => async (url) => {
+    if (/[/@]1\.34\.0\//.test(url)) throw new Error('Request failed, status 404');
+    if (!/[/@]main\//.test(url)) throw new Error('Request failed, status 404');
+    if (url.endsWith('manifest.json')) return JSON.stringify({ id: 'lined-paper-pages', version: mainVersion });
+    return big(url.endsWith('main.js') ? '/* main */' : '/* styles */');
+  };
+  const r = await fetchPluginVersion(github('1.34.0'), '1.34.0');
+  assert.equal(r.ref, 'main');
+  assert.match(r.manifest.url, /^https:\/\/raw\.githubusercontent\.com\/JesseZ-kds\/lined-paper-pages\/main\/manifest\.json$/);
+  assert.match(r.main.url, /\/main\/main\.js$/);
+  assert.match(r.styles.url, /\/main\/styles\.css$/);
+  // (main moved on to another version: nothing is installed)
+  await assert.rejects(fetchPluginVersion(github('1.35.0'), '1.34.0'));
+  // (the tag there: from the tag)
+  const tagged = async (url) => (url.endsWith('manifest.json') ? JSON.stringify({ version: '1.34.0' }) : big('x'));
+  assert.equal((await fetchPluginVersion(tagged, '1.34.0')).ref, '1.34.0');
 });
