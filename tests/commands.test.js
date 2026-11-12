@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, newerVersion, fetchPluginFile, UPDATE_MIRRORS } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -279,4 +279,25 @@ test('cue cards: answers on the back, mirrored for double-sided printing (flippe
   // the note: one HTML block, no blank line in it (Obsidian would end the block there)
   const note = cueCardsNote([{ q: 'Why?', a: '<p>Because.</p>' }], 'Bio "notes"');
   assert.match(note, /^---\nformat: cuecards\ncssclasses:\n  - lp-cuecards\n---\n<div class="lp-cards" data-title="Bio &quot;notes&quot;"><div class="lp-card"><div class="lp-card-q">Why\?<\/div><div class="lp-card-a"><p>Because.<\/p><\/div><\/div><\/div>\n$/);
+});
+
+test('updates: a newer version is found, the files come from the first mirror that answers with the right file', async () => {
+  assert.equal(newerVersion('1.29.0', '1.28.0'), true);
+  assert.equal(newerVersion('1.28.10', '1.28.9'), true);
+  assert.equal(newerVersion('1.28.0', '1.28.0'), false);
+  assert.equal(newerVersion('1.9.9', '1.10.0'), false);
+  // the first mirror blocked, the second answers with something else (a network's block page), the third has it
+  const tried = [];
+  const fetch = async (url) => {
+    tried.push(new URL(url).hostname);
+    if (tried.length === 1) throw new Error('blocked');
+    if (tried.length === 2) return '<html>This site is blocked</html>';
+    return '{"id": "lined-paper-pages", "version": "1.30.0"}';
+  };
+  const r = await fetchPluginFile(fetch, '1.30.0', 'manifest.json', (t) => { try { return JSON.parse(t).version === '1.30.0'; } catch (e) { return false; } });
+  assert.deepEqual(tried, ['raw.githubusercontent.com', 'cdn.jsdelivr.net', 'fastly.jsdelivr.net']);
+  assert.equal(r.url, 'https://fastly.jsdelivr.net/gh/JesseZ-kds/lined-paper-pages@1.30.0/manifest.json');
+  // none answers: an error, nothing written
+  await assert.rejects(fetchPluginFile(async () => { throw new Error('blocked'); }, '1.30.0', 'main.js'));
+  assert.ok(UPDATE_MIRRORS.length >= 5, 'several mirrors to try');
 });

@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.30.0] - 2026-11-12
+
+### Added
+- **Updates without BRAT, also on a network that blocks it.**
+  - When Obsidian starts, Lined Paper Pages looks for a new version on GitHub and offers it
+    (**Update now**). *Paper: update Lined Paper Pages* looks any time.
+  - It tries several mirrors of GitHub in turn: raw.githubusercontent.com, jsDelivr, Statically,
+    Githack. On a school or work network one of them usually gets through where BRAT does not.
+  - It downloads the new files into the plugin's folder, checks them, and reloads the plugin.
+    Nothing is written unless all three files came through.
+  - *Settings → Updates*: look when Obsidian starts (on), install without asking (off).
+
 ## [1.29.0] - 2026-11-12
 
 ### Added

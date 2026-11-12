@@ -26,7 +26,7 @@
  *
  * Nothing is ever written into a note. Every layout starts by undoing the previous one.
  */
-const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer } = require('obsidian');
+const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer, requestUrl } = require('obsidian');
 
 // ---------- settings ----------
 // Every option of the settings page. Each sets the CSS variable --<key> (read by lined-paper.css /
@@ -147,6 +147,10 @@ const SETTINGS = [
     options: { tr: 'Top right', tl: 'Top left', br: 'Bottom right', bl: 'Bottom left' } },
   { key: 'tb-fade', type: 'toggle', cls: 'lp-tb-solid', invert: true, def: true, name: 'Toolbar: faded until you point at it', desc: 'Off: always fully shown.' },
   { key: 'revise-button', type: 'toggle', cls: 'lp-no-revise', invert: true, def: true, name: 'The "Add a revised …" button', desc: 'Under a definition\'s or quote\'s last version. (Insert: revised version, Alt + R, works either way.)' },
+
+  { section: 'Updates', desc: 'Lined Paper Pages can update itself, without BRAT: from GitHub through a few mirrors, one of which usually gets through a school or work network. (Paper: update Lined Paper Pages, to check now.)' },
+  { key: 'update-check', type: 'toggle', cls: 'lp-update-nocheck', invert: true, def: true, name: 'Look for a new version when Obsidian starts' },
+  { key: 'update-auto', type: 'toggle', cls: 'lp-update-auto', def: false, name: 'Install a new version without asking', desc: 'Off: a message offers it (Update now).' },
 
   { section: 'Callouts', desc: 'Every callout except the Cornell ones (cue, notes, question, summary, wide).' },
   { key: 'lp-callout-height', type: 'slider', min: 0.5, max: 1, step: 0.01, def: 0.8, pct: true, name: 'Callout box height',
@@ -1505,6 +1509,39 @@ function insertBlock(editor, template) {
 }
 
 // write the selected text with a pen (or type an empty pen span to write in)
+// ---------- updates without BRAT ----------
+// The plugin's files at a version (a tag, or main for the newest), from GitHub through mirrors, tried in
+// turn: a network that blocks one (BRAT's api.github.com, github.com) often lets another through.
+const REPO = 'JesseZ-kds/lined-paper-pages';
+const UPDATE_MIRRORS = [
+  (v, f) => `https://raw.githubusercontent.com/${REPO}/${v}/${f}`,
+  (v, f) => `https://cdn.jsdelivr.net/gh/${REPO}@${v}/${f}`,
+  (v, f) => `https://fastly.jsdelivr.net/gh/${REPO}@${v}/${f}`,
+  (v, f) => `https://gcore.jsdelivr.net/gh/${REPO}@${v}/${f}`,
+  (v, f) => `https://cdn.statically.io/gh/${REPO}/${v}/${f}`,
+  (v, f) => `https://raw.githack.com/${REPO}/${v}/${f}`,
+];
+// is version a newer than b (1.29.0 > 1.28.10 > 1.28.9)
+function newerVersion(a, b) {
+  const pa = String(a).split('.').map((x) => parseInt(x, 10) || 0), pb = String(b).split('.').map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0); }
+  return false;
+}
+// a file of the plugin at a version, from the first mirror that answers with it (fetch: a function
+// (url) → Promise<text>, Obsidian's requestUrl); check(text) says it is the right file
+async function fetchPluginFile(fetch, version, file, check = () => true) {
+  let last = null;
+  for (const m of UPDATE_MIRRORS) {
+    const url = m(version, file);
+    try {
+      const text = await fetch(url);
+      if (typeof text === 'string' && text.length && check(text)) return { text, url };
+      last = new Error('not the right file: ' + url);
+    } catch (e) { last = e; }
+  }
+  throw last || new Error('no mirror answered');
+}
+
 // ---------- cue cards: a printable page from a Cornell note ----------
 // Every cue that is a question (it ends with ?) with its notes: the question on the front of a card, the
 // notes on the back. The cards go in a note of their own (format: cuecards) as a plain list; the
@@ -1913,6 +1950,7 @@ function addPaperCommands(plugin) {
       return true;
     },
   });
+  add({ id: 'update', name: 'Paper: update Lined Paper Pages (look for a new version)', callback: () => plugin.checkForUpdate(false) });
   add({
     id: 'cue-cards', name: 'Note: make cue cards (a printable page, from the cues that are questions)',
     checkCallback: (checking) => {
@@ -2034,7 +2072,11 @@ module.exports = class LinedPaperPages extends Plugin {
       this.settings = d || {};
       this.applySettings();
       const ws = this.app.workspace;
-      if (ws.onLayoutReady) ws.onLayoutReady(() => { this.hintOldSnippets().catch(() => {}); });
+      if (ws.onLayoutReady) ws.onLayoutReady(() => {
+        this.hintOldSnippets().catch(() => {});
+        // (a new version? said once, a little after Obsidian is ready)
+        if (this.settings['update-check'] !== false) window.setTimeout(() => this.checkForUpdate(true).catch(() => {}), 8000);
+      });
     });
     this.addSettingTab(new LinedPaperSettingTab(this.app, this));
 
@@ -2550,6 +2592,60 @@ module.exports = class LinedPaperPages extends Plugin {
     });
     wrap.appendChild(b);
     el.appendChild(wrap);
+  }
+
+  // ---------- updates without BRAT ----------
+  // the newest version on GitHub (its manifest on main), through the mirrors
+  async newestVersion() {
+    const get = async (url) => (await requestUrl({ url, throw: true })).text;
+    const r = await fetchPluginFile(get, 'main', 'manifest.json', (t) => { try { return JSON.parse(t).id === 'lined-paper-pages'; } catch (e) { return false; } });
+    return JSON.parse(r.text).version;
+  }
+  // look for a new version; quiet: only say something when there is one
+  async checkForUpdate(quiet = false) {
+    if (!requestUrl) { if (!quiet) new Notice('Lined Paper Pages: updating needs a newer Obsidian'); return; }
+    const mine = (this.manifest && this.manifest.version) || '0';
+    let newest;
+    try { newest = await this.newestVersion(); } catch (e) {
+      if (!quiet) new Notice('Lined Paper Pages: could not reach GitHub or any of its mirrors on this network (' + (e && e.message ? e.message : e) + ')');
+      return;
+    }
+    if (!newerVersion(newest, mine)) { if (!quiet) new Notice(`Lined Paper Pages: ${mine} is the newest version`); return; }
+    if (this.settings['update-auto']) { await this.installUpdate(newest); return; }
+    const frag = document.createDocumentFragment();
+    frag.append(`Lined Paper Pages ${newest} is available (you have ${mine}). `);
+    const b = document.createElement('button');
+    b.textContent = 'Update now';
+    b.style.marginLeft = '6px';
+    frag.append(b);
+    const n = new Notice(frag, 0);
+    b.addEventListener('click', (e) => { e.stopPropagation(); try { n.hide(); } catch (err) { /* */ } this.installUpdate(newest); });
+  }
+  // download the version's main.js, manifest.json and styles.css into the plugin's folder, then reload it
+  async installUpdate(version) {
+    const app = this.app, id = (this.manifest && this.manifest.id) || 'lined-paper-pages';
+    const dir = (this.manifest && this.manifest.dir) || `${app.vault.configDir}/plugins/${id}`;
+    const get = async (url) => (await requestUrl({ url, throw: true })).text;
+    const notice = new Notice(`Lined Paper Pages: downloading ${version} …`, 0);
+    try {
+      const manifest = await fetchPluginFile(get, version, 'manifest.json', (t) => { try { return JSON.parse(t).version === version; } catch (e) { return false; } });
+      const main = await fetchPluginFile(get, version, 'main.js', (t) => t.length > 10000 && t.includes('lined-paper-pages'));
+      const styles = await fetchPluginFile(get, version, 'styles.css', (t) => t.length > 10000 && t.includes('lined-paper'));
+      // (all three first, then written: never half an update)
+      await app.vault.adapter.write(`${dir}/main.js`, main.text);
+      await app.vault.adapter.write(`${dir}/styles.css`, styles.text);
+      await app.vault.adapter.write(`${dir}/manifest.json`, manifest.text);
+      try { notice.hide(); } catch (e) { /* */ }
+      new Notice(`Lined Paper Pages: updated to ${version} (from ${new URL(main.url).hostname})`);
+      // (the new version takes over now)
+      if (app.plugins && app.plugins.disablePlugin && app.plugins.enablePlugin) {
+        await app.plugins.disablePlugin(id);
+        await app.plugins.enablePlugin(id);
+      }
+    } catch (e) {
+      try { notice.hide(); } catch (err) { /* */ }
+      new Notice('Lined Paper Pages: could not update: ' + (e && e.message ? e.message : e));
+    }
   }
 
   // Note: make cue cards: the note's question cues with their notes, on a cue card page of their own
@@ -3451,6 +3547,9 @@ module.exports.cardsFromDom = cardsFromDom;
 module.exports.cueCardsNote = cueCardsNote;
 module.exports.sheetOrder = sheetOrder;
 module.exports.layoutCards = layoutCards;
+module.exports.newerVersion = newerVersion;
+module.exports.fetchPluginFile = fetchPluginFile;
+module.exports.UPDATE_MIRRORS = UPDATE_MIRRORS;
 module.exports.fitCards = fitCards;
 module.exports.drawArrows = drawArrows;
 module.exports.markBullets = markBullets;

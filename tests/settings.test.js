@@ -116,7 +116,7 @@ test('settings page: options, live changes, saving and Reset all', async () => {
       return out;
     });
     assert.match(r.intro, /^Lined Paper Pages test\./);
-    assert.deepEqual(r.sections, ['Pages and text', 'Pen and paper', 'Cornell notes', 'Embeds', 'Cue cards', 'Toolbar and buttons', 'Callouts', 'Colours', 'Advanced']);
+    assert.deepEqual(r.sections, ['Pages and text', 'Pen and paper', 'Cornell notes', 'Embeds', 'Cue cards', 'Toolbar and buttons', 'Updates', 'Callouts', 'Colours', 'Advanced']);
     assert.ok(r.shown >= 30, `${r.shown} settings shown`);
     assert.equal(r.cueAfter, '0.4', 'a change shows straight away');
     assert.equal(r.savedCue, 0.4, 'and is saved');

@@ -32,6 +32,14 @@ summary). Reading view shows them as real A4 sheets that look exactly like the P
 *Settings → Community plugins → Browse*, search for **Lined Paper Pages**, then **Install** and
 **Enable**. Updates come through *Check for updates*.
 
+### Updating, also where BRAT is blocked
+
+Lined Paper Pages can update itself: when Obsidian starts it looks for a new version, and offers it
+(**Update now**). Or run **Paper: update Lined Paper Pages** any time. It downloads from GitHub through
+several mirrors (raw.githubusercontent.com, jsDelivr, Statically, Githack), so on a school or work
+network that blocks BRAT one of them usually gets through. *Settings → Updates*: look when Obsidian
+starts (on), install without asking (off).
+
 ### With BRAT (now, with automatic updates)
 
 1. Install and enable **BRAT** from *Settings → Community plugins → Browse*.
