@@ -1783,6 +1783,11 @@ function buildCardWrap(cards, opts = {}, onEdit = null) {
   const face = (src, side, k) => {
     const cell = el('div', 'lp-card-cell lp-' + side);
     cell.dataset.card = k;
+    // (the ruled lines: solid strips, one under each row. Drawn as a gradient they went into the PDF
+    // as a sampled shading, and a PDF viewer left some thin lines out, depending on the zoom)
+    const rules = el('div', 'lp-card-rules');
+    for (let r = 2; r <= rows; r++) { const i = el('i'); i.style.setProperty('--r', r); rules.appendChild(i); }
+    cell.appendChild(rules);
     const f = el('div', 'lp-card-face');
     f.dataset.rows = rows;
     // (the writing styled as on the page: bullets, pens, highlighters, marks, arrows, embeds; on white paper)
@@ -2458,11 +2463,15 @@ module.exports = class LinedPaperPages extends Plugin {
     if (bulletExt && this.registerEditorExtension) this.registerEditorExtension(bulletExt);
     const arrowExt = arrowEditorExtension();
     if (arrowExt && this.registerEditorExtension) this.registerEditorExtension(arrowExt);
+    // (cue cards: their writing, and the block of them, are not a lined page: none of the page's
+    // layout (embeds unwrapped and lined up, title bars, page breaks …) is done to them)
+    const onCards = (el) => !!(el && el.closest && (el.closest('.lp-card-src, .lp-card-paper, .lp-cuecards-block, .block-language-cuecards') || el.querySelector('.lp-cuecards-block, .block-language-cuecards, code.language-cuecards')));
     this.registerMarkdownPostProcessor((el, ctx) => {
       // coloured text with links: reading view and PDF
       const openLink = (href, e) => this.app.workspace.openLinkText(href, (ctx && ctx.sourcePath) || '', !!(e && (e.ctrlKey || e.metaKey)));
       fixColouredLinks(el, ctx, openLink);
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
+      if (onCards(el)) return;
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
       // a definition's / quote's page: under its last version, a button to add a revised one
@@ -2470,7 +2479,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { if (el.querySelector('.lp-cards')) { layoutCards(el, this.settings); fitCards(el); } drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (onCards(el)) return; if (el.querySelector('.lp-cards')) { layoutCards(el, this.settings); fitCards(el); } drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -3145,6 +3154,7 @@ module.exports = class LinedPaperPages extends Plugin {
   // a card's writing (markdown) as it shows: highlights, pens, bold, links, arrows
   async renderCardText(text, sourcePath) {
     const d = document.createElement('div');
+    d.className = 'lp-card-src';             // (the page's own layout leaves it alone: see the post-processor)
     const src = text;
     text = hardBreaks(text);
     try {

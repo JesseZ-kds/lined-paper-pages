@@ -267,7 +267,6 @@ body.lp-cards-nocut .lp-card-sheet .lp-card-cell { outline: 0; }
   overflow: hidden;
   container-type: size;
   background-color: var(--card-paper);
-  background-image: repeating-linear-gradient(to bottom, var(--card-paper) 0, var(--card-paper) calc(100% / var(--card-rows, 10) - 0.3mm), var(--card-rule) calc(100% / var(--card-rows, 10) - 0.3mm), var(--card-rule) calc(100% / var(--card-rows, 10)));
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -280,7 +279,19 @@ body.lp-cards-nocut .lp-card-sheet .lp-card-cell { outline: 0; }
   height: 0.45mm;
   background: var(--card-red);
 }
-body.lp-cards-blank .lp-card-cell { background-image: none; }
+/* the ruled lines: a solid strip under each row (row 1's is the red line) */
+.lp-card-rules { position: absolute; inset: 0; pointer-events: none; }
+.lp-card-rules > i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% / var(--card-rows, 10) * var(--r) - 0.3mm);
+  height: 0.3mm;
+  background: var(--card-rule);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+body.lp-cards-blank .lp-card-rules { display: none; }
 body.lp-cards-blank .lp-card-cell::before { display: none; }
 .lp-card-cell.lp-empty { background-image: none; }
 .lp-card-cell.lp-empty::before { display: none; }
@@ -382,35 +393,45 @@ body.lp-cards-plain .lp-cards-wrap .lp-card-text.lined-paper { --hand: system-ui
   max-width: none !important;
 }
 .lp-cards-wrap .lp-card-text.lined-paper .callout.callout {
+  /* as on the page: Obsidian's callout, its colour's tint behind it (solid, so it prints the same),
+     its corners rounded, its title in its colour; its rows the card's rows. */
   margin: 0 !important;
-  padding: 0 0 0 0.6em !important;
+  padding: 0 0.5em !important;
   border: none !important;
-  border-left: 0.5mm solid rgb(var(--callout-color, 120 120 120)) !important;
-  border-radius: 0 !important;
-  background: none !important;
+  border-radius: var(--callout-radius, 4px) !important;
+  background: rgba(var(--callout-color, 120, 120, 120), 0.12) !important;   /* (see-through, as on the page: the lines show through it; one flat colour, so it prints cleanly) */
   box-shadow: none !important;
   min-height: 0 !important;
   height: auto !important;
   transform: none !important;
+  clip-path: none !important;
   top: 0 !important;
+  mix-blend-mode: normal !important;
   text-align: left;
   font-size: inherit !important;
   line-height: var(--row) !important;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .lp-cards-wrap .lp-card-text.lined-paper .callout-title {
-  display: block !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.3em !important;
   padding: 0 !important;
   margin: 0 !important;
-  min-height: 0 !important;
+  min-height: var(--row) !important;
+  height: auto !important;
   font-size: inherit !important;
   line-height: var(--row) !important;
-  color: rgb(var(--callout-color, 120 120 120)) !important;
+  color: rgb(var(--callout-color, 120, 120, 120)) !important;
   background: none !important;
   border: none !important;
   transform: none !important;
 }
-.lp-cards-wrap .lp-card-text.lined-paper .callout-icon { display: none !important; }
-.lp-cards-wrap .lp-card-text.lined-paper .callout-title-inner { font-weight: 600; font-size: inherit !important; line-height: inherit !important; }
+.lp-cards-wrap .lp-card-text.lined-paper .callout-icon { display: flex !important; align-items: center; height: var(--row) !important; color: inherit; }
+.lp-cards-wrap .lp-card-text.lined-paper .callout-icon svg { width: 0.85em; height: 0.85em; }
+.lp-cards-wrap .lp-card-text.lined-paper .callout-title-inner { font-weight: 600; font-size: inherit !important; line-height: inherit !important; min-height: 0 !important; height: auto !important; color: inherit; }
+.lp-cards-wrap .lp-card-text.lined-paper .callout-title-inner a { color: inherit !important; }
 .lp-cards-wrap .lp-card-text.lined-paper .callout-content {
   padding: 0 !important;
   margin: 0 !important;

@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.34.2] - 2026-11-12
+
+### Fixed
+- **Ruled lines missing on printed cue cards.** The lines were drawn as one gradient, which went into
+  the PDF as a sampled shading; PDF viewers left some of the thin lines out (which ones depended on
+  the viewer and the zoom). Each line is now a solid strip, like the red line, and always prints.
+- **Callouts on cue cards have their colour again**: Obsidian's tint behind them, see-through as on the
+  page (the lines show through it), their title in their colour, with their icon.
+- **An embedded quote or definition on a card printed differently from reading view.** The page's own
+  layout (made for lined pages) was being done to the cards' writing in the PDF export: the embed was
+  swapped for a page copy, styled as on a page. The cards' writing is now left as it is.
+
 ## [1.34.1] - 2026-11-12
 
 ### Fixed

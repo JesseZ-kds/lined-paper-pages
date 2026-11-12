@@ -551,7 +551,7 @@ test('cue cards look like ruled index cards: a red line under the top row, the w
       const ms = getComputedStyle(mark);
       return {
         rows, red: red.backgroundColor, redTop: (parseFloat(red.top) + parseFloat(red.height) / 2) / row,
-        paper: getComputedStyle(cell).backgroundColor, lines: cell.style.length >= 0 && getComputedStyle(cell).backgroundImage.includes('linear-gradient'),
+        paper: getComputedStyle(cell).backgroundColor, lines: [...cell.querySelectorAll('.lp-card-rules > i')].filter((i) => i.getBoundingClientRect().height > 0).length,
         lineH: parseFloat(getComputedStyle(text).lineHeight) / row,
         label: cell.querySelector('.lp-card-label').textContent, no: cell.querySelector('.lp-card-no').textContent,
         mark: ms.backgroundImage.includes('255, 232, 26'), ink: getComputedStyle(text).color,
@@ -561,7 +561,7 @@ test('cue cards look like ruled index cards: a red line under the top row, the w
     assert.equal(r.red, 'rgb(224, 102, 102)', 'a red line');
     assert.ok(Math.abs(r.redTop - 1) < 0.1, 'under the top row: ' + r.redTop);
     assert.equal(r.paper, 'rgb(255, 255, 255)', 'white, in dark mode too');
-    assert.ok(r.lines, 'blue lines');
+    assert.equal(r.lines, 9, 'a blue line under each of the 9 rows below the red line');
     assert.ok(Math.abs(r.lineH - 1) < 0.02, 'one line of writing a row');
     assert.deepEqual([r.label, r.no], ['Life', '1']);
     assert.ok(r.mark, 'the light highlighter, on the white card');
@@ -673,8 +673,8 @@ test('a card looks like the page: its bullets, pens, links, highlighters and an 
         bullet: look(li) === look(pageLi), bulletLook: look(li), pageLook: look(pageLi),
         pen: getComputedStyle(font).color, mark: /90, 190, 255/.test(mark), link: getComputedStyle(t.querySelector('a')).textDecorationLine,
         pageLink: getComputedStyle(onPage.querySelector('font')).textDecorationLine,
-        bar: getComputedStyle(callout).borderLeftStyle, title: t.querySelector('.callout-title-inner').getBoundingClientRect().height > 0,
-        hidden: getComputedStyle(t.querySelector('.markdown-embed-link')).display + getComputedStyle(t.querySelector('.callout-icon')).display,
+        tint: getComputedStyle(callout).backgroundColor, title: t.querySelector('.callout-title-inner').getBoundingClientRect().height > 0,
+        hidden: getComputedStyle(t.querySelector('.markdown-embed-link')).display,
         off: ys.map((y) => (y / row)).filter((v) => v % 1 < 0.7 || v % 1 > 0.97).map((v) => v.toFixed(2)),
         row, lines: ys.length, theme: getComputedStyle(t).color, which: probes.map((p) => [p.previousSibling.textContent, ((p.getBoundingClientRect().bottom - box.top) / row).toFixed(2)].join('@')).join(' '),
         css: [...t.querySelectorAll('.internal-embed *, .internal-embed')].filter((e) => e.getBoundingClientRect().height > row * 3).map((e) => e.className + '=' + Math.round(e.getBoundingClientRect().height / row) + ':' + getComputedStyle(e).minHeight + ',' + getComputedStyle(e).paddingBottom + ',' + getComputedStyle(e, '::after').height + ',' + getComputedStyle(e, '::after').content).join(' ; ') + ' ## ' + [t.querySelector('p'), t.querySelector('.callout'), t.querySelector('.callout-title'), t.querySelector('.callout-content'), t.querySelector('.callout-content p'), t.querySelector('.internal-embed'), t.querySelector('.markdown-embed-content')].map((e) => { const c = getComputedStyle(e); return e.className + ':' + [c.display, c.lineHeight, c.fontSize, c.marginTop, c.paddingTop, c.top, c.transform, Math.round(e.getBoundingClientRect().top - box.top)].join(','); }).join(' / '),
@@ -683,12 +683,54 @@ test('a card looks like the page: its bullets, pens, links, highlighters and an 
     assert.ok(r.bullet, `the bullet as on the page: ${r.bulletLook} / ${r.pageLook}`);
     assert.equal(r.pen, 'rgb(30, 79, 191)', 'blue pen, as on white paper');
     assert.ok(r.mark, 'the blue highlighter');
-    assert.equal(r.bar, 'solid', 'the quote: a bar down its left');
+    assert.match(r.tint, /^rgba\(\d+, \d+, \d+, 0\.12\)$/, 'the quote: its callout colour behind it, see-through as on the page');
     assert.ok(r.title, 'the quote\'s title (its source)');
-    assert.equal(r.hidden, 'nonenone', 'no link icon, no callout icon');
+    assert.equal(r.hidden, 'none', 'no link icon');
     assert.deepEqual(r.off, [], 'every line of writing on a ruled line: ' + r.which + ' | ' + r.css + ' row ' + r.row);
     assert.ok(r.lines >= 4, 'title, quote, the point over two lines');
     assert.equal(r.theme, 'rgb(31, 41, 55)', 'dark writing on the white card');
+  } finally {
+    await context.close();
+  }
+});
+
+test('the PDF export of cue cards, as Obsidian makes it (the writing rendered as markdown, the plugin\'s post-processors run on it): every ruled line drawn solid, the embedded quote kept as it is', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const RENDER = require('./lib/obsidian-render');
+  const SRC = `const __require = require;
+require = (n) => (n !== 'obsidian' ? __require(n) : Object.assign({}, __require(n), { MarkdownRenderer: { render: async (app, md, el) => window.__mdRender(md, el) } }));
+` + require('./lib/harness').MAIN;
+  const { page, context } = await openReading({ name: 'x', cornell: false, blocks: [] }, { theme: 'theme-light', src: SRC });
+  try {
+    await page.evaluate(RENDER);
+    const r = await page.evaluate(async () => {
+      window.__pages = { 'Catechism': '---\nformat: quote\n---\n> [!quote] [Catechism of the Catholic Church, 2270](https://example.com)\n> "Human life must be respected and protected absolutely from the moment of conception."\n\n^quote\n' };
+      window.plugin.app.vault = { getAbstractFileByPath: () => null };
+      const block = 'title: Beginning of Life\n\nQ: At which point does <font color="#c62828">Christianity</font> hold?\nA: ![[Catechism#^quote]]\n   - <font color="#c62828">The Catholic Church</font> holds that [[life]] begins <mark class="hl-orange">at conception</mark>.\n\nQ: At which point does <font color="#1e4fbf">Judaism</font> hold?\nA: At birth.';
+      document.body.innerHTML = '<div class="print"><div class="markdown-preview-view markdown-rendered lp-cuecards"><div class="sec"></div></div></div>';
+      const sec = document.querySelector('.sec'), el = document.createElement('div');
+      sec.appendChild(el);
+      await window.plugin.renderCueBlock(block, el, 'x.md');
+      // (the export runs the post-processors on each section of the note too)
+      for (const f of window.__processors) f(sec, { sourcePath: 'x.md', getSectionInfo: () => null, frontmatter: {} });
+      await new Promise((ok) => setTimeout(ok, 600));
+      const cells = [...document.querySelectorAll('.lp-card-sheet .lp-card-cell:not(.lp-empty)')];
+      return {
+        unwrapped: document.querySelectorAll('.lp-card-text .lp-embed-copy, .lp-card-text .lp-embed-unwrapped').length,
+        callout: !!document.querySelector('.lp-card-text .internal-embed .callout[data-callout="quote"]'),
+        rules: cells.map((c) => c.querySelectorAll('.lp-card-rules > i').length),
+      };
+    });
+    assert.equal(r.unwrapped, 0, 'the page\'s layout leaves the cards\' writing alone (no embed copies)');
+    assert.ok(r.callout, 'the quote embedded as Obsidian shows it');
+    assert.deepEqual(r.rules, [9, 9, 9, 9], 'nine ruled lines on each card');
+    await page.emulateMedia({ media: 'print' });
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-cards-')), 'cards.pdf');
+    await page.pdf({ path: file, format: 'A4', margin: { top: 0, right: 0, bottom: 0, left: 0 }, printBackground: true });
+    const pdf = fs.readFileSync(file, 'latin1');
+    // (a gradient for the lines went into the PDF as a sampled shading, type 1, and viewers left lines out)
+    assert.equal((pdf.match(/\/ShadingType 1\b/g) || []).length, 0, 'no sampled shadings: the lines are solid');
+    fs.rmSync(path.dirname(file), { recursive: true, force: true });
   } finally {
     await context.close();
   }

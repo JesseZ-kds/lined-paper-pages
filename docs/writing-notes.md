@@ -352,8 +352,8 @@ Each card is a **ruled index card**: white, a red line under the top row (the **
 under, the `# Title` before it, on the left; the card's number on the right, ✓ on the answer side),
 blue lines, and the writing on the lines, in the middle of the card. **The writing looks as it does
 on the page:** your bullets (as set in *Settings → Pen and paper*), pens, highlighters, marks,
-arrows, links and embedded quotes or definitions (`![[Page#^quote]]`), in their colours for white
-paper. Hidden comments (`%% … %%`, such as a link to the slide) are left out.
+arrows, links and embedded quotes or definitions (`![[Page#^quote]]`, in their callout colour), in
+their colours for white paper. Hidden comments (`%% … %%`, such as a link to the slide) are left out.
 
 - **Sheets** shows the A4 pages as they print: cards all one size, dashed lines to cut along.
   **Cut out** shows each card on its own: click one to turn it over (**Flip all** turns them all).
