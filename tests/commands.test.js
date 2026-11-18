@@ -386,3 +386,63 @@ test('updates: a version whose tag is not on GitHub (pushed without --tags) come
   const tagged = async (url) => (url.endsWith('manifest.json') ? JSON.stringify({ version: '1.34.0' }) : big('x'));
   assert.equal((await fetchPluginVersion(tagged, '1.34.0')).ref, '1.34.0');
 });
+
+test('revision: a card known comes back later and later, one not known comes back today; its name is its question in plain words', () => {
+  const P = require('../main.js');
+  let r = P.nextReview(undefined, true, '2026-11-18');
+  assert.deepEqual(r, { box: 1, due: '2026-11-19', seen: 1, last: '2026-11-18' });
+  r = P.nextReview(r, true, '2026-11-19'); assert.equal(r.due, '2026-11-21');
+  r = P.nextReview(r, true, '2026-11-21'); assert.equal(r.due, '2026-11-25');
+  r = P.nextReview(r, false, '2026-11-25'); assert.deepEqual([r.box, r.due, r.seen], [0, '2026-11-25', 4]);
+  assert.ok(P.cardDue(undefined, '2026-11-18') && P.cardDue({ due: '2026-11-18' }, '2026-11-18') && !P.cardDue({ due: '2026-11-19' }, '2026-11-18'));
+  assert.equal(P.cardId({ q: 'When does <font color="#1e4fbf">life</font> **begin**?' }), P.cardId({ q: 'when does life begin?' }));
+  assert.notEqual(P.cardId({ q: 'When does life begin?' }), P.cardId({ q: 'When does life end?' }));
+  assert.equal(P.gapQuote('"Human life must be respected and protected absolutely"'), '"Human \\_\\_\\_\\_ must be respected and \\_\\_\\_\\_\\_\\_\\_\\_ absolutely"');
+});
+
+test('a question drafted from notes', () => {
+  const { draftQuestion } = require('../main.js');
+  assert.equal(draftQuestion('IVF is ==fertilisation outside the body==.'), 'What is IVF?');
+  assert.equal(draftQuestion('The sanctity of life means life is holy'), 'What does the sanctity of life mean?');
+  assert.equal(draftQuestion('Catholics oppose abortion because life begins at conception'), 'Why catholics oppose abortion?');
+  assert.equal(draftQuestion('In 1967, the Abortion Act made it legal'), 'What happened in 1967?');
+  assert.equal(draftQuestion('<font color="#c62828">Rabbinic scholars</font> hold that the foetus is special'), 'What do Rabbinic scholars hold?');
+  assert.equal(draftQuestion('The Catholic Church teaches that life is sacred'), 'What does The Catholic Church teach?');
+  assert.equal(draftQuestion('Life begins at conception for many Christians'), 'What do you know about Life begins at conception for …?');
+});
+
+test('a list drawn as a diagram: mind map, flow, cycle, tree, timeline, table', () => {
+  const { diagramFrom, outline } = require('../main.js');
+  const list = '- Judaism\n  - life at birth\n  - foetus is "water"\n- Christianity\n  - life at conception';
+  assert.deepEqual(outline('>> - a\n>>   - b\n>> - c').map((n) => [n.text, n.kids.map((k) => k.text)]), [['a', ['b']], ['c', []]]);
+  assert.equal(diagramFrom(list, 'mindmap', 'Beginning of life').text, 'mindmap\n  n0(("Beginning of life"))\n    n1["Judaism"]\n      n2["life at birth"]\n      n3["foetus is \'water\'"]\n    n4["Christianity"]\n      n5["life at conception"]');
+  assert.equal(diagramFrom('- Sperm meets egg\n- Zygote (one cell)\n- Embryo', 'flow').text, 'flowchart LR\n    n0("Sperm meets egg")\n    n1("Zygote one cell")\n    n2("Embryo")\n    n0 --> n1\n    n1 --> n2');
+  assert.match(diagramFrom('- a\n- b\n- c', 'cycle').text, /n2 --> n0$/);
+  assert.equal(diagramFrom('- 1967: Abortion Act\n- 1990: limit 24 weeks', 'timeline', 'UK law').text, 'timeline\n    title UK law\n    1967 : Abortion Act\n    1990 : limit 24 weeks');
+  assert.equal(diagramFrom(list, 'table').text, '| Judaism | Christianity |\n| --- | --- |\n| life at birth | life at conception |\n| foetus is "water" |  |');
+  assert.match(diagramFrom(list, 'tree', 'Views').text, /^flowchart TD\n {4}n0\("Views"\)\n {4}n1\["Judaism"\]\n {4}n0 --> n1/);
+  assert.equal(diagramFrom('', 'flow'), null);
+});
+
+test('asking an AI: the prompt asks for the right form; the answer is read back (Mermaid, a table, cues), anything else is refused', () => {
+  const { aiPrompt, aiAnswer, cueGroups } = require('../main.js');
+  assert.match(aiPrompt('mindmap', 'Abortion', 'my notes'), /mermaid mindmap[\s\S]*Topic: Abortion[\s\S]*"""\nmy notes\n"""/i);
+  assert.match(aiPrompt('questions', 'x'), /Q: question\?\nA: answer/);
+  assert.deepEqual(aiAnswer('flow', 'Here you go:\n```mermaid\nflowchart TD\n  a["x"] --> b["y"]\n```\nHope it helps'), { lang: 'mermaid', text: 'flowchart TD\n  a["x"] --> b["y"]' });
+  assert.equal(aiAnswer('flow', 'Sorry, I cannot draw.'), null);
+  assert.deepEqual(aiAnswer('compare', 'Sure!\n| | A | B |\n|---|---|---|\n| view | x | y |\nDone'), { lang: null, text: '| | A | B |\n|---|---|---|\n| view | x | y |' });
+  const q = aiAnswer('questions', 'Q: What is IVF?\nA: Fertilisation outside the body.\n\nQ: Name a view\nA: - Catholic: wrong\n- Liberal: fine');
+  assert.deepEqual(q.cards, [{ q: 'What is IVF?', a: 'Fertilisation outside the body.' }, { q: 'Name a view?', a: '- Catholic: wrong\n- Liberal: fine' }]);
+  assert.equal(cueGroups(q.cards.slice(0, 1)), '>> [!cue]\n>> What is IVF?\n>\n>> [!notes]\n>> Fertilisation outside the body.');
+});
+
+test('a topic index: its notes (with how many questions), definitions, quotes and cue cards', () => {
+  const { topicIndex } = require('../main.js');
+  const f = (path) => ({ path, basename: path.replace(/^.*\//, '').replace(/\.md$/, '') });
+  const text = topicIndex('RS/Life', [
+    { kind: 'note', file: f('RS/Life/Beginning of Life.md'), cues: 4, date: '2026-11-12' },
+    { kind: 'def', file: f('Definitions/foetus.md'), said: 'An unborn baby from eight weeks.' },
+    { kind: 'quote', file: f('Quotes/Yevamot 69b.md'), said: '"…the foetus is merely water."' },
+  ]);
+  assert.equal(text, '---\nformat: index\ncssclasses:\n  - lp-index\n---\n# RS/Life\n\n## Notes\n\n- [[RS/Life/Beginning of Life|Beginning of Life]] · 4 questions · 2026-11-12\n\n## Definitions\n\n- **[[Definitions/foetus|foetus]]**: An unborn baby from eight weeks.\n\n## Quotes\n\n- [[Quotes/Yevamot 69b|Yevamot 69b]]: "…the foetus is merely water."\n');
+});

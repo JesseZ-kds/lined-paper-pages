@@ -114,6 +114,9 @@ commands have none, give them one there if you like.
 | Definition, embedded (a page of its own) | Alt + F | | |
 | Definition, linked | Alt + Shift + F | | |
 | Quote (a page of its own) | Alt + O | | |
+| Diagram from the selected list | Alt + M | | |
+| Diagram / answer / questions from AI | Alt + I | | |
+| Cue for the selected notes | Alt + U | | |
 | Revised version (on its page) | Alt + R | | |
 
 | Highlight: (Alt + Shift + …) | | Mark: (Mod + Alt + Shift + …) | |
@@ -127,8 +130,11 @@ commands have none, give them one there if you like.
 | Remove highlight | Alt + Shift + X | Remove marks | Mod + Alt + Shift + X |
 | | | Remove all colours, highlights and marks | Mod + Alt + Shift + A |
 
-**Note:** review (cover the notes, answer the cues, click to reveal), make cue cards (ruled index cards to print:
-question on the front, answer on the back; edit them, or see them beside the note as you write), set the date. The same, and
+**Note:** review (cover the notes, or blank the highlighted words), study your cue cards (spaced
+repetition: each card back when it is due), make cue cards (ruled index cards to print: question on
+the front, answer on the back; edit them, or see them beside the note as you write), a topic's index,
+set the date. **Insert:** a diagram from a list, or a diagram, answer or practice questions from AI
+(Gemini, or NotebookLM by copy and paste), a cue drafted for the selected notes, a summary from the cues. The same, and
 more, are buttons on the toolbar at the top of a lined-paper note.
 
 **Paper:** make this note lined paper / Cornell notes / a plain note again, switch between light and

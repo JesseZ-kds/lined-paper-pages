@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-18
+
+### Added
+- **Review cue cards (spaced repetition).** *Note: review cue cards* (**Study** on the toolbar, and
+  **Study (N due)** beside the note): one card at a time, *Show the answer*, then *Knew it* /
+  *Didn't know* (keys 1 / 2, Space). Known cards come back after 1, 2, 4, 8 … days, the others again
+  today. A note, its folder, or all notes; only the cards due, shuffled; quotes with words left out
+  to fill in.
+- **Diagrams** (Mermaid: text Obsidian draws, not a picture; on lined paper the writing after one
+  starts on the next line):
+  - *Insert: diagram from the selected list* (Alt+M, ◇): mind map, flow, cycle, tree, timeline or
+    comparison table, previewed, put under the list. No AI or internet needed.
+  - *Insert: diagram, answer or practice questions from AI* (Alt+I, ✦): from Google's Gemini with a
+    free API key (*Settings → Revision and AI*), or copied into NotebookLM / Gemini and the answer
+    pasted back. A diagram Obsidian can't draw is sent back to be fixed. Practice questions go in as
+    cues (so they become cue cards).
+- **Insert: cue for the selected notes** (Alt+U): a question drafted from what you selected, in the
+  cue beside it.
+- **Insert: summary from the cues and highlights.**
+- **Review shows: the highlighted words blanked out** (*Settings → Revision and AI*): click each to
+  check.
+- **Note: make an index of this folder**: its notes, definitions and quotes on one page, kept up to
+  date.
+- **Note: cue cards for every note in this folder**, on one page, sharing the sheets.
+- **What's new** shows once after an update (*Paper: what's new in Lined Paper Pages* any time).
+
 ## [1.34.2] - 2026-11-12
 
 ### Fixed

@@ -92,14 +92,14 @@ html body .lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unw
 /* ---------- Review mode (reading view of a Cornell note) ----------
    The notes are covered (their room kept: nothing moves), the cues stay; a click on a notes column
    shows it, another covers it again. Never in the PDF. */
-.lp-review .callout[data-callout="notes"] {
+body:not(.lp-review-blanks) .lp-review .callout[data-callout="notes"] {
   position: relative;
   cursor: pointer;
 }
-.lp-review .callout[data-callout="notes"]:not(.lp-revealed) > .callout-content {
+body:not(.lp-review-blanks) .lp-review .callout[data-callout="notes"]:not(.lp-revealed) > .callout-content {
   visibility: hidden;
 }
-.lp-review .callout[data-callout="notes"]:not(.lp-revealed)::after {
+body:not(.lp-review-blanks) .lp-review .callout[data-callout="notes"]:not(.lp-revealed)::after {
   content: "Answer the cue, then click to check";
   position: absolute;
   inset: 2px 0;
@@ -114,14 +114,26 @@ html body .lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unwrapped.lp-embed-unw
   font-size: 0.8em;
   pointer-events: none;
 }
-.lp-review .callout[data-callout="notes"].lp-revealed {
+body:not(.lp-review-blanks) .lp-review .callout[data-callout="notes"].lp-revealed {
   outline: 2px solid color-mix(in srgb, var(--pen-green, #2e7d32) 45%, transparent);
   outline-offset: 1px;
   border-radius: 4px;
 }
+/* (Review shows: the highlighted words blanked out. The highlighter's stroke stays, the words on it
+   are hidden; a click shows them, in green) */
+body.lp-review-blanks .lp-review :is(mark, mark *):not(.lp-shown, .lp-shown *) {
+  color: transparent !important;
+  -webkit-text-stroke: 0 !important;
+  text-shadow: none !important;
+  text-decoration-color: transparent !important;
+}
+body.lp-review-blanks .lp-review mark { cursor: pointer; }
+body.lp-review-blanks .lp-review mark:not(.lp-shown) { box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink, #1f2937) 45%, transparent) !important; }
+body.lp-review-blanks .lp-review mark.lp-shown { outline: 1.5px solid color-mix(in srgb, var(--pen-green, #2e7d32) 60%, transparent); outline-offset: 1px; }
 @media print {
-  .lp-review .callout[data-callout="notes"] > .callout-content { visibility: visible !important; }
-  .lp-review .callout[data-callout="notes"]::after { content: none !important; }
+  body:not(.lp-review-blanks) .lp-review .callout[data-callout="notes"] > .callout-content { visibility: visible !important; }
+  body:not(.lp-review-blanks) .lp-review .callout[data-callout="notes"]::after { content: none !important; }
+  body.lp-review-blanks .lp-review :is(mark, mark *) { color: inherit !important; box-shadow: none !important; outline: none !important; }
 }
 
 /* ---------- The toolbar (lined-paper notes) ---------- */
@@ -619,6 +631,42 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
   .lp-card-sheet:last-child { break-after: auto; page-break-after: auto; }
 }
 .lp-cuecards.markdown-preview-view { padding-top: 20px; }
+
+/* ---------- Review cue cards (spaced repetition) ---------- */
+.lp-review-modal { width: min(640px, 96vw); }
+.lp-rv-options { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; margin-bottom: 8px; }
+.lp-rv-check { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); cursor: pointer; }
+.lp-rv-info { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; min-height: 1.2em; }
+.lp-rv-stage .lp-cards-controls { display: none; }
+.lp-rv-stage .lp-card-deck { grid-template-columns: 1fr !important; max-width: 520px; margin: 0 auto; }
+.lp-rv-stage .lp-deck-card { cursor: pointer; }
+.lp-rv-controls { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
+.lp-rv-controls button { min-width: 140px; }
+.lp-rv-no { color: var(--text-error, #c62828); }
+.lp-rv-done { text-align: center; padding: 28px 10px; font-size: 16px; }
+.lp-rv-next { margin-top: 6px; font-size: 13px; color: var(--text-muted); }
+.lp-cards-study { margin-left: 4px; }
+
+/* ---------- Ask AI, and diagrams from a list ---------- */
+.lp-ai-modal, .lp-diagram-modal { width: min(760px, 96vw); }
+.lp-ai-kind, .lp-ai-topic, .lp-ai-paste { width: 100%; margin-bottom: 8px; }
+.lp-ai-topic, .lp-ai-paste { resize: vertical; font-size: 14px; }
+.lp-ai-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+.lp-ai-buttons, .lp-ai-foot, .lp-dg-foot { display: flex; flex-wrap: wrap; gap: 8px; }
+.lp-ai-foot, .lp-dg-foot { justify-content: flex-end; margin-top: 10px; }
+.lp-ai-status { font-size: 13px; color: var(--text-muted); margin: 10px 0 6px; min-height: 1.2em; }
+.lp-ai-preview, .lp-dg-preview { max-height: 46vh; overflow: auto; border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 8px; }
+.lp-ai-preview:empty { display: none; }
+.lp-dg-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-bottom: 10px; }
+.lp-dg-row :is(select, input) { width: 100%; }
+@media (max-width: 600px) { .lp-dg-row { grid-template-columns: 1fr; } }
+.lp-whatsnew ul { padding-left: 1.2em; }
+.lp-whatsnew li { margin: 0 0 8px; line-height: 1.45; }
+
+/* a diagram on lined paper: in the middle of the page, on the paper (the writing after it starts on
+   the next line: the plugin measures it) */
+.lined-paper :is(.block-language-mermaid, pre.mermaid) { text-align: center; background: none !important; margin: 0 !important; padding: 0 !important; }
+.lined-paper :is(.block-language-mermaid, pre.mermaid) svg { max-width: 100%; height: auto; }
 
 /* ==== snippets/lined-paper.css ================================================================ */
 

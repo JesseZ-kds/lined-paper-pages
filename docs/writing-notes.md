@@ -74,6 +74,10 @@ The **Paper:** and **Note:** commands have no hotkey of their own.
 | Pen: scribble out | Scribbles over the selected words, like a mistake crossed out by hand |
 | Pen: cross out | Crosses the selected text out: `~~text~~` |
 | Insert checkbox (task) | Turns the line into a task, `- [ ] `, with a hand-drawn box |
+| Insert diagram from the selected list (Alt+M) | A Mermaid mind map, flow, cycle, tree, timeline or table of the list, under it |
+| Insert diagram, answer or practice questions from AI (Alt+I) | Gemini, or copied into NotebookLM: see *Diagrams* |
+| Insert cue for the selected notes (Alt+U) | A question drafted from the selection, in the cue beside it |
+| Insert summary from the cues and highlights | A summary to start from |
 
 Blocks go on lines of their own, with the blank lines around them that Markdown needs, and the
 cursor ends up where you write next. Every block is written in a quote of its own (`>> [!question]`,
@@ -404,6 +408,60 @@ their colours for white paper. Hidden comments (`%% … %%`, such as a link to t
   folder. A page's own options (Edit cards) win over these.
 
 Making the cards again from the note replaces the page (and any changes made in Edit cards).
+
+## Revising: review cue cards
+
+**Note: review cue cards** (or **Study** on the toolbar, or **Study (3 due)** beside the note) shows
+one card at a time: say the answer, **Show the answer** (Space), then **✓ Knew it** (2) or
+**✗ Didn't know** (1). A card you know comes back after 1, 2, 4, 8, 16 … days; one you don't comes
+back at the end of this session and again today. Choose **This note**, **This folder** or **All
+notes**; *Only the ones due* (untick it to go through all of them), *Shuffle*, and *Quotes: fill the
+gaps* (a quote's card shows the quote with every third longer word left out). What you knew is kept in
+the plugin's settings.
+
+**Review shows** (*Settings → Revision and AI*): the notes covered (click a notes column to check), or
+**your highlighted words blanked out**: the highlighter's stroke stays, the words on it are hidden;
+click one to see it.
+
+## Writing helpers
+
+- **Insert: cue for the selected notes** (Alt+U): select a line of your notes; a question is drafted in
+  the cue beside it ("IVF is …" → *What is IVF?*, "Catholics oppose abortion because …" → *Why
+  catholics oppose abortion?*, "Rabbinic scholars hold that …" → *What do Rabbinic scholars hold?*),
+  selected so you can change it. In the first lines of a group's notes it goes in that group's cue;
+  further down, the notes from there on get a group of their own.
+- **Insert: summary from the cues and highlights**: a Summary with each cue and the words you
+  highlighted under it, and a line to write it in your own words.
+
+## Diagrams
+
+A diagram here is **Mermaid**: a few lines of text in the note (```` ```mermaid ````) that Obsidian
+draws, in reading view, while editing and in the PDF. Not a picture: change a word and it is drawn
+again. On lined paper the writing after it starts on the next line.
+
+- **Insert: diagram from the selected list** (Alt+M, or **◇** on the toolbar): select a list (`-`
+  points, indented for sub-points) and choose **mind map**, **flow** (steps), **cycle**, **tree**,
+  **timeline** (`1967: Abortion Act` lines) or **comparison table** (each point a column, its
+  sub-points the rows). A preview first; it goes under the list, inside the callout it is in. No AI,
+  no internet.
+- **Insert: diagram, answer or practice questions from AI** (Alt+I, or **✦**): write (or select) what
+  you want, choose a kind (mind map, flowchart, cycle, timeline, tree, comparison table, an answer to a
+  question, or 5 practice questions), and whether to send the note with it (so the answer keeps to
+  your notes).
+  - **Ask Gemini**: with a free Gemini API key in *Settings → Revision and AI* (Google AI Studio →
+    Get API key). A diagram Obsidian can't draw is sent back to be fixed, once.
+  - **Copy for NotebookLM** (or Gemini): no key needed. The question is copied and NotebookLM opens:
+    paste it into a notebook with your sources, then paste its answer back into the box.
+  - Practice questions go in as cue + notes groups, so they become cue cards. An answer goes in as a
+    tip callout.
+
+## A topic's index, and its cue cards together
+
+- **Note: make an index of this folder**: a page in the folder with its notes (and how many question
+  cues each has), the definitions and quotes they use (with what they say), and its cue card pages.
+  It keeps itself up to date as you write.
+- **Note: cue cards for every note in this folder**: every card of the folder's notes on one page,
+  sharing the sheets (no half-empty pages between notes).
 
 ## The toolbar
 

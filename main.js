@@ -26,7 +26,8 @@
  *
  * Nothing is ever written into a note. Every layout starts by undoing the previous one.
  */
-const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer, requestUrl, ItemView } = require('obsidian');
+const OB = require('obsidian');
+const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer, requestUrl, ItemView } = OB;
 
 // ---------- settings ----------
 // Every option of the settings page. Each sets the CSS variable --<key> (read by lined-paper.css /
@@ -144,6 +145,13 @@ const SETTINGS = [
     options: { keep: 'Kept: pages in the cue cards folder', print: 'Only for printing: made when you make the cards, removed when you close them' },
     desc: 'Only for printing: no cue card files are kept. Make the cards, print them (Export to PDF), close the tab: the page is gone. (The cards beside the note still show as you write.)' },
   { key: 'cards-folder', type: 'path', def: 'Cue cards', name: 'Folder for cue card pages' },
+
+  { section: 'Revision and AI', desc: 'Review cue cards (Study on the toolbar), and Ask AI (✦): diagrams, answers and practice questions from Google\'s Gemini, or copied into NotebookLM.' },
+  { key: 'review-mode', type: 'select', cls: 'lp-review-', def: 'cover', name: 'Review shows',
+    options: { cover: 'The notes covered: answer each cue, click its notes to check', blanks: 'Your notes with the highlighted words blanked out: click one to see it' } },
+  { key: 'ai-key', type: 'path', secret: true, def: '', name: 'Gemini API key',
+    desc: 'Free from Google AI Studio (aistudio.google.com → Get API key). Kept in this vault\'s plugin settings (.obsidian/plugins/lined-paper-pages/data.json), sent only to Google, only when you press Ask Gemini. Without one: Copy for NotebookLM.' },
+  { key: 'ai-model', type: 'path', def: 'gemini-2.5-flash', name: 'Gemini model', desc: 'If Google retires it, the newest Flash model your key can use is taken instead.' },
 
   { section: 'Toolbar and buttons', desc: 'The toolbar on lined-paper notes, and the buttons on the pages. (Toolbar on / off: Pages and text.)' },
   { key: 'tb-insert', type: 'toggle', cls: 'lp-tb-no-insert', invert: true, def: true, name: 'Toolbar: Insert buttons' },
@@ -757,6 +765,24 @@ function roundTables(root, undo) {
     return extra ? { margin: parseFloat(getComputedStyle(b).marginBottom) || 0, extra } : null;
   });
   blocks.forEach((b, i) => { if (plans[i]) set(b, 'margin-bottom', plans[i].margin + plans[i].extra); });
+}
+
+// A diagram (```mermaid, drawn by Obsidian) is as tall as it is drawn: the writing after it starts on
+// the next ruled line. Measured, then set.
+function roundDiagrams(root, undo) {
+  const blocks = Array.from(root.querySelectorAll('.block-language-mermaid, pre.mermaid, div.mermaid'))
+    .filter((b) => b.getClientRects().length && b.closest('.lined-paper, .print') && !b.closest('.lp-card-paper, .internal-embed') && !b.parentElement.closest('.block-language-mermaid'));
+  if (!blocks.length) return;
+  for (const b of blocks) if (b._lpPush) { b.style.removeProperty('margin-bottom'); b._lpPush = 0; }
+  const L = px(blocks[0].closest('.markdown-preview-view, .print, .lined-paper') || root, 'var(--line)');
+  if (!(L > 4)) return;
+  const plans = blocks.map((b) => { const extra = toNextLine(b, L); return extra ? (parseFloat(getComputedStyle(b).marginBottom) || 0) + extra : null; });
+  blocks.forEach((b, i) => {
+    if (plans[i] === null) return;
+    b.style.setProperty('margin-bottom', plans[i] + 'px', 'important');
+    b._lpPush = 1;
+    if (undo) undo.push({ t: 'prop', el: b, name: 'margin-bottom' });
+  });
 }
 
 // Obsidian's HTML has line breaks between its blocks (inside a table: before the header, between the
@@ -1482,6 +1508,7 @@ const HOTKEYS = {
   'insert-cue-notes': ALT('n'), 'insert-summary': ALT('c'), 'insert-question': ALT('q'), 'insert-title': ALT('t'),
   'insert-divider': ALT('d'), 'insert-nextpage': ALT('p'), 'insert-wide': ALT('w'), 'insert-cornell-page': ALT('l'),
   'insert-task': ALT('k'), 'insert-arrow': ALT('a'), 'insert-arrow-double': ALT('e'), 'insert-arrow-wavy': ALT('v'),
+  'insert-diagram': ALT('m'), 'ask-ai': ALT('i'), 'insert-cue-from-selection': ALT('u'),
   'insert-definition': ALT('f'), 'insert-definition-link': HL('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
   'colour-red': PEN('r'), 'colour-blue': PEN('b'), 'colour-green': PEN('g'), 'colour-orange': PEN('o'), 'colour-purple': PEN('p'),
   'remove-colour': PEN('x'),
@@ -1620,7 +1647,7 @@ function cornellCards(md, o = {}) {
   parts.forEach((p, k) => {
     if (p.kind !== 'cue') return;
     const plain = p.text.replace(/[\s*_"'”’)\]=]+$/, '');
-    if (!plain.endsWith('?')) return;                 // (not a question: no card)
+    if (!o.all && !plain.endsWith('?')) return;      // (not a question: no card)
     const next = parts[k + 1];
     const c = { q: p.text, a: next && next.kind === 'notes' ? next.text : '', h: p.h };
     if (o.lines) c.line = p.line;
@@ -2162,6 +2189,15 @@ function addPaperCommands(plugin) {
     },
   });
   add({ id: 'update', name: 'Paper: update Lined Paper Pages (look for a new version)', callback: () => plugin.checkForUpdate(false) });
+  const withEditor = (f) => ({ editorCallback: (editor, view) => f(editor, (view && view.file) || (app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile())) });
+  add({ id: 'insert-diagram', name: 'Insert: diagram from the selected list (mind map, flow, cycle, tree, timeline, table)', ...withEditor((e) => plugin.insertDiagram(e)) });
+  add({ id: 'ask-ai', name: 'Insert: diagram, answer or practice questions from AI (Gemini, or copied for NotebookLM)', ...withEditor((e, f) => plugin.askAI(e, f)) });
+  add({ id: 'insert-cue-from-selection', name: 'Insert: cue for the selected notes (a question drafted)', ...withEditor((e) => plugin.cueFromSelection(e)) });
+  add({ id: 'insert-summary-from-cues', name: 'Insert: summary from the cues and highlights', ...withEditor((e) => plugin.summaryFromCues(e)) });
+  add({ id: 'review-cards', name: 'Note: review cue cards (spaced: the ones due today)', callback: () => plugin.reviewCards('note') });
+  add({ id: 'topic-index', name: 'Note: make an index of this folder (notes, definitions, quotes)', callback: () => plugin.makeTopicIndex(app.workspace.getActiveFile()) });
+  add({ id: 'folder-cue-cards', name: 'Note: cue cards for every note in this folder (one page)', callback: () => plugin.folderCueCards(app.workspace.getActiveFile()) });
+  add({ id: 'whats-new', name: 'Paper: what\'s new in Lined Paper Pages', callback: () => plugin.whatsNew(true) });
   add({ id: 'format-cue-cards', name: 'Note: cue cards for all definitions and quotes', callback: () => plugin.makeFormatCards() });
   add({ id: 'show-cue-cards', name: 'Note: show cue cards beside the note (as you write)', callback: () => plugin.showCardPanel() });
   add({
@@ -2282,6 +2318,224 @@ function addPaperCommands(plugin) {
     editor.replaceRange(m[1] + '- [ ] ', { line: cur.line, ch: 0 }, { line: cur.line, ch: m[0].length });
     editor.setCursor({ line: cur.line, ch: editor.getLine(cur.line).length });
   } });
+}
+
+// what's new in this version (shown once, after an update)
+const WHATS_NEW = {
+  '1.35.0': [
+    ['Review cue cards', '(Note: review cue cards, or Study on the toolbar): one card at a time, Show the answer, then Knew it / Didn\'t know. Cards you know come back after 1, 2, 4, 8 … days; the ones you don\'t, the same day. A note, its folder or every note. Quotes can be shown with words left out.'],
+    ['Ask AI', '(Alt+I, or ✦ on the toolbar): a mind map, flowchart, cycle, timeline, tree or comparison table of something, drawn as a Mermaid diagram (text Obsidian draws, not a picture); an answer to a question; or 5 practice questions, added as cues. With a free Gemini key (Settings → Revision and AI), or copied into NotebookLM / Gemini and the answer pasted back.'],
+    ['Diagram from a list', '(Alt+M, or ◇ on the toolbar): select a list and draw it as a mind map, flow, cycle, tree, timeline or table. No AI, no internet.'],
+    ['Cue for the selection', '(Alt+U): select some notes; a question is drafted in the cue beside them.'],
+    ['Summary from the cues', '(Insert: summary from the cues and highlights): a summary to start from.'],
+    ['Review: fill the gaps', '(Settings → Revision and AI → Review shows): your highlighted words blanked out on the page, a click shows each.'],
+    ['A topic\'s index', '(Note: make an index of this folder): its notes, definitions and quotes on one page, kept up to date.'],
+    ['Cue cards of a whole folder', '(Note: cue cards for every note in this folder): one page, the cards sharing the sheets.'],
+  ],
+};
+
+// ---------- revision: spaced repetition, quote gaps, questions drafted from notes ----------
+// Each card has a box (Leitner): known, it moves up a box and comes back after longer (the days
+// below); not known, it goes back to box 0 and comes back the same day.
+const BOX_DAYS = [0, 1, 2, 4, 8, 16, 32, 64];
+const plainText = (md) => String(md || '')
+  .replace(/%%[\s\S]*?%%|<!--[\s\S]*?-->/g, '')
+  .replace(/!\[\[[^\]]*\]\]/g, '')
+  .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+  .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+  .replace(/<[^>]+>/g, '')
+  .replace(/(\*\*|__|==|~~|`)/g, '')
+  .replace(/^\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+/gm, '')
+  .replace(/[ \t]+/g, ' ')
+  .trim();
+// a card's name in the review record: its question, in plain words (the same card in a note and on
+// its cue card page is one card)
+function cardId(card) {
+  const s = plainText(card.q).toLowerCase().replace(/\s+/g, ' ');
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return 'c' + h.toString(36);
+}
+const dayString = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const addDays = (day, n) => { const d = new Date(day + 'T12:00:00'); d.setDate(d.getDate() + n); return dayString(d); };
+// is a card due on this day (never seen: yes)
+const cardDue = (rec, today) => !rec || !rec.due || rec.due <= today;
+// a card's next record, after it was known or not
+function nextReview(rec, known, today) {
+  const box = known ? Math.min(((rec && rec.box) || 0) + 1, BOX_DAYS.length - 1) : 0;
+  return { box, due: addDays(today, known ? BOX_DAYS[box] : 0), seen: ((rec && rec.seen) || 0) + 1, last: today };
+}
+// a quote with some of its words left out (every third word of 4 letters or more), to fill in
+function gapQuote(text) {
+  let n = 0;
+  return plainText(text).replace(/[A-Za-zÀ-ÿ'’-]{4,}/g, (w) => (n++ % 3 === 1 ? '\\_'.repeat(Math.max(4, Math.min(w.length, 8))) : w));
+}
+// a question drafted from a piece of notes ("X is Y." → "What is X?"), to be changed as needed
+function draftQuestion(text) {
+  const s = plainText(text).split(/\n/)[0].replace(/[.!;:,]+$/, '').trim();
+  if (!s) return 'What …?';
+  let m = /^(.{2,60}?)\s+(means|refers to|is defined as)\s+/i.exec(s);
+  if (m) return `What does ${m[1].replace(/^(The|A|An) /, (x) => x.toLowerCase())} mean?`;
+  m = /^(.{2,80}?)\s+because\s+/i.exec(s);
+  if (m) return `Why ${m[1].charAt(0).toLowerCase() + m[1].slice(1)}?`;
+  // (what someone holds, believes, says …: "Rabbinic scholars hold that …" → "What do Rabbinic scholars hold?")
+  m = /^(.{2,50}?)\s+(hold|believe|say|think|argue|teach|claim|state|feel|accept|reject|oppose|support)(e?s)?\s+(?:that\s+)?/i.exec(s);
+  if (m && m[1].split(/\s+/).length <= 6) return `What ${m[3] ? 'does' : 'do'} ${m[1]} ${m[2].toLowerCase()}?`;
+  m = /^(.{2,60}?)\s+(is|are|was|were)\s+(?:a |an |the )?(.+)$/i.exec(s);
+  if (m && m[1].split(/\s+/).length <= 7) return `What ${m[2].toLowerCase()} ${m[1].replace(/^(The|A|An) /, (x) => x.toLowerCase())}?`;
+  m = /^(?:in\s+)?(\d{3,4}s?)\b[,\s]+(.+)$/i.exec(s);
+  if (m) return `What happened in ${m[1]}?`;
+  const words = s.split(/\s+/);
+  return `What do you know about ${words.slice(0, Math.min(5, words.length)).join(' ')}${words.length > 5 ? ' …' : ''}?`;
+}
+
+// ---------- diagrams: a list drawn as a diagram (Mermaid, which Obsidian draws: text, not a picture) ----------
+// From the lines of a list (- points, indented for sub-points; "date: event" for a timeline).
+const DIAGRAMS = {
+  mindmap: 'Mind map (a topic and its branches)',
+  flow: 'Flow (steps, one after another)',
+  cycle: 'Cycle (steps that go round)',
+  tree: 'Tree (a hierarchy, top down)',
+  timeline: 'Timeline (dates and what happened)',
+  table: 'Comparison table (each point a column, its sub-points the rows)',
+};
+// the outline of some lines: [{ text, kids: [...] }]
+function outline(text) {
+  const root = { kids: [], ind: -1 };
+  const stack = [root];
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.replace(/^\s*(?:>\s?)+/, '');
+    if (!line.trim() || /^\s*(```|~~~|\[!)/.test(line) || /^\s*>?\s*\[!/.test(raw.replace(/^\s*(?:>\s?)+/, ''))) continue;
+    const m = /^(\s*)(?:[-*+]|\d+[.)])?\s*(.*)$/.exec(line);
+    const ind = m[1].replace(/\t/g, '    ').length;
+    const node = { text: plainText(m[2]), kids: [], ind };
+    if (!node.text) continue;
+    while (stack.length > 1 && ind <= stack[stack.length - 1].ind) stack.pop();
+    stack[stack.length - 1].kids.push(node);
+    stack.push(node);
+  }
+  return root.kids;
+}
+const mmText = (s) => String(s).replace(/["`]/g, "'").replace(/[[\]{}()<>|#;]/g, ' ').replace(/\s+/g, ' ').trim() || '…';
+function diagramFrom(text, kind, title = '') {
+  let items = outline(text);
+  if (!items.length) return null;
+  if (kind === 'table') {
+    const cols = items.length === 1 && items[0].kids.length ? items[0].kids : items;
+    const rows = Math.max(1, ...cols.map((c) => c.kids.length));
+    const cell = (s) => String(s || '').replace(/\|/g, '/');
+    const out = ['| ' + cols.map((c) => cell(c.text)).join(' | ') + ' |', '|' + cols.map(() => ' --- |').join('')];
+    for (let r = 0; r < rows; r++) out.push('| ' + cols.map((c) => cell(c.kids[r] ? c.kids[r].text : '')).join(' | ') + ' |');
+    return { kind, lang: null, text: out.join('\n') };
+  }
+  if (kind === 'timeline') {
+    const out = ['timeline'];
+    if (title) out.push('    title ' + mmText(title));
+    for (const it of items) {
+      const m = /^([^:–—-]{1,40}?)\s*(?::|–|—| - )\s*(.+)$/.exec(it.text);
+      const when = m ? m[1] : it.text, what = (m ? [m[2]] : []).concat(it.kids.map((k) => k.text));
+      out.push('    ' + mmText(when).replace(/:/g, ' ') + (what.length ? ' : ' + what.map((w) => mmText(w).replace(/:/g, ' ')).join(' : ') : ''));
+    }
+    return { kind, lang: 'mermaid', text: out.join('\n') };
+  }
+  if (kind === 'mindmap') {
+    if (items.length > 1 || !items[0].kids.length) items = [{ text: title || 'Topic', kids: items }];
+    const out = ['mindmap'];
+    let n = 0;
+    const walk = (node, depth) => {
+      const id = 'n' + (n++);
+      out.push('  '.repeat(depth + 1) + (depth === 0 ? `${id}(("${mmText(node.text)}"))` : `${id}["${mmText(node.text)}"]`));
+      for (const k of node.kids) walk(k, depth + 1);
+    };
+    walk(items[0], 0);
+    return { kind, lang: 'mermaid', text: out.join('\n') };
+  }
+  // flow, cycle, tree: a flowchart
+  const out = [kind === 'tree' ? 'flowchart TD' : 'flowchart LR'];
+  let n = 0;
+  const node = (t, shape) => { const id = 'n' + (n++); out.push(`    ${id}${shape === 'round' ? '(' : '['}"${mmText(t)}"${shape === 'round' ? ')' : ']'}`); return id; };
+  if (kind === 'tree') {
+    const walk = (it, parent) => { const id = node(it.text, parent ? 'box' : 'round'); if (parent) out.push(`    ${parent} --> ${id}`); for (const k of it.kids) walk(k, id); };
+    if (items.length > 1 && title) { const top = node(title, 'round'); for (const it of items) { const id = node(it.text); out.push(`    ${top} --> ${id}`); for (const k of it.kids) walk(k, id); } }
+    else for (const it of items) walk(it, null);
+  } else {
+    const ids = items.map((it) => { const id = node(it.text, 'round'); for (const k of it.kids) { const kid = node(k.text); out.push(`    ${id} -.- ${kid}`); } return id; });
+    for (let i = 1; i < ids.length; i++) out.push(`    ${ids[i - 1]} --> ${ids[i]}`);
+    if (kind === 'cycle' && ids.length > 1) out.push(`    ${ids[ids.length - 1]} --> ${ids[0]}`);
+  }
+  return { kind, lang: 'mermaid', text: out.join('\n') };
+}
+// a block of lines written inside the callout (or list) the selection is in: each line with its "> " prefix
+const blockLines = (text, prefix) => text.split('\n').map((l) => prefix + l).join('\n');
+
+// ---------- asking an AI: a diagram, an answer, practice questions ----------
+// With a Gemini API key (free from Google AI Studio): asked from here. Without one (or on a network
+// that blocks it): the question is copied, to paste into NotebookLM, Gemini or any chat, and the
+// answer pasted back. Either way the answer comes back as text: Mermaid, a table, Cornell cues.
+const AI_KINDS = {
+  mindmap: 'Diagram: mind map',
+  flow: 'Diagram: flowchart (a process, cause and effect)',
+  cycle: 'Diagram: cycle',
+  timeline: 'Diagram: timeline',
+  tree: 'Diagram: hierarchy / tree',
+  compare: 'Diagram: comparison table',
+  answer: 'Answer a question',
+  questions: 'Practice questions (as cues, for cue cards)',
+};
+function aiPrompt(kind, topic, context) {
+  const about = `Topic: ${String(topic || '').trim() || '(the notes below)'}`;
+  const ctx = context ? `\n\nMy notes (use them; keep to what they say where you can):\n"""\n${String(context).slice(0, 12000)}\n"""` : '';
+  const rules = 'Keep labels short (2 to 6 words). Use plain words a 14-year-old student understands. No styling, no colours, no classDef, no comments, no HTML.';
+  const want = {
+    mindmap: `Draw a Mermaid mindmap. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "mindmap", then a root node written root(("...")) and up to 5 branches with up to 4 children each, every label in double quotes as id["..."]. ${rules}`,
+    flow: `Draw a Mermaid flowchart of the steps or causes and effects. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart TD"; every node as id["label"]; arrows -->, with a short label -->|label| only where it helps. At most 12 nodes. ${rules}`,
+    cycle: `Draw a Mermaid flowchart of a cycle: steps in a loop, the last step leading back to the first. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart LR"; every node as id["label"]. At most 8 steps. ${rules}`,
+    timeline: `Draw a Mermaid timeline. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "timeline", then "title ...", then lines "period : event". No colons inside labels. ${rules}`,
+    tree: `Draw a Mermaid flowchart as a hierarchy (tree, top down). Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart TD"; every node as id["label"]. At most 15 nodes. ${rules}`,
+    compare: `Make a comparison table in Markdown (not Mermaid): the things compared as columns, the points of comparison as rows, the first column naming the point. Reply with ONLY the table. Short cells. ${rules}`,
+    answer: 'Answer the question clearly and briefly (at most 120 words), as a student would write it in their notes: short sentences or "- " points. Reply with only the answer.',
+    questions: 'Write 5 exam-style practice questions on this, each with a short model answer (one to three sentences or "- " points). Reply ONLY in this form, nothing else:\nQ: question?\nA: answer\n\nQ: question?\nA: answer',
+  }[kind];
+  return `${want}\n\n${about}${ctx}`;
+}
+// the part of an AI's reply to put in the note, or null
+function aiAnswer(kind, reply) {
+  const text = String(reply || '').replace(/\r\n?/g, '\n').trim();
+  if (!text) return null;
+  if (['mindmap', 'flow', 'cycle', 'timeline', 'tree'].includes(kind)) {
+    const fence = /```\s*mermaid\s*\n([\s\S]*?)```/i.exec(text) || /```[a-z]*\s*\n((?:mindmap|flowchart|graph|timeline)[\s\S]*?)```/i.exec(text);
+    const code = (fence ? fence[1] : text).trim();
+    if (!/^(mindmap|flowchart|graph|timeline)\b/.test(code)) return null;
+    return { lang: 'mermaid', text: code.replace(/^\s*%%.*$/gm, '').replace(/\n{2,}/g, '\n').trim() };
+  }
+  if (kind === 'compare') {
+    const lines = text.replace(/```[a-z]*\n?|```/g, '').split('\n').filter((l) => /^\s*\|/.test(l));
+    return lines.length >= 3 ? { lang: null, text: lines.map((l) => l.trim()).join('\n') } : null;
+  }
+  if (kind === 'questions') {
+    const cards = [];
+    for (const m of text.matchAll(/(?:^|\n)\s*\**Q\**\s*[:.)]\s*(.+?)\s*\n\s*\**A\**\s*[:.)]\s*([\s\S]*?)(?=\n\s*\**Q\**\s*[:.)]|(?![\s\S]))/gi)) {
+      const q = m[1].trim().replace(/\*\*/g, ''), a = m[2].trim();
+      if (q && a) cards.push({ q: /\?$/.test(q) ? q : q + '?', a });
+    }
+    return cards.length ? { lang: null, cards } : null;
+  }
+  return { lang: null, text: text.replace(/^```[a-z]*\n|```$/g, '').trim() };
+}
+// Cornell cue / notes groups, as Insert: cue + notes writes them
+const cueGroups = (cards) => cards.map((c) => `>> [!cue]\n${c.q.split('\n').map((l) => '>> ' + l).join('\n')}\n>\n>> [!notes]\n${c.a.split('\n').map((l) => '>> ' + l).join('\n')}`).join('\n\n');
+
+// ---------- a topic's index: its notes, definitions and quotes, on one page ----------
+function topicIndex(folder, notes) {
+  const link = (f) => `[[${f.path.replace(/\.md$/, '')}|${f.basename}]]`;
+  const out = ['---', 'format: index', 'cssclasses:', '  - lp-index', '---', `# ${folder || 'All notes'}`, ''];
+  const by = (k) => notes.filter((n) => n.kind === k).sort((a, b) => a.file.basename.localeCompare(b.file.basename));
+  const sect = (name, list, line) => { if (!list.length) return; out.push(`## ${name}`, ''); for (const n of list) out.push(line(n)); out.push(''); };
+  sect('Notes', by('note'), (n) => `- ${link(n.file)}${n.cues ? ` · ${n.cues} question${n.cues === 1 ? '' : 's'}` : ''}${n.date ? ` · ${n.date}` : ''}`);
+  sect('Definitions', by('def'), (n) => `- **${link(n.file)}**${n.said ? ': ' + n.said : ''}`);
+  sect('Quotes', by('quote'), (n) => `- ${link(n.file)}${n.said ? ': "' + n.said.replace(/^["“]|["”]$/g, '') + '"' : ''}`);
+  sect('Cue cards', by('cards'), (n) => `- ${link(n.file)}`);
+  return out.join('\n').replace(/\n+$/, '\n');
 }
 
 // ---------- the card editor's fields: written in as in Live Preview ----------
@@ -2472,6 +2726,8 @@ module.exports = class LinedPaperPages extends Plugin {
       fixColouredLinks(el, ctx, openLink);
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       if (onCards(el)) return;
+      // (a diagram is drawn a moment later: the pages are laid out again once it is)
+      if (el.querySelector('.block-language-mermaid, pre.mermaid, code.language-mermaid')) for (const t of [600, 1500, 3500]) window.setTimeout(() => this.scheduleScan(true), t);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
       // a definition's / quote's page: under its last version, a button to add a revised one
@@ -2479,7 +2735,7 @@ module.exports = class LinedPaperPages extends Plugin {
       // (the PDF export: the date in each title bar, from the note's properties)
       if (ctx && ctx.frontmatter) this.exportFm = ctx.frontmatter;
       if (!el.closest('.markdown-reading-view')) sectionDates(el, ctx, (ctx && ctx.frontmatter) || this.exportFm);
-      const prep = () => { if (onCards(el)) return; if (el.querySelector('.lp-cards')) { layoutCards(el, this.settings); fitCards(el); } drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
+      const prep = () => { if (onCards(el)) return; if (el.querySelector('.lp-cards')) { layoutCards(el, this.settings); fitCards(el); } drawArrows(el); markBullets(el, ctx); dropBlankLines(el); try { this.reviseButton(el, ctx); } catch (e) { /* */ } if (!el.closest('.markdown-reading-view')) { unwrapQuotedBlocks(el); liftSummaries(el); unwrapCalloutEmbeds(el); tidyEmbedLines(el); markEmptyHeads(el); evenRows(el); roundTables(el); roundDiagrams(el); alignEmbeds(el); alignEmbedCopies(el); fitTitles(el); } addSummarySizer(el); const v = el.closest('.print, .markdown-preview-view'); if (v && !el.closest('.markdown-reading-view')) { autoBreaks(v); anchorMidSummaries(v); } };
       prep();
       // (embeds fill in later still: look again whenever something inside changes, for a while)
       window.setTimeout(prep, 0);
@@ -2516,11 +2772,11 @@ module.exports = class LinedPaperPages extends Plugin {
     // the "Definitions and quotes" cue cards kept up to date; print-only cue card pages removed once closed
     if (this.app.vault && this.app.vault.on && this.app.metadataCache && this.app.metadataCache.on) {
       const touched = (f) => { const fm = f && this.app.metadataCache.getFileCache && (this.app.metadataCache.getFileCache(f) || {}).frontmatter; if (!f || (fm && (fm.format === 'def' || fm.format === 'quote')) || this._formatPaths && this._formatPaths.has(f.path)) this.scheduleFormatDeck(f); };
-      this.registerEvent(this.app.metadataCache.on('changed', (f) => touched(f)));
+      this.registerEvent(this.app.metadataCache.on('changed', (f) => { touched(f); this.scheduleIndexes(f); }));
       this.registerEvent(this.app.vault.on('delete', (f) => touched(f)));
       this.registerEvent(this.app.vault.on('rename', (f) => touched(f)));
       this.registerEvent(this.app.workspace.on('layout-change', () => { window.clearTimeout(this._sweepT); this._sweepT = window.setTimeout(() => this.sweepPrintOnly().catch(() => {}), 1500); }));
-      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); });
+      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => this.whatsNew(), 2500); });
     }
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
@@ -2874,6 +3130,7 @@ module.exports = class LinedPaperPages extends Plugin {
       markEmptyHeads(view, st.undo);
       evenRows(view, st.undo);
       roundTables(view, st.undo);
+      roundDiagrams(view, st.undo);
       alignEmbeds(view, st.undo);
       alignEmbedCopies(view, st.undo);
       fitTitles(view, st.undo);
@@ -3382,8 +3639,478 @@ module.exports = class LinedPaperPages extends Plugin {
         flip: true, at: this._panelAt || 0, onShow: (k) => { this._panelAt = k; },
       }, blk && file ? (at) => this.editCueCards(file, at) : null);
       host.appendChild(wrap);
+      // (Study: the cards due today)
+      const due = this.dueCount(cards);
+      const bar = wrap.querySelector('.lp-cards-controls');
+      if (bar && file) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'lp-cards-btn lp-cards-study' + (due ? ' mod-cta' : '');
+        b.textContent = due ? `Study (${due} due)` : 'Study';
+        b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this.reviewCards('note', file); });
+        bar.appendChild(b);
+      }
       window.setTimeout(() => fitCards(host), 30);
     }
+  }
+
+  // ---------- revision: the cards of a note, a folder or every note, reviewed (spaced repetition) ----------
+  // the cards of one file: its cue card block; its question cues (and the definitions and quotes it
+  // uses); or, a definition's or quote's page, its own card
+  async cardsOfFile(f) {
+    const app = this.app;
+    const md = await app.vault.cachedRead(f);
+    const blk = /```cuecards[^\n]*\n([\s\S]*?)\n```/.exec(md);
+    if (blk) return parseCueBlock(blk[1]).cards.map((c) => ({ ...c, src: f.path }));
+    const fm = (app.metadataCache.getFileCache(f) || {}).frontmatter;
+    if (fm && (fm.format === 'def' || fm.format === 'quote')) {
+      const c = formatCard(md, fm.format, { name: f.basename, front: this.settings['cards-quote-front'] });
+      return c ? [{ ...c, src: f.path }] : [];
+    }
+    const cards = cornellCards(md).map((c) => ({ ...c, h: c.h || f.basename }));
+    if (cards.length && this.settings['cards-defs'] !== false) cards.push(...await this.formatCardsFor(md, f.path));
+    return cards.map((c) => ({ ...c, src: c.src || f.path }));
+  }
+  // the md files of a folder (and the folders in it)
+  folderFiles(folder) {
+    const pre = folder ? folder.replace(/\/+$/, '') + '/' : '';
+    return this.app.vault.getMarkdownFiles().filter((f) => f.path.startsWith(pre));
+  }
+  // the cards of a note, its folder, or every note: each card once (by its question)
+  async cardsIn(scope, file) {
+    let files;
+    if (scope === 'note') files = file ? [file] : [];
+    else if (scope === 'folder') files = this.folderFiles(file && file.parent ? file.parent.path : '');
+    else files = this.app.vault.getMarkdownFiles();
+    const out = [], seen = new Set();
+    for (const f of files) {
+      let cards = [];
+      try { cards = await this.cardsOfFile(f); } catch (e) { cards = []; }
+      for (const c of cards) { const id = cardId(c); if (!seen.has(id) && plainText(c.q)) { seen.add(id); out.push(c); } }
+    }
+    return out;
+  }
+  dueCount(cards) {
+    const srs = this.settings._srs || {}, today = dayString(new Date());
+    return cards.filter((c) => cardDue(srs[cardId(c)], today)).length;
+  }
+  async reviewCards(scope = 'note', fileIn = null) {
+    const app = this.app;
+    if (!Modal) { new Notice('Lined Paper Pages: this needs a newer Obsidian'); return; }
+    const file = fileIn || this.cardSource || (app.workspace.getActiveFile && app.workspace.getActiveFile());
+    const srs = this.settings._srs || (this.settings._srs = {});
+    const today = dayString(new Date());
+    const modal = new Modal(app);
+    modal.modalEl.addClass('lp-review-modal');
+    modal.titleEl.setText('Review cue cards');
+    const root = modal.contentEl;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const opts = mk(root, 'div', 'lp-rv-options');
+    const sel = mk(opts, 'select', 'lp-rv-scope');
+    for (const [k, l] of [['note', 'This note'], ['folder', 'This folder'], ['all', 'All notes']]) { const o = mk(sel, 'option', '', l); o.value = k; }
+    sel.value = scope;
+    const check = (label, on, title) => { const l = mk(opts, 'label', 'lp-rv-check'); const c = mk(l, 'input'); c.type = 'checkbox'; c.checked = on; l.appendChild(document.createTextNode(' ' + label)); if (title) l.title = title; return c; };
+    const fDue = check('Only the ones due', true, 'Cards come back after 1, 2, 4, 8 … days when you know them; the same day when you don\'t');
+    const fMix = check('Shuffle', true);
+    const fGaps = check('Quotes: fill the gaps', false, 'A quote\'s card shows the quote with words left out, to say in full');
+    const info = mk(root, 'div', 'lp-rv-info');
+    const stage = mk(root, 'div', 'lp-rv-stage');
+    const controls = mk(root, 'div', 'lp-rv-controls');
+    let queue = [], i = 0, known = 0, missed = 0, total = 0, revealed = false, card = null;
+    const button = (label, title, f, cls) => { const b = mk(controls, 'button', cls || '', label); b.type = 'button'; b.title = title; b.addEventListener('click', (e) => { e.preventDefault(); f(); }); return b; };
+    const progress = () => { info.textContent = queue.length ? `Card ${Math.min(i + 1, queue.length)} of ${queue.length} · knew ${known}, again ${missed}` : ''; };
+    const show = async () => {
+      controls.replaceChildren();
+      progress();
+      if (i >= queue.length) {
+        stage.replaceChildren();
+        const end = mk(stage, 'div', 'lp-rv-done');
+        end.textContent = total ? `Done: you knew ${known} of ${known + missed}.` : (fDue.checked ? 'Nothing due here today. (Untick "Only the ones due" to go through them all.)' : 'No cue cards here yet: a cue that ends with ? is a card.');
+        if (total) {
+          const next = Object.values(srs).map((r) => r.due).filter((d) => d > today).sort()[0];
+          if (next) mk(end, 'div', 'lp-rv-next', `Next cards due: ${next}.`);
+        }
+        button('Close', '', () => modal.close(), 'mod-cta');
+        return;
+      }
+      card = queue[i];
+      revealed = false;
+      let q = card.q;
+      if (fGaps.checked && card.h === 'Quotes' && this.settings['cards-quote-front'] !== 'quote') q = card.q + '\n\n' + gapQuote(card.a);
+      const els = [{ q: await this.renderCardText(q, card.src), a: await this.renderCardText(card.a, card.src), h: card.h }];
+      const wrap = buildCardWrap(els, { size: this.settings['cards-size'], back: 'mirror', title: card.src ? card.src.replace(/^.*\//, '').replace(/\.md$/, '') : '', view: 'deck' });
+      for (const n of wrap.querySelectorAll('.lp-card-no')) n.textContent = n.textContent.replace(/^\d+/, String(i + 1));
+      const deck = wrap.querySelector('.lp-deck-card');
+      deck.addEventListener('click', () => { if (!revealed) reveal(); }, true);
+      await fitOffscreen(wrap);
+      stage.replaceChildren(wrap);
+      window.setTimeout(() => fitCards(stage), 0);
+      button('Show the answer', 'Space', reveal, 'mod-cta');
+    };
+    const reveal = () => {
+      if (revealed || !card) return;
+      revealed = true;
+      const deck = stage.querySelector('.lp-deck-card');
+      if (deck) deck.classList.add('lp-flip');
+      fitCards(stage);
+      controls.replaceChildren();
+      button('✗ Didn\'t know', '1', () => answer(false), 'lp-rv-no');
+      button('✓ Knew it', '2', () => answer(true), 'lp-rv-yes mod-cta');
+    };
+    const answer = (ok) => {
+      if (!revealed || !card) return;
+      const id = cardId(card);
+      srs[id] = nextReview(srs[id], ok, today);
+      if (ok) known++; else { missed++; queue.push(card); }   // (not known: once more at the end)
+      this.saveData(this.settings).catch(() => {});
+      i++;
+      show();
+      this.refreshCardPanel().catch(() => {});
+    };
+    const load = async () => {
+      stage.replaceChildren(); controls.replaceChildren();
+      info.textContent = 'Finding the cards …';
+      const all = await this.cardsIn(sel.value, file);
+      let list = fDue.checked ? all.filter((c) => cardDue(srs[cardId(c)], today)) : all.slice();
+      if (fMix.checked) for (let k = list.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [list[k], list[j]] = [list[j], list[k]]; }
+      queue = list; i = 0; known = 0; missed = 0; total = list.length;
+      show();
+    };
+    for (const c of [sel, fDue, fMix]) c.addEventListener('change', load);
+    fGaps.addEventListener('change', () => { if (!revealed) show(); });
+    modal.contentEl.addEventListener('keydown', (e) => {
+      if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && e.key !== ' ') return;
+      if ((e.key === ' ' || e.key === 'Enter') && !revealed && card) { e.preventDefault(); reveal(); }
+      else if (e.key === '1' || e.key === 'ArrowLeft') { e.preventDefault(); answer(false); }
+      else if (e.key === '2' || e.key === 'ArrowRight') { e.preventDefault(); answer(true); }
+    });
+    modal.contentEl.tabIndex = -1;
+    this._review = { modal, load, reveal, answer, queue: () => queue };
+    modal.open();
+    window.setTimeout(() => modal.contentEl.focus(), 30);
+    await load();
+  }
+
+  // ---------- writing helpers: a cue for what you selected; a summary from the cues ----------
+  // A question drafted for the selected notes, put in the cue beside them: the notes from the
+  // selection on go into a group of their own (cue + notes), under the question. In the first lines
+  // of a group's notes: the question goes in that group's cue.
+  cueFromSelection(editor) {
+    const sel = editor.getSelection();
+    if (!sel.trim()) { new Notice('Lined Paper Pages: select some of your notes first'); return; }
+    const from = editor.getCursor('from'), to = editor.getCursor('to');
+    const lines = editor.getValue().split('\n');
+    const q = draftQuestion(sel);
+    const isQ = (l) => /^\s*>/.test(l || '');
+    let h = -1;
+    for (let l = from.line; l >= 0 && isQ(lines[l]); l--) {
+      if (/^\s*(?:>\s?)+\[!notes\]/i.test(lines[l])) { h = l; break; }
+      if (/^\s*(?:>\s?)+\[!cue\]/i.test(lines[l])) break;
+    }
+    let g = to.line;
+    while (g + 1 < lines.length && isQ(lines[g + 1])) g++;
+    let qLine;
+    if (h < 0) {
+      // (not in a group's notes: a new group after the block the selection is in, its notes the selection)
+      let end = to.line;
+      while (end + 1 < lines.length && lines[end + 1].trim()) end++;
+      const group = cueGroups([{ q, a: plainText(sel) }]);
+      editor.replaceRange('\n\n' + group, { line: end, ch: lines[end].length });
+      qLine = end + 3;
+    } else {
+      const pre = /^\s*((?:>\s?)+)/.exec(lines[h])[1].replace(/\s*$/, ' ');
+      const start = from.line;
+      const before = lines.slice(h + 1, start).filter((l) => l.replace(/^\s*(?:>\s?)*/, '').trim());
+      if (!before.length) {
+        // (the first lines of the notes: the question goes in this group's cue)
+        let c = -1;
+        for (let l = h - 1; l >= 0 && isQ(lines[l]); l--) if (/^\s*(?:>\s?)+\[!cue\]/i.test(lines[l])) { c = l; break; }
+        if (c < 0) { new Notice('Lined Paper Pages: no cue beside these notes'); return; }
+        let last = c, empty = true;
+        for (let l = c + 1; l < h && new RegExp('^\\s*' + pre.trim().replace(/>/g, '>\\s?')).test(lines[l]) && !/\[!/.test(lines[l]); l++) {
+          if (lines[l].replace(/^\s*(?:>\s?)*/, '').trim()) empty = false;
+          last = l;
+        }
+        if (empty && last > c) { editor.replaceRange(pre + q, { line: c + 1, ch: 0 }, { line: c + 1, ch: lines[c + 1].length }); qLine = c + 1; }
+        else { editor.replaceRange('\n' + pre + q, { line: last, ch: lines[last].length }); qLine = last + 1; }
+      } else {
+        // (later in the notes: a group of its own from the selection on, the question in its cue)
+        const moved = lines.slice(start, g + 1);
+        const group = ['', '', pre + '[!cue]', pre + q, '>', pre + '[!notes]', ...moved];
+        editor.replaceRange(group.join('\n'), { line: start - 1, ch: lines[start - 1].length }, { line: g, ch: lines[g].length });
+        // (the line before the new group ends the old one: no blank line inside the group)
+        qLine = start + 2;
+      }
+    }
+    // (the question selected, to change it)
+    const text = editor.getLine(qLine) || '';
+    const at = text.indexOf(q);
+    if (at >= 0 && editor.setSelection) editor.setSelection({ line: qLine, ch: at }, { line: qLine, ch: at + q.length });
+  }
+  // A summary from the note's cues and the words highlighted in their notes, to start from
+  summaryFromCues(editor) {
+    const groups = cornellCards(editor.getValue(), { all: true });
+    if (!groups.length) { new Notice('Lined Paper Pages: no cues in this note yet'); return; }
+    const hl = (t) => Array.from(String(t).matchAll(/==(?![=\s])([^\n]*?[^\s=])==|<mark\b[^>]*>([\s\S]*?)<\/mark>/gi), (m) => plainText(m[1] || m[2])).filter(Boolean);
+    const lines = groups.map((g) => { const h = hl(g.a); return `- **${plainText(g.q)}**${h.length ? ': ' + h.join('; ') : ''}`; });
+    insertBlock(editor, '>> [!summary] Summary\n' + lines.map((l) => '>> ' + l).join('\n') + '\n>> In my own words: |\n');
+  }
+
+  // ---------- diagrams from a list, and asking an AI ----------
+  // the markdown of a diagram or table
+  diagramMarkdown(ans) { return ans.lang ? '```' + ans.lang + '\n' + ans.text + '\n```' : ans.text; }
+  // written after the selection (inside the callout it is in, if it is in one)
+  insertAfterSelection(editor, md) {
+    const to = editor.getCursor('to');
+    const line = editor.getLine(to.line);
+    const pre = (/^\s*((?:>\s?)*)/.exec(line) || ['', ''])[1];
+    const blank = pre.replace(/\s+$/, '');
+    const text = '\n' + blank + '\n' + blockLines(md, pre ? pre.replace(/\s*$/, ' ') : '') + '\n';
+    editor.replaceRange(text.replace(/\n$/, ''), { line: to.line, ch: line.length });
+  }
+  // the nearest heading above the cursor, to name a diagram by
+  headingAbove(editor) {
+    for (let l = editor.getCursor('from').line; l >= 0; l--) { const m = /^\s*(?:>\s?)*#{1,6}\s+(.+)$/.exec(editor.getLine(l)); if (m) return plainText(m[1]); }
+    return '';
+  }
+  // a Mermaid diagram checked by Obsidian's own Mermaid (null: fine; else what is wrong)
+  async mermaidError(code) {
+    try {
+      const load = OB.loadMermaid;
+      if (!load) return null;
+      const mm = await load();
+      if (!mm || !mm.parse) return null;
+      await mm.parse(code);
+      return null;
+    } catch (e) { return (e && (e.message || e.str)) || String(e); }
+  }
+  // a preview of some markdown (a diagram drawn as it will be)
+  async previewInto(el, md) {
+    el.replaceChildren();
+    try {
+      if (MarkdownRenderer && MarkdownRenderer.render) await MarkdownRenderer.render(this.app, md, el, '', this);
+      else el.textContent = md;
+    } catch (e) { el.textContent = md; }
+  }
+  insertDiagram(editor) {
+    const app = this.app;
+    const sel = editor.getSelection();
+    if (!outline(sel).length) { new Notice('Lined Paper Pages: select a list first (- points, indented for sub-points)'); return; }
+    const m = new Modal(app);
+    m.modalEl.addClass('lp-diagram-modal');
+    m.titleEl.setText('Draw the list as a diagram');
+    const root = m.contentEl;
+    const row = root.createDiv ? root.createDiv({ cls: 'lp-dg-row' }) : root.appendChild(document.createElement('div'));
+    const kind = document.createElement('select');
+    for (const [k, l] of Object.entries(DIAGRAMS)) { const o = document.createElement('option'); o.value = k; o.textContent = l; kind.appendChild(o); }
+    const title = document.createElement('input');
+    title.type = 'text'; title.placeholder = 'Title (the middle of a mind map, the top of a tree)'; title.value = this.headingAbove(editor);
+    row.append(kind, title);
+    const look = document.createElement('div'); look.className = 'lp-dg-preview'; root.appendChild(look);
+    let ans = null;
+    const draw = async () => { ans = diagramFrom(sel, kind.value, title.value.trim()); await this.previewInto(look, ans ? this.diagramMarkdown(ans) : ''); };
+    kind.addEventListener('change', draw); title.addEventListener('input', draw);
+    const foot = document.createElement('div'); foot.className = 'lp-dg-foot'; root.appendChild(foot);
+    const ok = document.createElement('button'); ok.textContent = 'Insert under the list'; ok.className = 'mod-cta';
+    ok.addEventListener('click', () => { if (ans) this.insertAfterSelection(editor, this.diagramMarkdown(ans)); m.close(); });
+    foot.appendChild(ok);
+    m.open();
+    draw();
+  }
+  // Gemini (Google): the reply to a prompt. The model in the settings; if Google has retired it, the
+  // newest Flash model this key can use.
+  async gemini(prompt) {
+    const key = String(this.settings['ai-key'] || '').trim();
+    if (!key) throw new Error('no Gemini API key (Settings → Revision and AI)');
+    if (!requestUrl) throw new Error('this needs a newer Obsidian');
+    const base = 'https://generativelanguage.googleapis.com/v1beta/models';
+    const json = (r) => { try { return r.json; } catch (e) { return null; } };
+    const call = (model) => requestUrl({ url: `${base}/${encodeURIComponent(model)}:generateContent`, method: 'POST', contentType: 'application/json', headers: { 'x-goog-api-key': key }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } }), throw: false });
+    let r = await call(this._aiModel || String(this.settings['ai-model'] || '').trim() || 'gemini-2.5-flash');
+    if (r.status === 404) {
+      const list = json(await requestUrl({ url: base + '?pageSize=200', headers: { 'x-goog-api-key': key }, throw: false })) || {};
+      const names = (list.models || []).filter((x) => (x.supportedGenerationMethods || []).includes('generateContent')).map((x) => String(x.name).replace(/^models\//, ''));
+      const pick = names.filter((n) => /flash/.test(n) && !/lite|image|tts|live|audio|thinking|exp|preview/.test(n)).sort().reverse()[0] || names.filter((n) => /flash/.test(n)).sort().reverse()[0] || names[0];
+      if (pick) { this._aiModel = pick; r = await call(pick); }
+    }
+    const body = json(r) || {};
+    if (r.status >= 400) throw new Error((body.error && body.error.message) || 'HTTP ' + r.status);
+    const parts = (((body.candidates || [])[0] || {}).content || {}).parts || [];
+    const text = parts.map((p) => p.text || '').join('');
+    if (!text) throw new Error('no answer came back' + (body.promptFeedback && body.promptFeedback.blockReason ? ' (' + body.promptFeedback.blockReason + ')' : ''));
+    return text;
+  }
+  askAI(editor, file) {
+    const app = this.app;
+    if (!Modal) { new Notice('Lined Paper Pages: this needs a newer Obsidian'); return; }
+    const sel = editor.getSelection();
+    const note = editor.getValue().replace(/^---\n[\s\S]*?\n---\n/, '').replace(/```cuecards[\s\S]*?```/g, '');
+    const m = new Modal(app);
+    m.modalEl.addClass('lp-ai-modal');
+    m.titleEl.setText('Ask AI: a diagram, an answer or practice questions');
+    const root = m.contentEl;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const kind = mk(root, 'select', 'lp-ai-kind');
+    for (const [k, l] of Object.entries(AI_KINDS)) { const o = mk(kind, 'option', '', l); o.value = k; }
+    const topic = mk(root, 'textarea', 'lp-ai-topic');
+    topic.rows = 3;
+    topic.value = plainText(sel) || '';
+    topic.placeholder = 'What to draw or ask, e.g. "the views on when life begins" or "Why do Catholics oppose IVF?"';
+    const ctxL = mk(root, 'label', 'lp-ai-check'); const ctx = mk(ctxL, 'input'); ctx.type = 'checkbox'; ctx.checked = true;
+    ctxL.appendChild(document.createTextNode(` Send this note (${file ? file.basename : 'the note'}) with it, so the answer keeps to your notes`));
+    const btns = mk(root, 'div', 'lp-ai-buttons');
+    const hasKey = !!String(this.settings['ai-key'] || '').trim();
+    const ask = mk(btns, 'button', hasKey ? 'mod-cta' : '', 'Ask Gemini');
+    if (!hasKey) ask.title = 'Add a free Gemini API key in Settings → Revision and AI';
+    const copyNb = mk(btns, 'button', hasKey ? '' : 'mod-cta', 'Copy for NotebookLM ↗');
+    const copyGm = mk(btns, 'button', '', 'Copy for Gemini ↗');
+    const status = mk(root, 'div', 'lp-ai-status');
+    const paste = mk(root, 'textarea', 'lp-ai-paste');
+    paste.rows = 5; paste.placeholder = 'Paste the answer here'; paste.style.display = 'none';
+    const look = mk(root, 'div', 'lp-ai-preview');
+    const foot = mk(root, 'div', 'lp-ai-foot');
+    const insert = mk(foot, 'button', 'mod-cta', 'Insert'); insert.disabled = true;
+    let ans = null;
+    const prompt = () => aiPrompt(kind.value, topic.value, ctx.checked ? note : '');
+    const blockFor = () => {
+      if (!ans) return '';
+      if (kind.value === 'questions') return cueGroups(ans.cards);
+      if (kind.value === 'answer') return `> [!tip] ${plainText(topic.value).split('\n')[0] || 'Answer'}\n` + ans.text.split('\n').map((l) => '> ' + l).join('\n');
+      return this.diagramMarkdown(ans);
+    };
+    const take = async (reply, retry) => {
+      ans = aiAnswer(kind.value, reply);
+      if (!ans) { status.textContent = 'That answer was not in the form asked for. Try again (or another kind).'; insert.disabled = true; look.replaceChildren(); return; }
+      if (ans.lang === 'mermaid') {
+        const err = await this.mermaidError(ans.text);
+        if (err && retry) { status.textContent = 'The diagram had a mistake; asking Gemini to fix it …'; try { return take(await this.gemini(prompt() + '\n\nYour diagram had this error: ' + err + '\nReply with only the corrected code block.\n\n```mermaid\n' + ans.text + '\n```'), false); } catch (e) { /* (shown as it is) */ } }
+        status.textContent = err ? 'Obsidian can\'t draw this diagram: ' + err : 'Here it is. Insert puts it under what you selected.';
+      } else status.textContent = kind.value === 'questions' ? `${ans.cards.length} questions, as cues (they become cue cards).` : 'Here it is.';
+      insert.disabled = false;
+      await this.previewInto(look, blockFor());
+    };
+    ask.addEventListener('click', async () => {
+      if (!hasKey) { new Notice('Lined Paper Pages: add a free Gemini API key in Settings → Revision and AI (or use Copy for NotebookLM)'); return; }
+      ask.disabled = true; status.textContent = 'Asking Gemini …';
+      try { await take(await this.gemini(prompt()), true); } catch (e) { status.textContent = 'Gemini did not answer: ' + (e && e.message ? e.message : e) + '. (Copy for NotebookLM works without a key.)'; }
+      ask.disabled = false;
+    });
+    const copy = async (url, name) => {
+      try { await navigator.clipboard.writeText(prompt()); } catch (e) { paste.value = prompt(); }
+      paste.style.display = '';
+      status.textContent = `Copied. Paste it into ${name} (in a notebook with your sources, for NotebookLM), then paste the answer below.`;
+      try { window.open(url); } catch (e) { /* */ }
+      paste.focus();
+    };
+    copyNb.addEventListener('click', () => copy('https://notebooklm.google.com/', 'NotebookLM'));
+    copyGm.addEventListener('click', () => copy('https://gemini.google.com/app', 'Gemini'));
+    paste.addEventListener('input', () => { if (paste.value.trim()) take(paste.value, false); });
+    kind.addEventListener('change', () => { if (paste.value.trim()) take(paste.value, false); });
+    insert.addEventListener('click', () => {
+      const md = blockFor();
+      if (!md) return;
+      if (kind.value === 'questions') {
+        // (new cue groups after the group the cursor is in)
+        let g = editor.getCursor('to').line;
+        const n = editor.lineCount ? editor.lineCount() : editor.getValue().split('\n').length;
+        while (g + 1 < n && /^\s*>/.test(editor.getLine(g + 1))) g++;
+        editor.replaceRange('\n\n' + md, { line: g, ch: editor.getLine(g).length });
+      } else this.insertAfterSelection(editor, md);
+      m.close();
+    });
+    this._ai = { modal: m, take, kind, topic, paste, insert, status, look };
+    m.open();
+  }
+
+  // ---------- a topic's index page, and the cue cards of a whole folder ----------
+  async topicNotes(folder) {
+    const app = this.app, notes = [], seenLinked = new Set();
+    const said = (md, kind) => { const c = formatCard(md, kind, { front: 'source' }); const t = c ? plainText(c.a).replace(/\s+/g, ' ') : ''; return t.length > 140 ? t.slice(0, 137) + '…' : t; };
+    for (const f of this.folderFiles(folder)) {
+      const fm = (app.metadataCache.getFileCache(f) || {}).frontmatter || {};
+      if (fm.format === 'index') continue;
+      const md = await app.vault.cachedRead(f);
+      if (fm.format === 'def' || fm.format === 'quote') { seenLinked.add(f.path); notes.push({ kind: fm.format, file: f, said: said(md, fm.format) }); continue; }
+      if (fm.format === 'cuecards' || /```cuecards/.test(md)) { notes.push({ kind: 'cards', file: f }); continue; }
+      const cues = cornellCards(md).length;
+      notes.push({ kind: 'note', file: f, cues, date: fm.date ? String(fm.date).slice(0, 10) : '' });
+      // (the definitions and quotes it uses, wherever they are)
+      for (const { link } of linkedPages(md)) {
+        const d = app.metadataCache.getFirstLinkpathDest && app.metadataCache.getFirstLinkpathDest(link, f.path);
+        if (!d || seenLinked.has(d.path)) continue;
+        const dfm = (app.metadataCache.getFileCache(d) || {}).frontmatter || {};
+        if (dfm.format !== 'def' && dfm.format !== 'quote') continue;
+        seenLinked.add(d.path);
+        notes.push({ kind: dfm.format, file: d, said: said(await app.vault.cachedRead(d), dfm.format) });
+      }
+    }
+    return notes;
+  }
+  indexPath(folder) {
+    const name = folder ? folder.replace(/^.*\//, '') : 'All notes';
+    return (folder ? folder + '/' : '') + fileName(name + ' index') + '.md';
+  }
+  async writeTopicIndex(folder, open = false) {
+    const app = this.app;
+    const text = topicIndex(folder, await this.topicNotes(folder));
+    const path = this.indexPath(folder);
+    let f = app.vault.getAbstractFileByPath(path);
+    if (f) { if ((await app.vault.read(f)) !== text) await app.vault.modify(f, text); } else f = await app.vault.create(path, text);
+    if (open) await app.workspace.getLeaf('tab').openFile(f, { state: { mode: 'preview' } });
+    return f;
+  }
+  async makeTopicIndex(file) {
+    const folder = file && file.parent ? file.parent.path.replace(/^\/$/, '') : '';
+    try { await this.writeTopicIndex(folder, true); new Notice('Lined Paper Pages: index made; it keeps itself up to date as you write'); } catch (e) { new Notice('Lined Paper Pages: could not make the index: ' + (e && e.message ? e.message : e)); }
+  }
+  // the index pages of the folders a changed note is in: made again a little later
+  scheduleIndexes(file) {
+    if (!file || !file.path || !/\.md$/.test(file.path)) return;
+    const fm = (this.app.metadataCache.getFileCache(file) || {}).frontmatter;
+    if (fm && fm.format === 'index') return;
+    (this._indexTouched || (this._indexTouched = new Set())).add(file.path);
+    window.clearTimeout(this._indexT);
+    this._indexT = window.setTimeout(async () => {
+      const touched = [...this._indexTouched]; this._indexTouched.clear();
+      for (const f of this.app.vault.getMarkdownFiles()) {
+        const ifm = (this.app.metadataCache.getFileCache(f) || {}).frontmatter;
+        if (!ifm || ifm.format !== 'index') continue;
+        const folder = f.parent && f.parent.path !== '/' ? f.parent.path : '';
+        if (f.path !== this.indexPath(folder)) continue;
+        if (touched.some((p) => !folder || p.startsWith(folder + '/'))) await this.writeTopicIndex(folder).catch(() => {});
+      }
+    }, 4000);
+  }
+  async folderCueCards(file) {
+    const folder = file && file.parent ? file.parent.path.replace(/^\/$/, '') : '';
+    const name = folder ? folder.replace(/^.*\//, '') : 'All notes';
+    const cards = [], seen = new Set();
+    for (const f of this.folderFiles(folder)) {
+      const fm = (this.app.metadataCache.getFileCache(f) || {}).frontmatter || {};
+      if (fm.format) continue;   // (notes only: not the definitions, quotes, card pages or index)
+      for (const c of await this.cardsOfFile(f)) { const id = cardId(c); if (!seen.has(id)) { seen.add(id); cards.push(c); } }
+    }
+    if (!cards.length) { new Notice('Lined Paper Pages: no cue in this folder ends with a question mark yet'); return; }
+    await this.writeCardPage(name + ' cue cards', cueCardsNote(cards.map(({ q, a, h }) => ({ q, a, h })), name), cards.length);
+  }
+
+  // ---------- what's new, once after an update ----------
+  whatsNew(always = false) {
+    const v = (this.manifest && this.manifest.version) || '';
+    const items = WHATS_NEW[v];
+    if (!always) {
+      if (this.settings._seenVersion === v) return;
+      this.settings._seenVersion = v;
+      this.saveData(this.settings).catch(() => {});
+      if (!items) return;
+    }
+    if (!Modal) return;
+    const m = new Modal(this.app);
+    m.titleEl.setText(`What's new in Lined Paper Pages ${v}`);
+    m.modalEl.addClass('lp-whatsnew');
+    const ul = document.createElement('ul');
+    for (const [title, text] of items || [['', 'See CHANGELOG.md.']]) { const li = document.createElement('li'); const b = document.createElement('b'); b.textContent = title; li.append(b, title ? ' ' : '', text); ul.appendChild(li); }
+    m.contentEl.appendChild(ul);
+    m.open();
   }
 
   // Insert: definition / quote: a page of its own, made in its folder, and embedded where you write
@@ -3514,10 +4241,14 @@ module.exports = class LinedPaperPages extends Plugin {
     const on = !page.classList.contains('lp-review');
     page.classList.toggle('lp-review', on);
     if (!on) page.querySelectorAll('.lp-revealed').forEach((c) => c.classList.remove('lp-revealed'));
-    new Notice(on ? 'Lined Paper Pages: review. Answer each cue, then click its notes to check.' : 'Lined Paper Pages: review off');
+    if (!on) page.querySelectorAll('mark.lp-shown').forEach((x) => x.classList.remove('lp-shown'));
+    new Notice(on ? (document.body.classList.contains('lp-review-blanks') ? 'Lined Paper Pages: review. Say each highlighted word, then click it to check.' : 'Lined Paper Pages: review. Answer each cue, then click its notes to check.') : 'Lined Paper Pages: review off');
     this.syncToolbars();
   }
   onReviewClick(e) {
+    // (Review shows: the highlighted words blanked out: a click shows one, another hides it again)
+    const mk = document.body.classList.contains('lp-review-blanks') && e.target && e.target.closest && e.target.closest('.lp-review mark');
+    if (mk) { e.preventDefault(); e.stopPropagation(); mk.classList.toggle('lp-shown'); return; }
     const c = e.target && e.target.closest && e.target.closest('.lp-review .callout[data-callout="notes"]');
     if (!c || (e.target.closest('a') && c.classList.contains('lp-revealed'))) return;
     e.preventDefault();
@@ -3556,7 +4287,8 @@ module.exports = class LinedPaperPages extends Plugin {
     const ins = group('Insert', 'lp-tb-edit');
     for (const [l, t, c] of [['Cue', 'Insert: cue + notes (Alt+N)', 'insert-cue-notes'], ['Q', 'Insert: essential question (Alt+Q)', 'insert-question'], ['Sum', 'Insert: summary (Alt+C)', 'insert-summary'],
       ['Title', 'Insert: title (Alt+T)', 'insert-title'], ['—', 'Insert: divider line (Alt+D)', 'insert-divider'], ['Page', 'Insert: page break (Alt+P)', 'insert-nextpage'],
-      ['Def', 'Insert: definition (Alt+F)', 'insert-definition'], ['“ ”', 'Insert: quote (Alt+O)', 'insert-quote'], ['→', 'Insert: arrow (Alt+A)', 'insert-arrow']]) button(ins, l, t, c);
+      ['Def', 'Insert: definition (Alt+F)', 'insert-definition'], ['“ ”', 'Insert: quote (Alt+O)', 'insert-quote'], ['→', 'Insert: arrow (Alt+A)', 'insert-arrow'],
+      ['◇', 'Insert: diagram from the selected list (Alt+M)', 'insert-diagram'], ['✦', 'Insert: diagram, answer or questions from AI (Alt+I)', 'ask-ai']]) button(ins, l, t, c);
     const pen = group('Pen', 'lp-tb-edit');
     for (const [name, hex] of COLOURS) button(pen, '●', `Pen: ${name} (Mod+Alt+${name[0].toUpperCase()})`, 'colour-' + name, { cls: 'lp-tb-swatch', style: `color: var(--pen-${name}, ${hex})` });
     button(pen, '⌫', 'Pen: remove colour (Mod+Alt+X)', 'remove-colour');
@@ -3568,6 +4300,7 @@ module.exports = class LinedPaperPages extends Plugin {
       ['〰', 'Mark: wavy underline (Mod+Alt+Shift+W)', 'pen-wavy'], ['S̶', 'Mark: cross out (Mod+Alt+Shift+K)', 'cross-out'], ['⌫', 'Mark: remove marks (Mod+Alt+Shift+X)', 'remove-marks']]) button(mark, l, t, c);
     const rev = group('Review', 'lp-tb-review');
     button(rev, 'Review', 'Note: review: cover the notes, answer the cues, click to reveal', 'review', { cls: 'lp-tb-reviewbtn' });
+    button(rev, 'Study', 'Note: review cue cards (the ones due today)', 'review-cards');
     button(rev, 'Cards', 'Note: make cue cards (a printable page)', 'cue-cards');
     button(rev, '▤', 'Note: show cue cards beside the note (as you write)', 'show-cue-cards');
     return bar;
@@ -4256,6 +4989,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
+Object.assign(module.exports, { cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;
@@ -4354,8 +5088,10 @@ class LinedPaperSettingTab extends PluginSettingTab {
             .onChange((v) => pl.setSetting(def.key, v.trim() ? v.trim() : undefined)));
         }
       } else {   // text
-        row.addText((t) => t.setPlaceholder(def.def).setValue(stored || '')
-          .onChange((v) => pl.setSetting(def.key, v.trim() ? v.trim() : undefined)));
+        row.addText((t) => {
+          t.setPlaceholder(def.def).setValue(stored || '').onChange((v) => pl.setSetting(def.key, v.trim() ? v.trim() : undefined));
+          if (def.secret && t.inputEl) t.inputEl.type = 'password';
+        });
       }
       row.addExtraButton((b) => b.setIcon('rotate-ccw').setTooltip('Back to default').onClick(async () => {
         await pl.setSetting(def.key, undefined);
