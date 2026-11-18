@@ -395,4 +395,4 @@ function note(name, params) {
   return { name, blocks: notes[name](params), cornell: !PLAIN.has(name) };
 }
 
-module.exports = { note, names: Object.keys(notes), words, callout, group, block, para, title };
+module.exports = { note, names: Object.keys(notes), words, callout, group, block, para, title, embed };

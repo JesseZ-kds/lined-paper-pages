@@ -435,14 +435,26 @@ click one to see it.
 
 ## Diagrams
 
-A diagram here is **Mermaid**: a few lines of text in the note (```` ```mermaid ````) that Obsidian
-draws, in reading view, while editing and in the PDF. Not a picture: change a word and it is drawn
-again. On lined paper the writing after it starts on the next line.
+A diagram here is **Mermaid**: a few lines of text that Obsidian draws, in reading view, while editing
+and in the PDF. Not a picture: change a word and it is drawn again.
+
+**Every diagram gets a page of its own** (in the *Diagrams* folder: *Settings → Embeds*), embedded
+where you put it, `![[Beginning of Life diagram#^diagram]]`: a diagram typed inside a callout (`>>`,
+the notes column) is not drawn well in reading view; an embedded one is, at the column's width. On
+lined paper the writing after it starts on the next line. A diagram you typed into a note yourself:
+**Note: put this note's diagrams on pages of their own** moves each one to a page and embeds it.
+
+**Colours:** each branch of a mind map, flow or tree is drawn in one of the pens (blue, red, green,
+purple, orange): light boxes with the pen's colour round them and dark writing, easy to read on light
+and dark paper and in the PDF. A point you wrote in a pen colour (`<font color>`) keeps that colour; a
+highlighted point is filled with its highlighter. In a comparison table each cell keeps its pens and
+highlights. The words in a diagram keep the diagram's own font (the handwriting made them too wide for
+their boxes); boxes are kept close together so a diagram is not shrunk more than it needs to fit.
 
 - **Insert: diagram from the selected list** (Alt+M, or **◇** on the toolbar): select a list (`-`
   points, indented for sub-points) and choose **mind map**, **flow** (steps), **cycle**, **tree**,
   **timeline** (`1967: Abortion Act` lines) or **comparison table** (each point a column, its
-  sub-points the rows). A preview first; it goes under the list, inside the callout it is in. No AI,
+  sub-points the rows). A preview first; it goes on its own page, embedded under the list. No AI,
   no internet.
 - **Insert: diagram, answer or practice questions from AI** (Alt+I, or **✦**): write (or select) what
   you want, choose a kind (mind map, flowchart, cycle, timeline, tree, comparison table, an answer to a

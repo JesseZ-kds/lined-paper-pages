@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.36.0] - 2026-11-18
+
+### Changed
+- **Every diagram gets a page of its own, embedded where you put it** (`![[… diagram#^diagram]]`,
+  in the *Diagrams* folder: *Settings → Embeds*). A diagram inside a callout (the notes column) was
+  not drawn well in reading view; embedded, it is, at the column's width, and the writing after it
+  starts on the next line. *Note: put this note's diagrams on pages of their own* moves the ones
+  already in a note.
+- **Diagrams in colour:** each branch of a mind map, flow or tree in one of the pens (a light box,
+  the pen's colour round it, dark writing: easy to read on light and dark paper and in the PDF). A
+  point written in a pen colour keeps it; a highlighted point is filled with its highlighter; table
+  cells keep their pens and highlights. Ask AI is asked to colour its diagrams the same way.
+- **Diagrams take less room:** boxes closer together and long labels wrapped sooner, so a diagram
+  in the notes column is shrunk less (a tree: half as big again).
+
+### Fixed
+- **Words cut off in diagrams** ("Christianit", "life at birt"). Mermaid sizes each box for its own
+  font; on lined paper the page's handwriting, size and line height reached inside and the words no
+  longer fit. A diagram's words now keep its own font and spacing.
+- On dark paper, the words in coloured boxes were light (the page's ink) on light boxes, and a mind
+  map's lines were near black. Now dark words, grey lines.
+- The writing after an embedded diagram started where the diagram's first label was measured, not
+  its top.
+
+### Improved
+- The cue cards beside the note keep each card's drawn writing while it is the same, instead of
+  drawing every card again as you write.
+
 ## [1.35.0] - 2026-11-18
 
 ### Added

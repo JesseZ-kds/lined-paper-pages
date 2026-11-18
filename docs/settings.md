@@ -11,7 +11,7 @@ button to put it back to its default, and **Reset all** resets everything.
 | **Revision and AI** | Review shows (the notes covered / the highlighted words blanked out) · Gemini API key · Gemini model |
 | **Updates** | Look for a new version when Obsidian starts (on) · Install a new version without asking (off) |
 | **Toolbar and buttons** | Toolbar: Insert / Pens / Highlighters / Marks / Review and Cards (each on or off) · Where (a corner) · Faded until you point at it · The "Add a revised …" button |
-| **Embeds** | Folder for definitions (Definitions) · Folder for quotes (Quotes) |
+| **Embeds** | Folder for definitions (Definitions) · Folder for quotes (Quotes) · Folder for diagrams |
 | **Cornell notes** | Cue column width · Centre the question across the page (off) · Centre full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
 | **Callouts** | Callout box height (80 %) · Callout text size |
 | **Colours** | Paper · Ruled lines · Red margin line & divider · Text · Title · Labels · Heading underline · Desk |

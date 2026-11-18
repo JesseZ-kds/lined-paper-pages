@@ -1,6 +1,6 @@
 {
   "name": "lined-paper-pages",
-  "version": "1.35.0",
+  "version": "1.36.0",
   "description": "Lined paper and Cornell notes for Obsidian: real A4 pages in reading view that match the PDF export.",
   "private": true,
   "license": "MIT",
@@ -26,6 +26,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
     "esbuild": "^0.28.2",
+    "mermaid": "^11.17.2",
     "playwright": "1.56.1"
   },
   "engines": {

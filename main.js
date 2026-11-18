@@ -125,6 +125,8 @@ const SETTINGS = [
     desc: 'Where Insert: definition makes the definition\'s page. Made if it is not there.' },
   { key: 'quote-folder', type: 'path', def: 'Quotes', name: 'Folder for quotes',
     desc: 'Where Insert: quote makes the quote\'s page.' },
+  { key: 'diagram-folder', type: 'path', def: 'Diagrams', name: 'Folder for diagrams',
+    desc: 'Every diagram (Insert: diagram, Ask AI) gets a page of its own here, embedded where you put it: a diagram typed inside a callout (>>) is not drawn well in reading view, an embedded one is.' },
 
   { section: 'Cue cards', desc: 'Note: make cue cards (or Cards on the toolbar) makes a printable page of cue cards from a Cornell note: the question (a cue ending with ?) on the front, its notes on the back. Print it with Export to PDF (A4, margin: none).' },
   { key: 'cards-size', type: 'select', cls: 'lp-cards-size-', def: 'standard', name: 'Card size',
@@ -567,7 +569,7 @@ function alignEmbeds(root, undo) {
   for (const e of embeds) e.style.removeProperty('--lp-embed-pull');
   const walk = (el, f, skip) => {
     const tw = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) => (n.nodeType === 1 && (n === skip || n.matches(EMBED_HIDDEN)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+      acceptNode: (n) => (n.nodeType === 1 && (n === skip || n.matches(EMBED_HIDDEN) || n.matches('svg, .mermaid, .block-language-mermaid')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
     });
     for (let n = tw.nextNode(); n; n = tw.nextNode()) if (f(n) === false) return;
   };
@@ -2193,6 +2195,7 @@ function addPaperCommands(plugin) {
   add({ id: 'insert-diagram', name: 'Insert: diagram from the selected list (mind map, flow, cycle, tree, timeline, table)', ...withEditor((e) => plugin.insertDiagram(e)) });
   add({ id: 'ask-ai', name: 'Insert: diagram, answer or practice questions from AI (Gemini, or copied for NotebookLM)', ...withEditor((e, f) => plugin.askAI(e, f)) });
   add({ id: 'insert-cue-from-selection', name: 'Insert: cue for the selected notes (a question drafted)', ...withEditor((e) => plugin.cueFromSelection(e)) });
+  add({ id: 'diagrams-to-pages', name: 'Note: put this note\'s diagrams on pages of their own (embedded)', ...withEditor((e, f) => plugin.diagramsToPages(e, f)) });
   add({ id: 'insert-summary-from-cues', name: 'Insert: summary from the cues and highlights', ...withEditor((e) => plugin.summaryFromCues(e)) });
   add({ id: 'review-cards', name: 'Note: review cue cards (spaced: the ones due today)', callback: () => plugin.reviewCards('note') });
   add({ id: 'topic-index', name: 'Note: make an index of this folder (notes, definitions, quotes)', callback: () => plugin.makeTopicIndex(app.workspace.getActiveFile()) });
@@ -2322,6 +2325,11 @@ function addPaperCommands(plugin) {
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.36.0': [
+    ['Diagrams on pages of their own', '(the Diagrams folder): embedded where you put them, so they are drawn well in the notes column too. Note: put this note\'s diagrams on pages of their own moves the ones already in a note.'],
+    ['Diagrams in colour', 'each branch in a pen colour, dark writing on light boxes; points you wrote in a pen or highlighted keep their colour.'],
+    ['No more cut-off words', 'in diagrams on lined paper; diagrams take less room, so they are shrunk less.'],
+  ],
   '1.35.0': [
     ['Review cue cards', '(Note: review cue cards, or Study on the toolbar): one card at a time, Show the answer, then Knew it / Didn\'t know. Cards you know come back after 1, 2, 4, 8 … days; the ones you don\'t, the same day. A note, its folder or every note. Quotes can be shown with words left out.'],
     ['Ask AI', '(Alt+I, or ✦ on the toolbar): a mind map, flowchart, cycle, timeline, tree or comparison table of something, drawn as a Mermaid diagram (text Obsidian draws, not a picture); an answer to a question; or 5 practice questions, added as cues. With a free Gemini key (Settings → Revision and AI), or copied into NotebookLM / Gemini and the answer pasted back.'],
@@ -2408,7 +2416,10 @@ function outline(text) {
     if (!line.trim() || /^\s*(```|~~~|\[!)/.test(line) || /^\s*>?\s*\[!/.test(raw.replace(/^\s*(?:>\s?)+/, ''))) continue;
     const m = /^(\s*)(?:[-*+]|\d+[.)])?\s*(.*)$/.exec(line);
     const ind = m[1].replace(/\t/g, '    ').length;
-    const node = { text: plainText(m[2]), kids: [], ind };
+    const said = m[2];
+    const pen = /<font\b[^>]*color\s*=\s*["']?(#[0-9a-f]{3,6})/i.exec(said) || /<span\b[^>]*style\s*=\s*["'][^"']*color\s*:\s*(#[0-9a-f]{3,6})/i.exec(said);
+    const hl = /<mark\b[^>]*class\s*=\s*["']?hl-(\w+)/i.exec(said) || (/==[^=]+==|<mark\b/i.test(said) ? [0, 'yellow'] : null);
+    const node = { text: plainText(said), raw: said.trim(), kids: [], ind, color: pen ? pen[1].toLowerCase() : null, hl: hl ? hl[1].toLowerCase() : null };
     if (!node.text) continue;
     while (stack.length > 1 && ind <= stack[stack.length - 1].ind) stack.pop();
     stack[stack.length - 1].kids.push(node);
@@ -2416,6 +2427,15 @@ function outline(text) {
   }
   return root.kids;
 }
+// colours: a branch in one of the pens (its boxes a light tint of it), or the colour its words were
+// written in; a highlighted point filled with its highlighter. Light boxes, dark writing: easy to
+// read on light and dark paper, and in the PDF.
+const PEN_HEX = Object.fromEntries(COLOURS.map(([n, h]) => [h, n]));
+const HL_FILL = { yellow: '#fff38c', green: '#c9f1bd', pink: '#ffd4ea', blue: '#c7e8ff', orange: '#ffd9a8' };
+const tint = (hex, k = 0.16) => { const n = parseInt(hex.slice(1).replace(/^(.)(.)(.)$/, '$1$1$2$2$3$3'), 16); const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.round(255 - (255 - v) * k)); return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''); };
+// a flowchart's spacing: its boxes close together, long labels wrapped a little sooner, so it is not
+// shrunk as much to fit a column (Mermaid's own setting, at its top: the same wherever it is drawn)
+const MM_FLOW = '%%{init: {"flowchart": {"nodeSpacing": 22, "rankSpacing": 34, "padding": 8, "wrappingWidth": 140}}}%%';
 const mmText = (s) => String(s).replace(/["`]/g, "'").replace(/[[\]{}()<>|#;]/g, ' ').replace(/\s+/g, ' ').trim() || '…';
 function diagramFrom(text, kind, title = '') {
   let items = outline(text);
@@ -2423,9 +2443,10 @@ function diagramFrom(text, kind, title = '') {
   if (kind === 'table') {
     const cols = items.length === 1 && items[0].kids.length ? items[0].kids : items;
     const rows = Math.max(1, ...cols.map((c) => c.kids.length));
-    const cell = (s) => String(s || '').replace(/\|/g, '/');
-    const out = ['| ' + cols.map((c) => cell(c.text)).join(' | ') + ' |', '|' + cols.map(() => ' --- |').join('')];
-    for (let r = 0; r < rows; r++) out.push('| ' + cols.map((c) => cell(c.kids[r] ? c.kids[r].text : '')).join(' | ') + ' |');
+    // (a cell keeps its writing as it is: pens, highlighters, links, bold)
+    const cell = (n) => (n ? String(n.raw || n.text).replace(/\|/g, '/') : '');
+    const out = ['| ' + cols.map((c) => cell(c)).join(' | ') + ' |', '|' + cols.map(() => ' --- |').join('')];
+    for (let r = 0; r < rows; r++) out.push('| ' + cols.map((c) => cell(c.kids[r])).join(' | ') + ' |');
     return { kind, lang: null, text: out.join('\n') };
   }
   if (kind === 'timeline') {
@@ -2442,28 +2463,43 @@ function diagramFrom(text, kind, title = '') {
     if (items.length > 1 || !items[0].kids.length) items = [{ text: title || 'Topic', kids: items }];
     const out = ['mindmap'];
     let n = 0;
-    const walk = (node, depth) => {
+    // (a mind map's colours are classes, lp-pen-… and lp-hl-…, coloured by the plugin's CSS)
+    const walk = (node, depth, pen) => {
       const id = 'n' + (n++);
-      out.push('  '.repeat(depth + 1) + (depth === 0 ? `${id}(("${mmText(node.text)}"))` : `${id}["${mmText(node.text)}"]`));
-      for (const k of node.kids) walk(k, depth + 1);
+      const ind = '  '.repeat(depth + 1);
+      out.push(ind + (depth === 0 ? `${id}(("${mmText(node.text)}"))` : `${id}["${mmText(node.text)}"]`));
+      const own = node.color && PEN_HEX[node.color] ? PEN_HEX[node.color] : pen;
+      const cls = depth === 0 ? ['lp-root'] : ['lp-pen-' + own].concat(node.hl && HL_FILL[node.hl] ? ['lp-hl-' + node.hl] : []);
+      out.push(ind + ':::' + cls.join(' '));
+      node.kids.forEach((k, i) => walk(k, depth + 1, depth === 0 ? COLOURS[i % COLOURS.length][0] : own));
     };
-    walk(items[0], 0);
+    walk(items[0], 0, 'blue');
     return { kind, lang: 'mermaid', text: out.join('\n') };
   }
-  // flow, cycle, tree: a flowchart
-  const out = [kind === 'tree' ? 'flowchart TD' : 'flowchart LR'];
+  // flow, cycle, tree: a flowchart (its colours: style lines, so it looks the same anywhere)
+  const out = [MM_FLOW, kind === 'tree' ? 'flowchart TD' : 'flowchart LR'];
+  const styles = [];
   let n = 0;
-  const node = (t, shape) => { const id = 'n' + (n++); out.push(`    ${id}${shape === 'round' ? '(' : '['}"${mmText(t)}"${shape === 'round' ? ')' : ']'}`); return id; };
+  let branch = 0;
+  const node = (t, shape, it, pen) => {
+    const id = 'n' + (n++);
+    out.push(`    ${id}${shape === 'round' ? '(' : '['}"${mmText(t)}"${shape === 'round' ? ')' : ']'}`);
+    const hex = (it && it.color) || pen;
+    if (!hex) styles.push(`    style ${id} fill:#ffffff,stroke:#1f2937,color:#1f2937,stroke-width:1.5px`);   // (the top: white)
+    else styles.push(`    style ${id} fill:${it && it.hl && HL_FILL[it.hl] ? HL_FILL[it.hl] : tint(hex)},stroke:${hex},color:#1f2937,stroke-width:1.5px`);
+    return id;
+  };
+  const penOf = () => COLOURS[(branch++) % COLOURS.length][1];
   if (kind === 'tree') {
-    const walk = (it, parent) => { const id = node(it.text, parent ? 'box' : 'round'); if (parent) out.push(`    ${parent} --> ${id}`); for (const k of it.kids) walk(k, id); };
-    if (items.length > 1 && title) { const top = node(title, 'round'); for (const it of items) { const id = node(it.text); out.push(`    ${top} --> ${id}`); for (const k of it.kids) walk(k, id); } }
-    else for (const it of items) walk(it, null);
+    const walk = (it, parent, pen) => { const own = it.color || pen; const id = node(it.text, parent ? 'box' : 'round', it, own); if (parent) out.push(`    ${parent} --> ${id}`); for (const k of it.kids) walk(k, id, own); };
+    if (items.length > 1 && title) { const top = node(title, 'round'); for (const it of items) { const pen = it.color || penOf(); const id = node(it.text, 'box', it, pen); out.push(`    ${top} --> ${id}`); for (const k of it.kids) walk(k, id, pen); } }
+    else for (const it of items) walk(it, null, it.color || penOf());
   } else {
-    const ids = items.map((it) => { const id = node(it.text, 'round'); for (const k of it.kids) { const kid = node(k.text); out.push(`    ${id} -.- ${kid}`); } return id; });
+    const ids = items.map((it) => { const pen = it.color || penOf(); const id = node(it.text, 'round', it, pen); for (const k of it.kids) { const kid = node(k.text, 'box', k, k.color || pen); out.push(`    ${id} -.- ${kid}`); } return id; });
     for (let i = 1; i < ids.length; i++) out.push(`    ${ids[i - 1]} --> ${ids[i]}`);
     if (kind === 'cycle' && ids.length > 1) out.push(`    ${ids[ids.length - 1]} --> ${ids[0]}`);
   }
-  return { kind, lang: 'mermaid', text: out.join('\n') };
+  return { kind, lang: 'mermaid', text: out.concat(styles).join('\n') };
 }
 // a block of lines written inside the callout (or list) the selection is in: each line with its "> " prefix
 const blockLines = (text, prefix) => text.split('\n').map((l) => prefix + l).join('\n');
@@ -2485,13 +2521,16 @@ const AI_KINDS = {
 function aiPrompt(kind, topic, context) {
   const about = `Topic: ${String(topic || '').trim() || '(the notes below)'}`;
   const ctx = context ? `\n\nMy notes (use them; keep to what they say where you can):\n"""\n${String(context).slice(0, 12000)}\n"""` : '';
-  const rules = 'Keep labels short (2 to 6 words). Use plain words a 14-year-old student understands. No styling, no colours, no classDef, no comments, no HTML.';
+  const rules = 'Keep labels short (2 to 6 words). Use plain words a 14-year-old student understands. No classDef, no comments, no HTML, no init directives.';
+  const pens = COLOURS.map(([nm, hx]) => `${nm} ${hx} (fill ${tint(hx)})`).join(', ');
+  const colourFlow = `Colour each group or branch with "style id fill:<fill>,stroke:<colour>,color:#1f2937" lines at the end, one colour per group, from: ${pens}.`;
+  const colourMind = `Colour each branch: under every node line, on its own line indented like it, write :::lp-pen-NAME (NAME: ${COLOURS.map(([nm]) => nm).join(', ')}), one colour per main branch, its children the same; under the root write :::lp-root.`;
   const want = {
-    mindmap: `Draw a Mermaid mindmap. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "mindmap", then a root node written root(("...")) and up to 5 branches with up to 4 children each, every label in double quotes as id["..."]. ${rules}`,
-    flow: `Draw a Mermaid flowchart of the steps or causes and effects. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart TD"; every node as id["label"]; arrows -->, with a short label -->|label| only where it helps. At most 12 nodes. ${rules}`,
-    cycle: `Draw a Mermaid flowchart of a cycle: steps in a loop, the last step leading back to the first. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart LR"; every node as id["label"]. At most 8 steps. ${rules}`,
+    mindmap: `Draw a Mermaid mindmap. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "mindmap", then a root node written root(("...")) and up to 5 branches with up to 4 children each, every label in double quotes as id["..."]. ${colourMind} ${rules}`,
+    flow: `Draw a Mermaid flowchart of the steps or causes and effects. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart TD"; every node as id["label"]; arrows -->, with a short label -->|label| only where it helps. At most 12 nodes. ${colourFlow} ${rules}`,
+    cycle: `Draw a Mermaid flowchart of a cycle: steps in a loop, the last step leading back to the first. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart LR"; every node as id["label"]. At most 8 steps. ${colourFlow} ${rules}`,
     timeline: `Draw a Mermaid timeline. Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "timeline", then "title ...", then lines "period : event". No colons inside labels. ${rules}`,
-    tree: `Draw a Mermaid flowchart as a hierarchy (tree, top down). Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart TD"; every node as id["label"]. At most 15 nodes. ${rules}`,
+    tree: `Draw a Mermaid flowchart as a hierarchy (tree, top down). Reply with ONLY one fenced code block: \`\`\`mermaid ... \`\`\`. Start with "flowchart TD"; every node as id["label"]. At most 15 nodes. ${colourFlow} ${rules}`,
     compare: `Make a comparison table in Markdown (not Mermaid): the things compared as columns, the points of comparison as rows, the first column naming the point. Reply with ONLY the table. Short cells. ${rules}`,
     answer: 'Answer the question clearly and briefly (at most 120 words), as a student would write it in their notes: short sentences or "- " points. Reply with only the answer.',
     questions: 'Write 5 exam-style practice questions on this, each with a short model answer (one to three sentences or "- " points). Reply ONLY in this form, nothing else:\nQ: question?\nA: answer\n\nQ: question?\nA: answer',
@@ -2505,8 +2544,9 @@ function aiAnswer(kind, reply) {
   if (['mindmap', 'flow', 'cycle', 'timeline', 'tree'].includes(kind)) {
     const fence = /```\s*mermaid\s*\n([\s\S]*?)```/i.exec(text) || /```[a-z]*\s*\n((?:mindmap|flowchart|graph|timeline)[\s\S]*?)```/i.exec(text);
     const code = (fence ? fence[1] : text).trim();
-    if (!/^(mindmap|flowchart|graph|timeline)\b/.test(code)) return null;
-    return { lang: 'mermaid', text: code.replace(/^\s*%%.*$/gm, '').replace(/\n{2,}/g, '\n').trim() };
+    const body = code.replace(/^\s*%%.*$/gm, '').replace(/\n{2,}/g, '\n').trim();
+    if (!/^(mindmap|flowchart|graph|timeline)\b/.test(body)) return null;
+    return { lang: 'mermaid', text: (/^(flowchart|graph)\b/.test(body) ? MM_FLOW + '\n' : '') + body };
   }
   if (kind === 'compare') {
     const lines = text.replace(/```[a-z]*\n?|```/g, '').split('\n').filter((l) => /^\s*\|/.test(l));
@@ -2525,6 +2565,25 @@ function aiAnswer(kind, reply) {
 // Cornell cue / notes groups, as Insert: cue + notes writes them
 const cueGroups = (cards) => cards.map((c) => `>> [!cue]\n${c.q.split('\n').map((l) => '>> ' + l).join('\n')}\n>\n>> [!notes]\n${c.a.split('\n').map((l) => '>> ' + l).join('\n')}`).join('\n\n');
 
+// a diagram's page: its properties, the diagram, its block id (embedded as ![[Name#^diagram]])
+const diagramPageText = (md, date = isoToday()) => `---\nformat: diagram\ndate: ${date}\n---\n${String(md).trim()}\n\n^diagram\n`;
+// the ```mermaid blocks of a note's source, anywhere (in callouts too): { start, end (lines), prefix, code }
+function mermaidBlocks(md) {
+  const lines = String(md || '').split('\n'), out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(\s*(?:>\s?)*)(```+|~~~+)\s*mermaid\s*$/i.exec(lines[i]);
+    if (!m) continue;
+    const pre = m[1], fence = m[2];
+    let j = i + 1;
+    const strip = (l) => l.slice(0, pre.length).replace(/\s+$/, '') === pre.replace(/\s+$/, '') ? l.slice(pre.length) : l.replace(/^\s*(?:>\s?)*/, '');
+    for (; j < lines.length; j++) if (strip(lines[j]).trim().startsWith(fence) && strip(lines[j]).trim().replace(/[`~]/g, '') === '') break;
+    if (j >= lines.length) break;
+    out.push({ start: i, end: j, prefix: pre, code: lines.slice(i + 1, j).map(strip).join('\n') });
+    i = j;
+  }
+  return out;
+}
+
 // ---------- a topic's index: its notes, definitions and quotes, on one page ----------
 function topicIndex(folder, notes) {
   const link = (f) => `[[${f.path.replace(/\.md$/, '')}|${f.basename}]]`;
@@ -2534,6 +2593,7 @@ function topicIndex(folder, notes) {
   sect('Notes', by('note'), (n) => `- ${link(n.file)}${n.cues ? ` · ${n.cues} question${n.cues === 1 ? '' : 's'}` : ''}${n.date ? ` · ${n.date}` : ''}`);
   sect('Definitions', by('def'), (n) => `- **${link(n.file)}**${n.said ? ': ' + n.said : ''}`);
   sect('Quotes', by('quote'), (n) => `- ${link(n.file)}${n.said ? ': "' + n.said.replace(/^["“]|["”]$/g, '') + '"' : ''}`);
+  sect('Diagrams', by('diagram'), (n) => `- ${link(n.file)}`);
   sect('Cue cards', by('cards'), (n) => `- ${link(n.file)}`);
   return out.join('\n').replace(/\n+$/, '\n');
 }
@@ -2772,7 +2832,7 @@ module.exports = class LinedPaperPages extends Plugin {
     // the "Definitions and quotes" cue cards kept up to date; print-only cue card pages removed once closed
     if (this.app.vault && this.app.vault.on && this.app.metadataCache && this.app.metadataCache.on) {
       const touched = (f) => { const fm = f && this.app.metadataCache.getFileCache && (this.app.metadataCache.getFileCache(f) || {}).frontmatter; if (!f || (fm && (fm.format === 'def' || fm.format === 'quote')) || this._formatPaths && this._formatPaths.has(f.path)) this.scheduleFormatDeck(f); };
-      this.registerEvent(this.app.metadataCache.on('changed', (f) => { touched(f); this.scheduleIndexes(f); }));
+      this.registerEvent(this.app.metadataCache.on('changed', (f) => { if (this._cardCache && (!f || !this.cardSource || f.path !== this.cardSource.path)) this._cardCache.clear(); touched(f); this.scheduleIndexes(f); }));
       this.registerEvent(this.app.vault.on('delete', (f) => touched(f)));
       this.registerEvent(this.app.vault.on('rename', (f) => touched(f)));
       this.registerEvent(this.app.workspace.on('layout-change', () => { window.clearTimeout(this._sweepT); this._sweepT = window.setTimeout(() => this.sweepPrintOnly().catch(() => {}), 1500); }));
@@ -3410,6 +3470,12 @@ module.exports = class LinedPaperPages extends Plugin {
 
   // a card's writing (markdown) as it shows: highlights, pens, bold, links, arrows
   async renderCardText(text, sourcePath) {
+    // (each card's writing is kept once drawn, while it is the same: the cards beside the note are
+    // drawn again as you write, and most of them have not changed. Any change to a note clears it.)
+    const key = (sourcePath || '') + '\u0000' + text;
+    const cache = this._cardCache || (this._cardCache = new Map());
+    const hit = cache.get(key);
+    if (hit) { cache.delete(key); cache.set(key, hit); return hit.cloneNode(true); }
     const d = document.createElement('div');
     d.className = 'lp-card-src';             // (the page's own layout leaves it alone: see the post-processor)
     const src = text;
@@ -3424,6 +3490,10 @@ module.exports = class LinedPaperPages extends Plugin {
     drawArrows(d);
     // (an embed, ![[Page#^quote]], fills in a moment after: the card is made from it once it has)
     for (let i = 0; i < 30 && Array.from(d.querySelectorAll('.internal-embed')).some((e) => !e.classList.contains('is-loaded') && !e.childElementCount); i++) await new Promise((ok) => window.setTimeout(ok, 50));
+    if (!Array.from(d.querySelectorAll('.internal-embed')).some((e) => !e.childElementCount)) {
+      cache.set(key, d.cloneNode(true));
+      if (cache.size > 400) cache.delete(cache.keys().next().value);
+    }
     return d;
   }
   // a ```cuecards block drawn as cards (reading view, editing view, the PDF)
@@ -3784,6 +3854,7 @@ module.exports = class LinedPaperPages extends Plugin {
       else if (e.key === '2' || e.key === 'ArrowRight') { e.preventDefault(); answer(true); }
     });
     modal.contentEl.tabIndex = -1;
+    modal.contentEl.style.outline = 'none';   // (it takes the keys: 1, 2, Space; no ring round it)
     this._review = { modal, load, reveal, answer, queue: () => queue };
     modal.open();
     window.setTimeout(() => modal.contentEl.focus(), 30);
@@ -3867,6 +3938,44 @@ module.exports = class LinedPaperPages extends Plugin {
     const text = '\n' + blank + '\n' + blockLines(md, pre ? pre.replace(/\s*$/, ' ') : '') + '\n';
     editor.replaceRange(text.replace(/\n$/, ''), { line: to.line, ch: line.length });
   }
+  // a diagram on a page of its own (Settings → Embeds: Folder for diagrams); the embed to put in the note
+  async diagramPage(title, md, sourcePath = '') {
+    const app = this.app;
+    const set = this.settings['diagram-folder'];
+    const folder = String(set === undefined ? 'Diagrams' : set).trim().replace(/^\/+|\/+$/g, '');
+    if (folder && !app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder).catch(() => {});
+    const base = fileName((plainText(title) || 'A') + ' diagram').replace(/^A diagram$/, 'Diagram');
+    let name = base, k = 2;
+    while (app.vault.getAbstractFileByPath((folder ? folder + '/' : '') + name + '.md')) name = `${base} ${k++}`;
+    const f = await app.vault.create((folder ? folder + '/' : '') + name + '.md', diagramPageText(md));
+    // (by its name, or by its path when another note has the same name)
+    const same = app.vault.getMarkdownFiles ? app.vault.getMarkdownFiles().filter((x) => x.basename === f.basename).length : 1;
+    const link = same > 1 ? f.path.replace(/\.md$/, '') : f.basename;
+    return { file: f, embed: `![[${link}#^diagram]]` };
+  }
+  // a diagram put in the note: on its own page, embedded after the selection
+  async insertDiagramPage(editor, ans, title, file) {
+    if (ans.lang !== 'mermaid') { this.insertAfterSelection(editor, this.diagramMarkdown(ans)); return; }
+    try {
+      const { embed } = await this.diagramPage(title || this.headingAbove(editor) || (file && file.basename) || 'Diagram', this.diagramMarkdown(ans), file ? file.path : '');
+      this.insertAfterSelection(editor, embed);
+    } catch (e) {
+      new Notice('Lined Paper Pages: could not make the diagram\'s page (' + (e && e.message ? e.message : e) + '); put in the note instead');
+      this.insertAfterSelection(editor, this.diagramMarkdown(ans));
+    }
+  }
+  // Note: put this note's diagrams on pages of their own (each ```mermaid block: a page, embedded in its place)
+  async diagramsToPages(editor, file) {
+    const blocks = mermaidBlocks(editor.getValue());
+    if (!blocks.length) { new Notice('Lined Paper Pages: no diagrams (```mermaid) in this note'); return; }
+    for (const b of blocks.reverse()) {
+      let title = '';
+      for (let l = b.start; l >= 0 && !title; l--) { const h = /^\s*(?:>\s?)*#{1,6}\s+(.+)$/.exec(editor.getLine(l)); if (h) title = plainText(h[1]); }
+      const { embed } = await this.diagramPage(title || (file && file.basename) || 'Diagram', '```mermaid\n' + b.code + '\n```', file ? file.path : '');
+      editor.replaceRange(b.prefix + embed, { line: b.start, ch: 0 }, { line: b.end, ch: editor.getLine(b.end).length });
+    }
+    new Notice(`Lined Paper Pages: ${blocks.length} diagram${blocks.length === 1 ? '' : 's'} on pages of their own, embedded`);
+  }
   // the nearest heading above the cursor, to name a diagram by
   headingAbove(editor) {
     for (let l = editor.getCursor('from').line; l >= 0; l--) { const m = /^\s*(?:>\s?)*#{1,6}\s+(.+)$/.exec(editor.getLine(l)); if (m) return plainText(m[1]); }
@@ -3899,7 +4008,8 @@ module.exports = class LinedPaperPages extends Plugin {
     m.modalEl.addClass('lp-diagram-modal');
     m.titleEl.setText('Draw the list as a diagram');
     const root = m.contentEl;
-    const row = root.createDiv ? root.createDiv({ cls: 'lp-dg-row' }) : root.appendChild(document.createElement('div'));
+    const row = root.appendChild(document.createElement('div'));
+    row.className = 'lp-dg-row';
     const kind = document.createElement('select');
     for (const [k, l] of Object.entries(DIAGRAMS)) { const o = document.createElement('option'); o.value = k; o.textContent = l; kind.appendChild(o); }
     const title = document.createElement('input');
@@ -3911,7 +4021,7 @@ module.exports = class LinedPaperPages extends Plugin {
     kind.addEventListener('change', draw); title.addEventListener('input', draw);
     const foot = document.createElement('div'); foot.className = 'lp-dg-foot'; root.appendChild(foot);
     const ok = document.createElement('button'); ok.textContent = 'Insert under the list'; ok.className = 'mod-cta';
-    ok.addEventListener('click', () => { if (ans) this.insertAfterSelection(editor, this.diagramMarkdown(ans)); m.close(); });
+    ok.addEventListener('click', async () => { if (ans) await this.insertDiagramPage(editor, ans, title.value.trim(), this.app.workspace.getActiveFile && this.app.workspace.getActiveFile()); m.close(); });
     foot.appendChild(ok);
     m.open();
     draw();
@@ -4005,7 +4115,7 @@ module.exports = class LinedPaperPages extends Plugin {
     copyGm.addEventListener('click', () => copy('https://gemini.google.com/app', 'Gemini'));
     paste.addEventListener('input', () => { if (paste.value.trim()) take(paste.value, false); });
     kind.addEventListener('change', () => { if (paste.value.trim()) take(paste.value, false); });
-    insert.addEventListener('click', () => {
+    insert.addEventListener('click', async () => {
       const md = blockFor();
       if (!md) return;
       if (kind.value === 'questions') {
@@ -4014,7 +4124,8 @@ module.exports = class LinedPaperPages extends Plugin {
         const n = editor.lineCount ? editor.lineCount() : editor.getValue().split('\n').length;
         while (g + 1 < n && /^\s*>/.test(editor.getLine(g + 1))) g++;
         editor.replaceRange('\n\n' + md, { line: g, ch: editor.getLine(g).length });
-      } else this.insertAfterSelection(editor, md);
+      } else if (ans && ans.lang === 'mermaid') await this.insertDiagramPage(editor, ans, plainText(topic.value).split('\n')[0].slice(0, 60), file);
+      else this.insertAfterSelection(editor, md);
       m.close();
     });
     this._ai = { modal: m, take, kind, topic, paste, insert, status, look };
@@ -4031,6 +4142,7 @@ module.exports = class LinedPaperPages extends Plugin {
       const md = await app.vault.cachedRead(f);
       if (fm.format === 'def' || fm.format === 'quote') { seenLinked.add(f.path); notes.push({ kind: fm.format, file: f, said: said(md, fm.format) }); continue; }
       if (fm.format === 'cuecards' || /```cuecards/.test(md)) { notes.push({ kind: 'cards', file: f }); continue; }
+      if (fm.format === 'diagram') { notes.push({ kind: 'diagram', file: f }); continue; }
       const cues = cornellCards(md).length;
       notes.push({ kind: 'note', file: f, cues, date: fm.date ? String(fm.date).slice(0, 10) : '' });
       // (the definitions and quotes it uses, wherever they are)
@@ -4989,7 +5101,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
-Object.assign(module.exports, { cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
+Object.assign(module.exports, { diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;

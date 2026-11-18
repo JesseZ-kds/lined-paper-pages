@@ -663,10 +663,51 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
 .lp-whatsnew ul { padding-left: 1.2em; }
 .lp-whatsnew li { margin: 0 0 8px; line-height: 1.45; }
 
-/* a diagram on lined paper: in the middle of the page, on the paper (the writing after it starts on
-   the next line: the plugin measures it) */
-.lined-paper :is(.block-language-mermaid, pre.mermaid) { text-align: center; background: none !important; margin: 0 !important; padding: 0 !important; }
-.lined-paper :is(.block-language-mermaid, pre.mermaid) svg { max-width: 100%; height: auto; }
+/* ---------- Diagrams (Mermaid) ----------
+   Mermaid sizes each label's box for its own font (16px), then draws it. The page's writing (its
+   handwriting, size and ruled line height) must not reach inside, or the words no longer fit their
+   boxes and are cut off: inside a diagram, its own font and spacing. */
+/* (svg:not(#lp-diagram) counts as an id: this wins over every rule of the page, the Cornell columns' too) */
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg:not(#lp-diagram) :is(p, span, div, li, b, strong, em, i, a) {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: 1.5 !important;
+  letter-spacing: normal !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: inherit !important;
+  text-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+  transform: none !important;
+  background: none;
+  white-space: inherit;
+}
+/* (the words of a label in the colour Mermaid gives the label, not the page's ink) */
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg:not(#lp-diagram) :is(p, li, b, strong, em, i) { color: inherit !important; }
+/* a diagram on lined paper: in the middle, on the paper, the whole width it needs up to the page's
+   (the writing after it starts on the next line: the plugin measures it) */
+.lined-paper :is(.block-language-mermaid, pre.mermaid, div.mermaid) { text-align: center; background: none !important; margin: 0 !important; padding: 0 !important; overflow: visible; }
+.lined-paper :is(.block-language-mermaid, pre.mermaid, div.mermaid) svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.lp-card-text :is(.block-language-mermaid, pre.mermaid, div.mermaid) svg { max-width: 100%; max-height: calc(var(--row) * 7); height: auto; }
+/* a mind map's branches in the pens' colours (classes the plugin writes: lp-pen-…, lp-hl-…, lp-root):
+   light boxes, the pen's colour round them, dark writing; the same on dark paper and in the PDF */
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-root > :is(rect, circle, path, polygon, ellipse) { fill: #ffffff !important; stroke: #1f2937 !important; stroke-width: 1.5px !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-pen-blue > :is(rect, circle, path, polygon, ellipse) { fill: #dbe3f5 !important; stroke: #1e4fbf !important; stroke-width: 1.5px !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-pen-red > :is(rect, circle, path, polygon, ellipse) { fill: #f6dddd !important; stroke: #c62828 !important; stroke-width: 1.5px !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-pen-green > :is(rect, circle, path, polygon, ellipse) { fill: #deeade !important; stroke: #2e7d32 !important; stroke-width: 1.5px !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-pen-purple > :is(rect, circle, path, polygon, ellipse) { fill: #e7dbef !important; stroke: #6a1b9a !important; stroke-width: 1.5px !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-pen-orange > :is(rect, circle, path, polygon, ellipse) { fill: #f9e1da !important; stroke: #d84315 !important; stroke-width: 1.5px !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-hl-yellow > :is(rect, circle, path, polygon, ellipse) { fill: #fff38c !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-hl-green > :is(rect, circle, path, polygon, ellipse) { fill: #c9f1bd !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-hl-pink > :is(rect, circle, path, polygon, ellipse) { fill: #ffd4ea !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-hl-blue > :is(rect, circle, path, polygon, ellipse) { fill: #c7e8ff !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node.lp-hl-orange > :is(rect, circle, path, polygon, ellipse) { fill: #ffd9a8 !important; }
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg g.node:is(.lp-root, [class*="lp-pen-"]) :is(.label, .label *, text, tspan) { color: #1f2937 !important; fill: #1f2937 !important; }
+/* (a mind map's lines: grey, seen on light and dark paper; Mermaid's dark theme drew them near black) */
+:is(.mermaid, .block-language-mermaid, pre.mermaid) svg:not(#lp-diagram) path[class*="section-edge"] { stroke: #8a94a3 !important; }
+@media print {
+  :is(.mermaid, .block-language-mermaid, pre.mermaid) svg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 
 /* ==== snippets/lined-paper.css ================================================================ */
 

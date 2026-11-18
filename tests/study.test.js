@@ -130,7 +130,7 @@ test('a summary from the cues and the words highlighted in their notes', async (
   }
 });
 
-test('a diagram from the selected list: chosen, previewed, inserted under the list inside its callout', async () => {
+test('a diagram from the selected list: chosen, previewed, on a page of its own, embedded under the list inside its callout', async () => {
   const { page, context } = await open();
   try {
     const r = await page.evaluate(async (NOTE) => {
@@ -138,6 +138,7 @@ test('a diagram from the selected list: chosen, previewed, inserted under the li
       const lines = NOTE.split('\n');
       const a = lines.findIndex((l) => l.includes('life begins at')), b = lines.findIndex((l) => l.includes('Catholics oppose'));
       const e = window.makeEditor(NOTE, { line: a, ch: 0 }, { line: b, ch: lines[b].length });
+      const { vault } = window.makeVault(window.plugin, { 'RS/Life.md': NOTE });
       window.plugin.insertDiagram(e);
       await wait(50);
       const m = document.querySelector('.lp-diagram-modal');
@@ -146,10 +147,12 @@ test('a diagram from the selected list: chosen, previewed, inserted under the li
       await wait(50);
       const title = m.querySelector('input').value;
       m.querySelector('button.mod-cta').click();
-      return { title, text: e.text };
+      await wait(100);
+      return { title, text: e.text, page: vault.files['Diagrams/Beginning of Life diagram.md'] && vault.files['Diagrams/Beginning of Life diagram.md'].text };
     }, NOTE);
     assert.equal(r.title, 'Beginning of Life', 'named by the heading above');
-    assert.ok(r.text.includes('>> - Catholics oppose abortion because life is sacred\n>>\n>> ```mermaid\n>> flowchart LR\n>>     n0("life begins at conception")\n>>     n1("Catholics oppose abortion because life is sacred")\n>>     n0 --> n1\n>> ```\n\n>> [!cue]\n>> What do biologists say?'), r.text);
+    assert.ok(r.text.includes('>> - Catholics oppose abortion because life is sacred\n>>\n>> ![[Beginning of Life diagram#^diagram]]\n\n>> [!cue]\n>> What do biologists say?'), r.text);
+    assert.match(r.page, /^---\nformat: diagram\ndate: \d{4}-\d\d-\d\d\n---\n```mermaid\n%%\{init[^\n]*\nflowchart LR\n {4}n0\("life begins at conception"\)\n {4}n1\("Catholics oppose abortion because life is sacred"\)\n {4}n0 --> n1\n[\s\S]*```\n\n\^diagram\n$/);
   } finally {
     await context.close();
   }
@@ -173,7 +176,8 @@ test('ask AI: Gemini asked (the model retired: the newest Flash one taken), the 
       const lines = NOTE.split('\n');
       const l = lines.findIndex((x) => x.includes('until 40 days'));
       const e = window.makeEditor(NOTE, { line: l, ch: 3 }, { line: l, ch: lines[l].length });
-      plugin.askAI(e, { basename: 'Life' });
+      const { vault } = window.makeVault(plugin, { 'RS/Life.md': NOTE });
+      plugin.askAI(e, { basename: 'Life', path: 'RS/Life.md' });
       const m = document.querySelector('.lp-ai-modal');
       const kind = m.querySelector('.lp-ai-kind'); kind.value = 'flow';
       m.querySelector('.lp-ai-topic').value = 'when life begins';
@@ -181,7 +185,8 @@ test('ask AI: Gemini asked (the model retired: the newest Flash one taken), the 
       for (let i = 0; i < 40 && m.querySelector('.lp-ai-foot button').disabled; i++) await wait(25);
       const status = m.querySelector('.lp-ai-status').textContent;
       m.querySelector('.lp-ai-foot button').click();
-      const diagram = e.text;
+      await wait(100);
+      const diagram = e.text, page = vault.files['Diagrams/when life begins diagram.md'] && vault.files['Diagrams/when life begins diagram.md'].text;
       // NotebookLM: copied, the answer pasted back
       let copied = '';
       try { Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { copied = t; } }, configurable: true }); } catch (err) { /* */ }
@@ -197,11 +202,12 @@ test('ask AI: Gemini asked (the model retired: the newest Flash one taken), the 
       paste.dispatchEvent(new Event('input'));
       await wait(100);
       m2.querySelector('.lp-ai-foot button').click();
-      return { asked, status, diagram, copied, questions: e2.text };
+      return { asked, status, diagram, page, copied, questions: e2.text };
     }, NOTE);
     assert.deepEqual(r.asked, ['/models/gemini-2.5-flash:generateContent test-key', '/models?pageSize=200 test-key', '/models/gemini-3-flash:generateContent test-key']);
     assert.match(r.status, /^Here it is/);
-    assert.ok(r.diagram.includes('>> - the foetus is "water" until 40 days\n>>\n>> ```mermaid\n>> flowchart TD\n>>   a["Conception"] --> b["Birth"]\n>> ```\n\n>> [!cue]\n>> Christianity view'), r.diagram);
+    assert.ok(r.diagram.includes('>> - the foetus is "water" until 40 days\n>>\n>> ![[when life begins diagram#^diagram]]\n\n>> [!cue]\n>> Christianity view'), r.diagram);
+    assert.match(r.page, /```mermaid\n%%\{init[^\n]*\nflowchart TD\n  a\["Conception"\] --> b\["Birth"\]\n```\n\n\^diagram\n$/);
     assert.match(r.copied, /^Write 5 exam-style practice questions[\s\S]*Beginning of Life/);
     assert.ok(r.questions.includes('>> - the foetus is "water" until 40 days\n\n>> [!cue]\n>> What is the Jewish view on when life begins?\n>\n>> [!notes]\n>> At birth: until 40 days the foetus is "water".\n\n>> [!cue]\n>> Why do Catholics oppose abortion?\n>\n>> [!notes]\n>> Life is sacred from conception.\n\n>> [!cue]\n>> Christianity view'), r.questions);
   } finally {
@@ -267,6 +273,87 @@ test('a diagram on a lined page: the writing after it starts on a ruled line', a
     });
     assert.ok(r.pushed, 'measured');
     assert.equal(r.off % 1, 0, 'a whole number of lines below the writing above: ' + r.off);
+  } finally {
+    await context.close();
+  }
+});
+
+test('diagrams drawn by Mermaid on a dark Cornell page: every label fits its box (the page\'s handwriting kept out), branches in the pens\' colours with dark writing, the writing after an embedded one on a line', async () => {
+  const { group, embed } = require('./lib/notes');
+  const LIST = '- <font color="#1e4fbf">Judaism</font>\n  - life begins at ==birth==, when the head emerges\n  - foetus is "water" until 40 days\n- <font color="#c62828">Christianity</font>\n  - life at <mark class="hl-orange">conception</mark>\n- Science\n  - fertilisation';
+  const { page, context } = await openReading({ name: 'mm', cornell: true, blocks: [title('Life'), group('<p>When does life begin?</p>', '<p>Before the diagram.</p>' + embed('<div class="el-pre"><div class="mm-in"></div></div>') + '<p>After the diagram.</p>'), block('<div class="mm-top"></div>'), block('<p>Under the diagram.</p>')] }, { theme: 'theme-dark', viewport: { width: 900, height: 1500 } });
+  try {
+    await page.addScriptTag({ path: require.resolve('mermaid/dist/mermaid.min.js') });
+    const r = await page.evaluate(async (LIST) => {
+      const P = window.plugin.constructor;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+      // (as Obsidian draws one: rendered away from the page, then put in it)
+      const put = async (sel, code, id) => { const { svg } = await mermaid.render(id, code); const d = document.createElement('div'); d.className = 'mermaid'; d.innerHTML = svg; document.querySelector(sel).replaceWith(d); };
+      await put('.mm-in', P.diagramFrom(LIST, 'tree', 'When life begins').text, 'd1');
+      await put('.mm-top', P.diagramFrom(LIST, 'mindmap', 'Beginning of life').text, 'd2');
+      window.plugin.scheduleScan(true);
+      await new Promise((ok) => setTimeout(ok, 900));
+      const cut = [...document.querySelectorAll('.mermaid foreignObject')].map((fo) => [fo, fo.querySelector('p') || fo.firstElementChild]).filter(([, d]) => d && d.textContent.trim())
+        .filter(([fo, d]) => d.scrollWidth > fo.width.baseVal.value + 1).map(([, d]) => d.textContent.trim());
+      const fill = (text) => { const g = [...document.querySelectorAll('.mermaid g.node')].find((n) => n.textContent.trim() === text); const shape = g.querySelector('rect, path, circle, polygon'); return [getComputedStyle(shape).fill, getComputedStyle(shape).stroke, getComputedStyle(g.querySelector('p') || g.querySelector('.label')).color]; };
+      const ps = [...document.querySelectorAll('.callout-content > p')].filter((p) => !p.closest('.internal-embed'));
+      const L = parseFloat(getComputedStyle(ps[0]).lineHeight);
+      const edge = document.querySelector('.mermaid path[class*="section-edge"]');
+      return {
+        cut, judaism: fill('Judaism'), christianity: fill('Christianity'), conception: fill('life at conception'), root: fill('Beginning of life'),
+        after: ((ps[1].getBoundingClientRect().top - ps[0].getBoundingClientRect().top) / L).toFixed(2), edge: edge && getComputedStyle(edge).stroke,
+        labelFont: getComputedStyle(document.querySelector('.internal-embed .mermaid foreignObject p')).fontFamily,
+      };
+    }, LIST);
+    assert.deepEqual(r.cut, [], 'no label cut off');
+    assert.match(r.labelFont, /trebuchet/i, 'labels in the diagram\'s own font, not the handwriting');
+    assert.deepEqual(r.judaism.slice(1), ['rgb(30, 79, 191)', 'rgb(31, 41, 55)'], 'Judaism: the blue pen it was written in, dark writing');
+    assert.deepEqual(r.christianity.slice(1), ['rgb(198, 40, 40)', 'rgb(31, 41, 55)']);
+    assert.equal(r.conception[0], 'rgb(255, 217, 168)', 'highlighted orange: filled orange');
+    assert.equal(r.root[0], 'rgb(255, 255, 255)');
+    assert.equal(r.edge, 'rgb(138, 148, 163)', 'the mind map\'s lines grey, seen on dark paper');
+    assert.equal(Number(r.after) % 1, 0, 'the writing after the embedded diagram on a line: ' + r.after);
+  } finally {
+    await context.close();
+  }
+});
+
+test('put a note\'s diagrams on pages of their own: each one a page, embedded where it was (in a callout too)', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(async () => {
+      const plugin = window.plugin;
+      const note = '# Life\n```mermaid\nmindmap\n  a\n```\n\n>> [!notes]\n>> ## Views\n>> ```mermaid\n>> flowchart TD\n>>   a --> b\n>> ```\n>> after\n';
+      const { vault } = window.makeVault(plugin, { 'RS/Life.md': note });
+      const e = window.makeEditor(note, { line: 0, ch: 0 });
+      await plugin.diagramsToPages(e, vault.files['RS/Life.md']);
+      return { text: e.text, pages: Object.keys(vault.files).filter((p) => p.startsWith('Diagrams/')).map((p) => p + ' = ' + vault.files[p].text.split('\n').slice(4).join('|')) };
+    });
+    assert.equal(r.text, '# Life\n![[Life diagram#^diagram]]\n\n>> [!notes]\n>> ## Views\n>> ![[Views diagram#^diagram]]\n>> after\n');
+    assert.deepEqual(r.pages.sort(), ['Diagrams/Life diagram.md = ```mermaid|mindmap|  a|```||^diagram|', 'Diagrams/Views diagram.md = ```mermaid|flowchart TD|  a --> b|```||^diagram|']);
+  } finally {
+    await context.close();
+  }
+});
+
+test('the cards\' writing is drawn once and kept while it is the same (the cards beside the note, as you write); a change to another note clears it', async () => {
+  const RENDER = require('./lib/obsidian-render');
+  const src = SRC.replace("requestUrl: async", "MarkdownRenderer: { render: async (app, md, el) => { window.__renders = (window.__renders || 0) + 1; window.__mdRender(md, el); } },\n  requestUrl: async");
+  const { page, context } = await openReading({ name: 'cache', cornell: true, blocks: [] }, { theme: 'theme-light', src });
+  try {
+    await page.evaluate(RENDER);
+    const r = await page.evaluate(async () => {
+      const plugin = window.plugin;
+      const a = await plugin.renderCardText('- at ==birth==', 'Life.md');
+      const b = await plugin.renderCardText('- at ==birth==', 'Life.md');
+      const once = window.__renders;
+      b.querySelector('li').textContent = 'changed';                        // (a copy: what is kept is not changed)
+      const c = await plugin.renderCardText('- at ==birth==', 'Life.md');
+      plugin._cardCache.clear();
+      await plugin.renderCardText('- at ==birth==', 'Life.md');
+      return { same: a.innerHTML === c.innerHTML, once, after: window.__renders };
+    });
+    assert.deepEqual(r, { same: true, once: 1, after: 2 });
   } finally {
     await context.close();
   }

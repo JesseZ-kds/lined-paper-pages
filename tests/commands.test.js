@@ -411,24 +411,36 @@ test('a question drafted from notes', () => {
   assert.equal(draftQuestion('Life begins at conception for many Christians'), 'What do you know about Life begins at conception for …?');
 });
 
-test('a list drawn as a diagram: mind map, flow, cycle, tree, timeline, table', () => {
+test('a list drawn as a diagram: mind map, flow, cycle, tree, timeline, table; each branch in a pen colour, the colours of the list kept', () => {
   const { diagramFrom, outline } = require('../main.js');
   const list = '- Judaism\n  - life at birth\n  - foetus is "water"\n- Christianity\n  - life at conception';
   assert.deepEqual(outline('>> - a\n>>   - b\n>> - c').map((n) => [n.text, n.kids.map((k) => k.text)]), [['a', ['b']], ['c', []]]);
-  assert.equal(diagramFrom(list, 'mindmap', 'Beginning of life').text, 'mindmap\n  n0(("Beginning of life"))\n    n1["Judaism"]\n      n2["life at birth"]\n      n3["foetus is \'water\'"]\n    n4["Christianity"]\n      n5["life at conception"]');
-  assert.equal(diagramFrom('- Sperm meets egg\n- Zygote (one cell)\n- Embryo', 'flow').text, 'flowchart LR\n    n0("Sperm meets egg")\n    n1("Zygote one cell")\n    n2("Embryo")\n    n0 --> n1\n    n1 --> n2');
-  assert.match(diagramFrom('- a\n- b\n- c', 'cycle').text, /n2 --> n0$/);
+  assert.equal(diagramFrom(list, 'mindmap', 'Beginning of life').text, 'mindmap\n  n0(("Beginning of life"))\n  :::lp-root\n    n1["Judaism"]\n    :::lp-pen-blue\n      n2["life at birth"]\n      :::lp-pen-blue\n      n3["foetus is \'water\'"]\n      :::lp-pen-blue\n    n4["Christianity"]\n    :::lp-pen-red\n      n5["life at conception"]\n      :::lp-pen-red');
+  const INIT = '%%{init: {"flowchart": {"nodeSpacing": 22, "rankSpacing": 34, "padding": 8, "wrappingWidth": 140}}}%%';
+  assert.equal(diagramFrom('- Sperm meets egg\n- Zygote (one cell)\n- Embryo', 'flow').text, INIT + '\nflowchart LR\n    n0("Sperm meets egg")\n    n1("Zygote one cell")\n    n2("Embryo")\n    n0 --> n1\n    n1 --> n2\n    style n0 fill:#dbe3f5,stroke:#1e4fbf,color:#1f2937,stroke-width:1.5px\n    style n1 fill:#f6dddd,stroke:#c62828,color:#1f2937,stroke-width:1.5px\n    style n2 fill:#deeade,stroke:#2e7d32,color:#1f2937,stroke-width:1.5px');
+  assert.match(diagramFrom('- a\n- b\n- c', 'cycle').text, /n2 --> n0\n/);
   assert.equal(diagramFrom('- 1967: Abortion Act\n- 1990: limit 24 weeks', 'timeline', 'UK law').text, 'timeline\n    title UK law\n    1967 : Abortion Act\n    1990 : limit 24 weeks');
-  assert.equal(diagramFrom(list, 'table').text, '| Judaism | Christianity |\n| --- | --- |\n| life at birth | life at conception |\n| foetus is "water" |  |');
-  assert.match(diagramFrom(list, 'tree', 'Views').text, /^flowchart TD\n {4}n0\("Views"\)\n {4}n1\["Judaism"\]\n {4}n0 --> n1/);
+  assert.match(diagramFrom(list, 'tree', 'Views').text, /\nflowchart TD\n {4}n0\("Views"\)\n {4}n1\["Judaism"\]\n {4}n0 --> n1[\s\S]*style n0 fill:#ffffff,stroke:#1f2937[\s\S]*style n4 fill:#f6dddd,stroke:#c62828/);
+  // (colours written in the list: a point in red pen is a red branch; a highlighted one filled with its highlighter)
+  const coloured = '- <font color="#c62828">Christianity</font>\n  - life at <mark class="hl-orange">conception</mark>\n- Judaism\n  - ==birth==';
+  assert.match(diagramFrom(coloured, 'mindmap', 'Views').text, /n1\["Christianity"\]\n {4}:::lp-pen-red\n {6}n2\["life at conception"\]\n {6}:::lp-pen-red lp-hl-orange\n {4}n3\["Judaism"\]\n {4}:::lp-pen-red\n {6}n4\["birth"\]\n {6}:::lp-pen-red lp-hl-yellow/);
+  assert.match(diagramFrom(coloured, 'flow').text, /style n1 fill:#ffd9a8,stroke:#c62828/);
+  assert.equal(diagramFrom(coloured, 'table').text, '| <font color="#c62828">Christianity</font> | Judaism |\n| --- | --- |\n| life at <mark class="hl-orange">conception</mark> | ==birth== |');
   assert.equal(diagramFrom('', 'flow'), null);
+});
+
+test('diagrams on pages of their own: the page, and the diagrams found in a note (in callouts too)', () => {
+  const { diagramPageText, mermaidBlocks } = require('../main.js');
+  assert.equal(diagramPageText('```mermaid\nflowchart LR\n  a --> b\n```', '2026-11-18'), '---\nformat: diagram\ndate: 2026-11-18\n---\n```mermaid\nflowchart LR\n  a --> b\n```\n\n^diagram\n');
+  const md = '# T\n```mermaid\nmindmap\n  a\n```\n\n>> [!notes]\n>> text\n>> ```mermaid\n>> flowchart TD\n>>   a --> b\n>> ```\n>> more\n```js\nnot\n```';
+  assert.deepEqual(mermaidBlocks(md), [{ start: 1, end: 4, prefix: '', code: 'mindmap\n  a' }, { start: 8, end: 11, prefix: '>> ', code: 'flowchart TD\n  a --> b' }]);
 });
 
 test('asking an AI: the prompt asks for the right form; the answer is read back (Mermaid, a table, cues), anything else is refused', () => {
   const { aiPrompt, aiAnswer, cueGroups } = require('../main.js');
   assert.match(aiPrompt('mindmap', 'Abortion', 'my notes'), /mermaid mindmap[\s\S]*Topic: Abortion[\s\S]*"""\nmy notes\n"""/i);
   assert.match(aiPrompt('questions', 'x'), /Q: question\?\nA: answer/);
-  assert.deepEqual(aiAnswer('flow', 'Here you go:\n```mermaid\nflowchart TD\n  a["x"] --> b["y"]\n```\nHope it helps'), { lang: 'mermaid', text: 'flowchart TD\n  a["x"] --> b["y"]' });
+  assert.deepEqual(aiAnswer('flow', 'Here you go:\n```mermaid\nflowchart TD\n  a["x"] --> b["y"]\n```\nHope it helps'), { lang: 'mermaid', text: '%%{init: {"flowchart": {"nodeSpacing": 22, "rankSpacing": 34, "padding": 8, "wrappingWidth": 140}}}%%\nflowchart TD\n  a["x"] --> b["y"]' });
   assert.equal(aiAnswer('flow', 'Sorry, I cannot draw.'), null);
   assert.deepEqual(aiAnswer('compare', 'Sure!\n| | A | B |\n|---|---|---|\n| view | x | y |\nDone'), { lang: null, text: '| | A | B |\n|---|---|---|\n| view | x | y |' });
   const q = aiAnswer('questions', 'Q: What is IVF?\nA: Fertilisation outside the body.\n\nQ: Name a view\nA: - Catholic: wrong\n- Liberal: fine');
