@@ -236,6 +236,12 @@ settings:
   background: rgba(var(--callout-color, 8, 109, 221), 0.1) !important;
   mix-blend-mode: var(--callout-blend-mode, normal) !important;
 }
+/* (in the PDF: no blending: "lighten" made the tint vanish on white paper. The see-through tint
+   itself prints as it looks.) */
+@media print {
+  .lined-paper.cornell .callout[data-callout="cue"],
+  .lined-paper.cornell .callout[data-callout="notes"] { mix-blend-mode: normal !important; }
+}
 .lined-paper.cornell .callout[data-callout="cue"]::before,
 .lined-paper.cornell .callout[data-callout="notes"]::before { content: none; }
 .lined-paper.cornell .callout[data-callout="summary"] {

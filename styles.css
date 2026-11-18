@@ -708,6 +708,49 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
 @media print {
   :is(.mermaid, .block-language-mermaid, pre.mermaid) svg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* An embedded diagram (![[… diagram#^diagram]]) looks exactly as one typed on the page: no embed
+   frame (Obsidian's bar down the side, its indent, the link icon, a scroll box), in any note, in
+   reading view and while editing; the diagram as wide as it is drawn, in the middle */
+.internal-embed[src*="#^diagram"],
+.internal-embed[src*="#^diagram"] :is(.markdown-embed, .markdown-embed-content, .markdown-preview-view, .markdown-preview-sizer, .markdown-preview-section) {
+  --embed-border-start: none;
+  --embed-border-left: none;
+  --embed-padding: 0;
+  border: 0 !important;
+  padding: 0 !important;
+  margin-inline: 0 !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+.internal-embed[src*="#^diagram"] :is(.markdown-embed-title, .embed-title, .markdown-embed-link, .mod-header, .mod-footer, .markdown-preview-pusher, .metadata-container, .frontmatter-container, .mod-frontmatter, .inline-title) { display: none !important; }
+.internal-embed[src*="#^diagram"] { display: block; cursor: default; }
+.internal-embed[src*="#^diagram"] :is(.mermaid, .block-language-mermaid) { text-align: center; margin: 0 !important; }
+.internal-embed[src*="#^diagram"] :is(.mermaid, .block-language-mermaid) svg { display: block; margin: 0 auto; }
+/* Clear on the paper whatever Obsidian's own theme: a diagram's arrows and their words in the page's
+   ink (the paper can be light while Obsidian is dark, or the other way round), a word on an arrow on
+   the paper's colour */
+:is(.lined-paper, .lp-card-paper) :is(.mermaid, .block-language-mermaid) {
+  --lp-dg-line: color-mix(in srgb, var(--ink, #1f2937) 60%, var(--paper, #ffffff));
+}
+:is(.lined-paper, .lp-card-paper) :is(.mermaid, .block-language-mermaid) svg:not(#lp-diagram) :is(.flowchart-link, .edgePath .path, path.transition, path.relation, line.messageLine0, line.messageLine1) { stroke: var(--lp-dg-line) !important; }
+:is(.lined-paper, .lp-card-paper) :is(.mermaid, .block-language-mermaid) svg:not(#lp-diagram) :is(marker path, .arrowheadPath, .arrowMarkerPath) { fill: var(--lp-dg-line) !important; stroke: var(--lp-dg-line) !important; }
+:is(.lined-paper, .lp-card-paper) :is(.mermaid, .block-language-mermaid) svg:not(#lp-diagram) .edgeLabel :is(p, span, div) { color: var(--ink, #1f2937) !important; background-color: var(--paper, #ffffff) !important; }
+:is(.lined-paper, .lp-card-paper) :is(.mermaid, .block-language-mermaid) svg:not(#lp-diagram) .edgeLabel rect { fill: var(--paper, #ffffff) !important; opacity: 1 !important; }
+
+/* ---------- Printing: colours that are see-through, and clear writing ----------
+   A PDF keeps a see-through colour (a callout's tint, a card's quote) as a plain see-through fill,
+   which every PDF viewer and printer prints as it looks. Two things print badly and are left out:
+   a blend mode (Obsidian draws callouts with "lighten" in its dark theme: on white paper the tint
+   then vanishes, and some printers print the box grey), and a blurred shadow round the letters (the
+   soft ink pen: the PDF can only keep it as a blurred picture behind every line, so the writing came
+   out fuzzy). */
+@media print {
+  body *, body *::before, body *::after { mix-blend-mode: normal !important; }
+  body.lp-ink-soft :is(.lined-paper, .lined-paper *, .lp-card-text, .lp-card-text *) { text-shadow: none !important; }
+}
 
 /* ==== snippets/lined-paper.css ================================================================ */
 
@@ -4605,6 +4648,12 @@ settings:
 .lined-paper.cornell .callout[data-callout="notes"] {
   background: rgba(var(--callout-color, 8, 109, 221), 0.1) !important;
   mix-blend-mode: var(--callout-blend-mode, normal) !important;
+}
+/* (in the PDF: no blending: "lighten" made the tint vanish on white paper. The see-through tint
+   itself prints as it looks.) */
+@media print {
+  .lined-paper.cornell .callout[data-callout="cue"],
+  .lined-paper.cornell .callout[data-callout="notes"] { mix-blend-mode: normal !important; }
 }
 .lined-paper.cornell .callout[data-callout="cue"]::before,
 .lined-paper.cornell .callout[data-callout="notes"]::before { content: none; }

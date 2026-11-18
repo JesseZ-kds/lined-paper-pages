@@ -425,11 +425,19 @@ click one to see it.
 
 ## Writing helpers
 
-- **Insert: cue for the selected notes** (Alt+U): select a line of your notes; a question is drafted in
-  the cue beside it ("IVF is …" → *What is IVF?*, "Catholics oppose abortion because …" → *Why
-  catholics oppose abortion?*, "Rabbinic scholars hold that …" → *What do Rabbinic scholars hold?*),
-  selected so you can change it. In the first lines of a group's notes it goes in that group's cue;
-  further down, the notes from there on get a group of their own.
+- **Insert: cue for the selected notes** (Alt+U): put the cursor on a line of your notes (or select
+  some lines) and a question is drafted in the cue beside it, the statement turned into a proper
+  question:
+  - "Catholics oppose abortion because life is sacred" → *Why do Catholics oppose abortion?*
+  - "Life begins at birth" → *When does life begin?*; "Abortion is legal in the UK up to 24 weeks" →
+    *When is abortion legal in the UK?*
+  - "IVF: fertilisation outside the body" → *What is IVF?*; "Rabbinic scholars hold that …" → *What do
+    Rabbinic scholars hold?*; "at birth, when the head emerges" → *What happens at birth?*
+
+  The question is selected, to change it. With a Gemini key (*Settings → Revision and AI*), Gemini is
+  asked for a better one meanwhile; it is put in only if you haven't changed the drafted one. In the
+  first lines of a group's notes the question goes in that group's cue; further down, the notes from
+  there on get a group of their own.
 - **Insert: summary from the cues and highlights**: a Summary with each cue and the words you
   highlighted under it, and a line to write it in your own words.
 
@@ -441,14 +449,16 @@ and in the PDF. Not a picture: change a word and it is drawn again.
 **Every diagram gets a page of its own** (in the *Diagrams* folder: *Settings → Embeds*), embedded
 where you put it, `![[Beginning of Life diagram#^diagram]]`: a diagram typed inside a callout (`>>`,
 the notes column) is not drawn well in reading view; an embedded one is, at the column's width. On
-lined paper the writing after it starts on the next line. A diagram you typed into a note yourself:
+lined paper the writing after it starts on the next line. An embedded diagram looks exactly as one
+typed on the page: no embed frame (side bar, indent, link icon), the same size and place. A diagram you typed into a note yourself:
 **Note: put this note's diagrams on pages of their own** moves each one to a page and embeds it.
 
 **Colours:** each branch of a mind map, flow or tree is drawn in one of the pens (blue, red, green,
 purple, orange): light boxes with the pen's colour round them and dark writing, easy to read on light
 and dark paper and in the PDF. A point you wrote in a pen colour (`<font color>`) keeps that colour; a
 highlighted point is filled with its highlighter. In a comparison table each cell keeps its pens and
-highlights. The words in a diagram keep the diagram's own font (the handwriting made them too wide for
+highlights. Its arrows and the words on them are in the page's ink, clear on light or dark paper
+whatever Obsidian's own theme. The words in a diagram keep the diagram's own font (the handwriting made them too wide for
 their boxes); boxes are kept close together so a diagram is not shrunk more than it needs to fit.
 
 - **Insert: diagram from the selected list** (Alt+M, or **◇** on the toolbar): select a list (`-`
@@ -645,3 +655,9 @@ Use Obsidian's *⋯ → Export to PDF* with **Page size: A4** and **Margin: None
 
 The PDF has the same pages as reading view. Every page repeats the title bar (empty after page 1)
 and the Cues | Notes row, and the footer stays blank.
+
+**See-through colours print as they look.** Callout tints, highlights and a card's quote are plain
+see-through fills in the PDF, which every PDF viewer and printer prints as on screen (the ruled lines
+show through them). Obsidian's dark theme blends callouts ("lighten"), which made their tint vanish
+on white paper; the PDF has no blending. With the *soft ink* pen the writing has a slight glow on
+screen; in the PDF it is crisp (a glow can only be kept as a blurred picture).

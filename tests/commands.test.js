@@ -400,15 +400,29 @@ test('revision: a card known comes back later and later, one not known comes bac
   assert.equal(P.gapQuote('"Human life must be respected and protected absolutely"'), '"Human \\_\\_\\_\\_ must be respected and \\_\\_\\_\\_\\_\\_\\_\\_ absolutely"');
 });
 
-test('a question drafted from notes', () => {
+test('a question drafted from notes: the statement turned round into a proper question', () => {
   const { draftQuestion } = require('../main.js');
-  assert.equal(draftQuestion('IVF is ==fertilisation outside the body==.'), 'What is IVF?');
-  assert.equal(draftQuestion('The sanctity of life means life is holy'), 'What does the sanctity of life mean?');
-  assert.equal(draftQuestion('Catholics oppose abortion because life begins at conception'), 'Why catholics oppose abortion?');
-  assert.equal(draftQuestion('In 1967, the Abortion Act made it legal'), 'What happened in 1967?');
-  assert.equal(draftQuestion('<font color="#c62828">Rabbinic scholars</font> hold that the foetus is special'), 'What do Rabbinic scholars hold?');
-  assert.equal(draftQuestion('The Catholic Church teaches that life is sacred'), 'What does The Catholic Church teach?');
-  assert.equal(draftQuestion('Life begins at conception for many Christians'), 'What do you know about Life begins at conception for …?');
+  const want = {
+    'IVF is ==fertilisation outside the body==.': 'What is IVF?',
+    'IVF: fertilisation outside the body': 'What is IVF?',
+    'Situation ethics – do the most loving thing': 'What is situation ethics?',
+    'The sanctity of life means life is holy': 'What does the sanctity of life mean?',
+    'Catholics oppose abortion because life is sacred': 'Why do Catholics oppose abortion?',
+    'The Catholic Church teaches that life is sacred': 'What does the Catholic Church teach?',
+    'In 1967, the Abortion Act made it legal': 'What happened in 1967?',
+    '<font color="#c62828">Rabbinic scholars</font> hold that the foetus is special': 'What do Rabbinic scholars hold?',
+    'Life begins at conception for many Christians': 'When does life begin?',
+    'The foetus is "water" until 40 days': 'When is the foetus "water"?',
+    'Abortion is legal in the UK up to 24 weeks': 'When is abortion legal in the UK?',
+    'Abortion should be allowed in some cases': 'Why should abortion be allowed in some cases?',
+    'Ensoulment happens at 120 days': 'When does ensoulment happen?',
+    'Muslims believe ensoulment happens at 120 days': 'What do Muslims believe?',
+    'Doctors can refuse to perform abortions': 'Why can doctors refuse to perform abortions?',
+    'The embryo developed into a foetus after 8 weeks': 'When did the embryo develop into a foetus?',
+    '- at ==birth==, when the head emerges': 'What happens at birth?',
+    'Utilitarianism': 'What is Utilitarianism?',
+  };
+  assert.deepEqual(Object.fromEntries(Object.keys(want).map((t) => [t, draftQuestion(t)])), want);
 });
 
 test('a list drawn as a diagram: mind map, flow, cycle, tree, timeline, table; each branch in a pen colour, the colours of the list kept', () => {

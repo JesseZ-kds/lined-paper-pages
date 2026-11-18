@@ -2325,6 +2325,11 @@ function addPaperCommands(plugin) {
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.37.0': [
+    ['Alt+U', 'drafts proper questions ("Why do Catholics oppose abortion?", "When does life begin?"); with nothing selected, from the line the cursor is on; with a Gemini key, Gemini improves it.'],
+    ['Printing', 'see-through colours print as they look (callout tints no longer vanish in dark theme), and the soft-ink writing prints crisp.'],
+    ['Embedded diagrams', 'look exactly as one typed on the page: no frame; arrows and their words clear on any paper.'],
+  ],
   '1.36.0': [
     ['Diagrams on pages of their own', '(the Diagrams folder): embedded where you put them, so they are drawn well in the notes column too. Note: put this note\'s diagrams on pages of their own moves the ones already in a note.'],
     ['Diagrams in colour', 'each branch in a pen colour, dark writing on light boxes; points you wrote in a pen or highlighted keep their colour.'],
@@ -2378,21 +2383,85 @@ function gapQuote(text) {
   let n = 0;
   return plainText(text).replace(/[A-Za-zÀ-ÿ'’-]{4,}/g, (w) => (n++ % 3 === 1 ? '\\_'.repeat(Math.max(4, Math.min(w.length, 8))) : w));
 }
-// a question drafted from a piece of notes ("X is Y." → "What is X?"), to be changed as needed
+// a question drafted from a piece of notes, to be changed as needed. Grammar, not AI: the statement
+// turned round ("Catholics oppose abortion because …" → "Why do Catholics oppose abortion?",
+// "Life begins at birth" → "When does life begin?", "IVF: fertilisation outside the body" → "What is
+// IVF?"); a highlighted or bold term asked about; failing those, what the line is about.
+const Q_VERBS = 'hold|believe|say|think|argue|teach|claim|state|feel|accept|reject|oppose|support|allow|ban|agree|disagree|see|view|consider|want|use|need|begin|start|end|happen|cause|lead|make|give|take|become|have|help|protect|kill|destroy|permit|forbid|prohibit|value|respect|mean|show|prove|suggest|explain|describe|live|die|grow|develop|form|contain|produce|create|follow|worship|pray|celebrate|remember|keep|break|save|lose|win|change|affect|increase|decrease|reduce|allow|stop|prevent|occur|exist|come|go|leave|enter|emerge|arrive|teach|forgive|judge|condemn|permit|encourage|discourage|vary|differ|disapprove|approve|regard|treat|choose|decide|require|involve|include';
+const IRREG = { has: 'have', does: 'do', goes: 'go', says: 'say', is: 'be', was: 'be' };
+// a verb's plain form (holds → hold, teaches → teach, carries → carry), or null if it is not one
+function verbBase(w) {
+  const l = w.toLowerCase();
+  if (IRREG[l]) return IRREG[l];
+  const forms = [[/ies$/, 'y'], [/(ch|sh|ss|x|z|o)es$/, '$1'], [/s$/, '']];
+  for (const [re, to] of forms) if (re.test(l)) { const b = l.replace(re, to); if (new RegExp('^(' + Q_VERBS + ')$').test(b)) return b; }
+  return null;
+}
+// "Catholics oppose abortion" → ["do", "Catholics", "oppose abortion"]; "Life begins at birth" →
+// ["does", "life", "begin at birth"]; "Abortion is wrong" → ["is", "abortion", "wrong"]; null if not found
+function clauseParts(s) {
+  const w = s.split(/\s+/);
+  for (let i = 1; i < Math.min(w.length, 7); i++) {
+    const subj = w.slice(0, i).join(' '), rest = w.slice(i + 1).join(' ');
+    if (/[,;]/.test(subj) || /^(at|after|before|until|from|during|when|in|on|if|so|and|but|or)$/i.test(w[0])) return null;
+    if (/^(is|are|was|were|can|could|should|must|will|would|may|might|has|have|had)$/i.test(w[i])) return [w[i].toLowerCase(), subj, rest];
+    const l = w[i].toLowerCase();
+    if (new RegExp('^(' + Q_VERBS + ')$').test(l)) return ['do', subj, l + (rest ? ' ' + rest : '')];
+    const base = verbBase(w[i]);
+    if (base && l !== base) return ['does', subj, base + (rest ? ' ' + rest : '')];
+    if (/ed$/.test(l) && new RegExp('^(' + Q_VERBS + ')$').test(l.replace(/ied$/, 'y').replace(/ed$/, '').replace(/([^aeiou])\1$/, '$1')) ) return ['did', subj, l.replace(/ied$/, 'y').replace(/ed$/, '') + (rest ? ' ' + rest : '')];
+  }
+  return null;
+}
+// the start of a sentence written small, unless it is a name: a people or faith (Catholics, Muslims,
+// Christians, Jews, Hindus, Buddhists, Judaism, Christianity), a short form (IVF, UK), God …
+const NAME_WORD = /^(?:[A-Z]{2,}s?|[A-Z][a-z]*(?:ism|ists?|ians?|ics?|ims|ews|ish|anity|us|hs)|God|Allah|Jesus|Christ|Bible|Quran|Qur'an|Torah|Talmud|Church|Pope|Muhammad|Buddha|Guru)$/;
+const small = (s) => s.replace(/^(The|A|An|This|These|That|Those|It|They|Some|Many|Most|All)\b/, (x) => x.toLowerCase())
+  .replace(/^([A-Z][a-z]+)\b/, (w) => (NAME_WORD.test(w) ? w : w.toLowerCase()));
 function draftQuestion(text) {
-  const s = plainText(text).split(/\n/)[0].replace(/[.!;:,]+$/, '').trim();
+  const raw = String(text || '').split('\n').map((l) => l.replace(/^\s*(?:>\s?)*(?:[-*+]|\d+[.)])?\s*/, '')).filter((l) => l.trim()).join(' ');
+  const s = plainText(raw).replace(/^["“'‘]|["”'’]$/g, '').replace(/\s*\([^)]*\)\s*$/, '').replace(/[.!;:,]+$/, '').trim();
   if (!s) return 'What …?';
-  let m = /^(.{2,60}?)\s+(means|refers to|is defined as)\s+/i.exec(s);
-  if (m) return `What does ${m[1].replace(/^(The|A|An) /, (x) => x.toLowerCase())} mean?`;
-  m = /^(.{2,80}?)\s+because\s+/i.exec(s);
-  if (m) return `Why ${m[1].charAt(0).toLowerCase() + m[1].slice(1)}?`;
-  // (what someone holds, believes, says …: "Rabbinic scholars hold that …" → "What do Rabbinic scholars hold?")
-  m = /^(.{2,50}?)\s+(hold|believe|say|think|argue|teach|claim|state|feel|accept|reject|oppose|support)(e?s)?\s+(?:that\s+)?/i.exec(s);
-  if (m && m[1].split(/\s+/).length <= 6) return `What ${m[3] ? 'does' : 'do'} ${m[1]} ${m[2].toLowerCase()}?`;
-  m = /^(.{2,60}?)\s+(is|are|was|were)\s+(?:a |an |the )?(.+)$/i.exec(s);
-  if (m && m[1].split(/\s+/).length <= 7) return `What ${m[2].toLowerCase()} ${m[1].replace(/^(The|A|An) /, (x) => x.toLowerCase())}?`;
+  let m;
+  // a term on its own (Utilitarianism, Sanctity of life): what it is
+  if (s.split(/\s+/).length <= 4 && !/[,;]/.test(s) && !clauseParts(s)) return `What is ${s}?`;
+  // a piece of an answer (at birth, when …): what happens then
+  m = /^((?:at|after|before|until|from|during|when|in|on)\s+[^,;]{2,40})/i.exec(s);
+  if (m && !/^in\s+\d/i.test(m[1])) return `What happens ${m[1].charAt(0).toLowerCase() + m[1].slice(1)}?`;
+  // Term: meaning / Term – meaning / Term = meaning
+  m = /^([^:–—=]{2,50}?)\s*(?::|\s[–—-]\s|=)\s*(.+)$/.exec(s);
+  if (m && m[1].split(/\s+/).length <= 6 && !/\b(is|are|was|were)\b/i.test(m[1])) return `What is ${small(m[1].trim())}?`;
+  m = /^(.{2,60}?)\s+(means|refers to|is defined as|is called)\s+/i.exec(s);
+  if (m) return `What does ${small(m[1])} mean?`;
+  // … because …: why
+  m = /^(.{2,90}?),?\s+because\s+/i.exec(s);
+  if (m) {
+    const c = clauseParts(m[1]);
+    if (c) return c[0] === 'do' || c[0] === 'does' || c[0] === 'did' ? `Why ${c[0]} ${small(c[1])} ${c[2]}?` : `Why ${c[0]} ${small(c[1])}${c[2] ? ' ' + c[2] : ''}?`;
+    return `Why ${small(m[1])}?`;
+  }
+  // in 1967 …: what happened
   m = /^(?:in\s+)?(\d{3,4}s?)\b[,\s]+(.+)$/i.exec(s);
   if (m) return `What happened in ${m[1]}?`;
+  // what someone holds, believes, teaches …
+  m = /^(.{2,50}?)\s+(hold|believe|say|think|argue|teach|claim|state|feel|accept|reject|oppose|support|disapprove|approve)(e?s)?\s+(?:that\s+)?/i.exec(s);
+  if (m && m[1].split(/\s+/).length <= 6) return `What ${m[3] ? 'does' : 'do'} ${small(m[1])} ${m[2].toLowerCase()}?`;
+  const c = clauseParts(s);
+  if (c) {
+    const [aux, subj, rest] = c;
+    // a time (at birth, after 24 weeks, until 40 days, from conception): when
+    const when = /^(.*?)\s*\b(at|after|before|until|from|by|during|in|up to)\s+(birth|conception|fertili[sz]ation|\d+\s*(weeks?|days?|months?|years?)|the\s+(start|end|moment|point)\b.*)/i.exec(rest);
+    if (when && /^(do|does|did)$/.test(aux)) return `When ${aux} ${small(subj)} ${when[1].trim()}?`.replace(/\s+\?$/, '?');
+    if (/^(is|are|was|were)$/.test(aux)) {
+      if (when) return `When ${aux} ${small(subj)} ${when[1].trim()}?`.replace(/\s+\?$/, '?');
+      if (subj.split(/\s+/).length <= 5 && !/^(it|this|they|that|he|she)$/i.test(subj)) return `What ${aux} ${small(subj)}?`;
+    }
+    if (/^(can|could|should|must|will|would|may|might)$/.test(aux)) return `Why ${aux} ${small(subj)} ${rest}?`;
+    if (/^(do|does|did)$/.test(aux)) return `What ${aux} ${small(subj)} ${rest.split(/\s+/)[0]}?`;
+  }
+  // a highlighted or bold term: what it is
+  const key = /==([^=]{2,60})==|<mark\b[^>]*>([\s\S]{2,60}?)<\/mark>|\*\*([^*]{2,60})\*\*/i.exec(raw);
+  if (key) return `What is ${plainText(key[1] || key[2] || key[3])}?`;
   const words = s.split(/\s+/);
   return `What do you know about ${words.slice(0, Math.min(5, words.length)).join(' ')}${words.length > 5 ? ' …' : ''}?`;
 }
@@ -3866,10 +3935,13 @@ module.exports = class LinedPaperPages extends Plugin {
   // selection on go into a group of their own (cue + notes), under the question. In the first lines
   // of a group's notes: the question goes in that group's cue.
   cueFromSelection(editor) {
-    const sel = editor.getSelection();
-    if (!sel.trim()) { new Notice('Lined Paper Pages: select some of your notes first'); return; }
-    const from = editor.getCursor('from'), to = editor.getCursor('to');
+    // (nothing selected: the line the cursor is on; part of a line: the whole line)
+    let from = editor.getCursor('from'), to = editor.getCursor('to');
     const lines = editor.getValue().split('\n');
+    const said = (a, b) => lines.slice(a, b + 1).map((l) => l.replace(/^\s*(?:>\s?)*/, '')).join('\n');
+    if (!said(from.line, to.line).trim() || /^\s*(?:>\s?)*\[!/.test(lines[from.line])) { new Notice('Lined Paper Pages: put the cursor on a line of your notes (or select some)'); return; }
+    if (from.line === to.line && from.ch === to.ch) { from = { line: from.line, ch: 0 }; to = { line: to.line, ch: lines[to.line].length }; }
+    const sel = said(from.line, to.line);
     const q = draftQuestion(sel);
     const isQ = (l) => /^\s*>/.test(l || '');
     let h = -1;
@@ -3916,6 +3988,19 @@ module.exports = class LinedPaperPages extends Plugin {
     const text = editor.getLine(qLine) || '';
     const at = text.indexOf(q);
     if (at >= 0 && editor.setSelection) editor.setSelection({ line: qLine, ch: at }, { line: qLine, ch: at + q.length });
+    // (with a Gemini key: a better question asked for meanwhile; put in only if the drafted one is
+    // still there as it was, unchanged)
+    if (String(this.settings['ai-key'] || '').trim()) this.betterQuestion(editor, qLine, q, sel).catch(() => {});
+  }
+  async betterQuestion(editor, line, drafted, notes) {
+    const reply = await this.gemini('Write ONE short exam-style revision question (at most 14 words) whose answer is exactly these notes. British English, for a 14-year-old student. Reply with only the question, ending with a question mark.\n\nNotes:\n' + plainText(notes).slice(0, 1500));
+    const q = String(reply || '').split('\n').map((l) => l.replace(/^\s*(?:Q\s*[:.)]|[-*]|\d+[.)])\s*/i, '').replace(/^["“]|["”]$/g, '').replace(/\*\*/g, '').trim()).find((l) => /\?$/.test(l) && l.length <= 160);
+    if (!q || q === drafted) return;
+    const now = editor.getLine(line) || '';
+    const at = now.indexOf(drafted);
+    if (at < 0) return;   // (changed meanwhile: left as you have it)
+    editor.replaceRange(q, { line, ch: at }, { line, ch: at + drafted.length });
+    if (editor.setSelection) editor.setSelection({ line, ch: at }, { line, ch: at + q.length });
   }
   // A summary from the note's cues and the words highlighted in their notes, to start from
   summaryFromCues(editor) {

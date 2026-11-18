@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-11-18
+
+### Changed
+- **Alt+U (cue for the selected notes) drafts proper questions.** The statement is turned round:
+  "Catholics oppose abortion because life is sacred" → *Why do Catholics oppose abortion?* (was "Why
+  catholics oppose abortion?"), "Life begins at birth" → *When does life begin?*, "Abortion is legal
+  in the UK up to 24 weeks" → *When is abortion legal in the UK?*, "IVF: fertilisation …" → *What is
+  IVF?*, "at birth, when …" → *What happens at birth?*, a term on its own → *What is …?*. Names
+  keep their capitals (Catholics, Muslims, Judaism, IVF), other words are written small.
+  - Nothing selected: the line the cursor is on.
+  - With a Gemini key, Gemini is asked for a better question meanwhile; put in only if you haven't
+    changed the drafted one.
+
+### Fixed
+- **See-through colours in the PDF.** Obsidian's dark theme blends callouts ("lighten"): printed on
+  white paper their tint vanished, and some printers print blended boxes grey. The PDF now has no
+  blending; tints are plain see-through fills, printed as they look, the lines showing through.
+- **Fuzzy printed writing with the soft ink pen:** its glow went into the PDF as a blurred picture
+  behind every line. The writing prints crisp.
+- **An embedded diagram looks exactly as one typed on the page**: no embed frame (side bar, indent,
+  link icon, scroll box) in any note, in reading view and while editing; the same size and place.
+- **Clear diagrams on any paper:** a diagram's arrows and the words on them are in the page's ink
+  (they were in Obsidian's theme colour: light grey on light paper in the dark theme).
+
 ## [1.36.0] - 2026-11-18
 
 ### Changed

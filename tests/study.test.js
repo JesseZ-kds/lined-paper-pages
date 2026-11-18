@@ -108,8 +108,8 @@ test('a cue for the selected notes: in a group\'s first notes, its cue; later in
       plugin.cueFromSelection(e);
       return { split, picked, filled: e.text };
     }, NOTE);
-    assert.ok(r.split.includes('>> - life begins at ==conception==\n\n>> [!cue]\n>> Why catholics oppose abortion?\n>\n>> [!notes]\n>> - Catholics oppose abortion because life is sacred\n\n>> [!cue]\n>> What do biologists say?'), r.split);
-    assert.equal(r.picked, 'Why catholics oppose abortion?');
+    assert.ok(r.split.includes('>> - life begins at ==conception==\n\n>> [!cue]\n>> Why do Catholics oppose abortion?\n>\n>> [!notes]\n>> - Catholics oppose abortion because life is sacred\n\n>> [!cue]\n>> What do biologists say?'), r.split);
+    assert.equal(r.picked, 'Why do Catholics oppose abortion?');
     assert.equal(r.filled, '>> [!cue]\n>> What is IVF?\n>\n>> [!notes]\n>> IVF is fertilisation outside the body.\n');
   } finally {
     await context.close();
@@ -354,6 +354,103 @@ test('the cards\' writing is drawn once and kept while it is the same (the cards
       return { same: a.innerHTML === c.innerHTML, once, after: window.__renders };
     });
     assert.deepEqual(r, { same: true, once: 1, after: 2 });
+  } finally {
+    await context.close();
+  }
+});
+
+test('Alt+U with nothing selected: the line the cursor is on; with a Gemini key, a better question put in its place (unless it was changed meanwhile)', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(async () => {
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const plugin = window.plugin;
+      const note = '>> [!cue]\n>> When does life begin?\n>\n>> [!notes]\n>> - at birth\n>> - Ensoulment happens at 120 days\n';
+      // (no key: the drafted question)
+      let e = window.makeEditor(note, { line: 5, ch: 8 });
+      plugin.cueFromSelection(e);
+      const drafted = e.text;
+      // (a key: Gemini's question put in place of the drafted one)
+      plugin.settings['ai-key'] = 'k';
+      window.__request = async () => ({ body: { candidates: [{ content: { parts: [{ text: 'Q: According to Islam, when does ensoulment take place?' }] } }] } });
+      e = window.makeEditor(note, { line: 5, ch: 8 });
+      plugin.cueFromSelection(e);
+      await wait(100);
+      const better = e.text;
+      // (changed meanwhile: left as written)
+      window.__request = async () => { await wait(80); return { body: { candidates: [{ content: { parts: [{ text: 'Something else?' }] } }] } }; };
+      e = window.makeEditor(note, { line: 5, ch: 8 });
+      plugin.cueFromSelection(e);
+      const l = e.text.split('\n').findIndex((x) => x.includes('When does ensoulment happen?'));
+      e.replaceRange('>> My own question?', { line: l, ch: 0 }, { line: l, ch: e.getLine(l).length });
+      await wait(200);
+      return { drafted, better, mine: e.text };
+    });
+    assert.ok(r.drafted.endsWith('>> - at birth\n\n>> [!cue]\n>> When does ensoulment happen?\n>\n>> [!notes]\n>> - Ensoulment happens at 120 days\n'), r.drafted);
+    assert.ok(r.better.includes('>> [!cue]\n>> According to Islam, when does ensoulment take place?\n>\n>> [!notes]\n>> - Ensoulment happens at 120 days'), r.better);
+    assert.ok(r.mine.includes('>> My own question?') && !r.mine.includes('Something else'), r.mine);
+  } finally {
+    await context.close();
+  }
+});
+
+test('the PDF: see-through colours as plain see-through fills, no blend modes (they made callouts\' tints vanish), no blurred shadows on the writing (soft ink came out fuzzy), no sampled gradients', async () => {
+  const H = require('./lib/harness');
+  const { callout, group } = require('./lib/notes');
+  const b = await H.browser(false);
+  for (const [theme, cornell] of [['theme-dark', true], ['theme-dark lp-ink-soft', false], ['theme-light lp-ink-pencil lp-wobble', true]]) {
+    const blocks = [title('Life'), block(callout('tip', 'A tip', '<p>Some <mark>highlighted</mark> and <mark class="hl-blue">blue</mark>.</p>')), block(callout('quote', 'Source', '<p>A quote.</p>'))];
+    if (cornell) blocks.push(group('<p>What?</p>', '<p>Notes with <mark>highlight</mark>.</p>'), block(callout('summary', 'Summary', '<p>Sum.</p>')));
+    const page = await (await b).newPage();
+    await page.setContent(H.pages({ blocks, cornell }, theme, false, true).print);
+    await page.evaluate(H.installPlugin, { src: H.MAIN, exportMode: true });
+    await page.evaluate(() => {
+      const P = window.plugin.constructor;
+      const a = document.createElement('div');
+      a.innerHTML = '<div class="callout" data-callout="quote"><div class="callout-title"><div class="callout-title-inner">Catechism</div></div><div class="callout-content"><p>Human life must be respected.</p></div></div><p>At <mark class="hl-orange">conception</mark>.</p>';
+      const q = document.createElement('div'); q.innerHTML = '<p>When?</p>';
+      document.querySelector('.markdown-preview-view').appendChild(P.buildCardWrap([{ q, a, h: 'Life' }], {}));
+      P.fitCards(document.body);
+    });
+    await page.emulateMedia({ media: 'print' });
+    const pdf = (await page.pdf({ format: 'A4', printBackground: true })).toString('latin1');
+    const modes = [...new Set(pdf.match(/\/BM\s*\/\w+/g) || [])];
+    assert.deepEqual(modes.filter((x) => !/Normal/.test(x)), [], theme + ': blend modes ' + modes);
+    assert.equal((pdf.match(/\/SMask/g) || []).length, 0, theme + ': no soft masks (blurred pictures)');
+    assert.equal((pdf.match(/\/ShadingType 1\b/g) || []).length, 0, theme + ': no sampled gradients');
+    assert.ok(/\/ca\s+\.1/.test(pdf), theme + ': the tints, see-through');
+    await page.close();
+  }
+});
+
+test('an embedded diagram looks exactly as the same diagram typed on the page (no frame, the same size and place); on light paper in Obsidian\'s dark theme its arrows and their words are clear', async () => {
+  const { group, embed } = require('./lib/notes');
+  const CODE = '%%{init: {"flowchart": {"nodeSpacing": 22, "rankSpacing": 34, "padding": 8, "wrappingWidth": 140}}}%%\nflowchart LR\n  a["Conception"] -->|"cells divide"| b["Birth"]\n  style a fill:#dbe3f5,stroke:#1e4fbf,color:#1f2937';
+  const diagramEmbed = embed('<div class="el-pre"><div class="mm-b"></div></div>').replace('src="Other#^x"', 'src="Life diagram#^diagram"');
+  const { page, context } = await openReading({ name: 'mm2', cornell: true, blocks: [title('Life'), group('<p>Typed:</p>', '<div class="el-pre"><div class="mm-a"></div></div>'), group('<p>Embedded:</p>', diagramEmbed)] }, { theme: 'theme-dark', viewport: { width: 900, height: 1400 } });
+  try {
+    await page.addScriptTag({ path: require.resolve('mermaid/dist/mermaid.min.js') });
+    const r = await page.evaluate(async (CODE) => {
+      document.querySelector('.markdown-preview-view').classList.add('light-paper');   // (light paper, Obsidian dark)
+      window.plugin.applyPaperThemes();
+      mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+      for (const [sel, id] of [['.mm-a', 'x1'], ['.mm-b', 'x2']]) { const { svg } = await mermaid.render(id, CODE); const d = document.createElement('div'); d.className = 'mermaid'; d.innerHTML = svg; document.querySelector(sel).replaceWith(d); }
+      window.plugin.scheduleScan(true);
+      await new Promise((ok) => setTimeout(ok, 700));
+      const box = (svg) => { const s = svg.getBoundingClientRect(), col = svg.closest('.callout-content').getBoundingClientRect(); return [Math.round(s.width), Math.round(s.left - col.left), Math.round(s.height)]; };
+      const [typed, embedded] = [...document.querySelectorAll('.mermaid svg')];
+      const emb = document.querySelector('.internal-embed');
+      const frame = [emb, emb.querySelector('.markdown-embed-content') || emb].map((e) => { const c = getComputedStyle(e); return [c.borderLeftWidth, c.paddingLeft, c.backgroundColor].join(' '); });
+      const ink = getComputedStyle(document.querySelector('.callout-content p, .callout-content')).color;
+      const label = embedded.querySelector('.edgeLabel p, .edgeLabel span');
+      const line = embedded.querySelector('.flowchart-link');
+      return { typed: box(typed), embedded: box(embedded), frame, link: getComputedStyle(emb.querySelector('.markdown-embed-link')).display, label: getComputedStyle(label).color, ink, line: getComputedStyle(line).stroke };
+    }, CODE);
+    assert.deepEqual(r.embedded, r.typed, 'the same size, in the same place');
+    assert.deepEqual(r.frame, ['0px 0px rgba(0, 0, 0, 0)', '0px 0px rgba(0, 0, 0, 0)'], 'no embed frame');
+    assert.equal(r.link, 'none', 'no link icon');
+    assert.equal(r.label, 'rgb(31, 41, 55)', 'the word on the arrow in the page\'s (dark) ink, on light paper');
+    assert.notEqual(r.line, 'rgb(204, 204, 204)', 'the arrow not in the dark theme\'s light grey: ' + r.line);
   } finally {
     await context.close();
   }
