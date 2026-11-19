@@ -464,7 +464,10 @@ test('the toolbar: on lined-paper notes, its buttons run the commands (the curso
       btn('colour-red').dispatchEvent(down);
       btn('colour-red').click(); btn('highlighter-pink').click(); btn('pen-circle').click(); btn('insert-cue-notes').click();
       const shown = (b) => [...b.querySelectorAll('.lp-tb-group')].filter((g) => getComputedStyle(g).display !== 'none').map((g) => g.getAttribute('aria-label'));
+      const ids = new Set((pl._commands || []).map((c) => c.id));
       const out = {
+        missing: [...new Set([...bar.querySelectorAll('[data-cmd]')].map((b) => b.dataset.cmd))].filter((c) => !ids.has(c)),
+        tips: [bar.querySelector('[data-cmd="colour-red"]').title, bar.querySelector('.lp-tb-item[data-cmd="insert-cue-notes"] .lp-tb-key').textContent, bar.querySelector('.lp-tb-item[data-cmd="review-cards"], [data-cmd="review-cards"]').title],
         ran, keepsCursor: down.defaultPrevented,
         editing: shown(bar), reading: shown(reading.view.containerEl.querySelector('.lp-toolbar')),
         plain: !!plain.view.containerEl.querySelector('.lp-toolbar'),
@@ -476,8 +479,10 @@ test('the toolbar: on lined-paper notes, its buttons run the commands (the curso
     });
     assert.deepEqual(r.ran, ['lined-paper-pages:colour-red', 'lined-paper-pages:highlighter-pink', 'lined-paper-pages:pen-circle', 'lined-paper-pages:insert-cue-notes']);
     assert.equal(r.keepsCursor, true, 'a button does not take the cursor out of the note');
-    assert.deepEqual(r.editing, ['Insert', 'Pen', 'Highlight', 'Mark', 'Review']);
-    assert.deepEqual(r.reading, ['Review']);
+    assert.deepEqual(r.missing, [], 'every button and menu item is one of the commands');
+    assert.deepEqual(r.tips, ['Pen: red (Ctrl+Alt+R)', 'Alt+N', 'Study the cue cards due today (Ctrl+Shift+S)'], 'each with its hotkey');
+    assert.deepEqual(r.editing, ['Insert', 'Maths', 'Pen', 'Highlight', 'Mark', 'Study', 'Help']);
+    assert.deepEqual(r.reading, ['Study', 'Help']);
     assert.equal(r.plain, false, 'not on a plain note');
     assert.equal(r.off, 0, 'none with the setting off');
   } finally {
@@ -1026,7 +1031,7 @@ test('toolbar and buttons settings: groups hidden, the revise button off', async
       const rev = document.createElement('div'); rev.className = 'lp-revise'; document.body.appendChild(rev);
       return { shown: [...bar.querySelectorAll('.lp-tb-group')].filter((g) => getComputedStyle(g).display !== 'none').map((g) => g.getAttribute('aria-label')), bottom: getComputedStyle(bar).bottom !== 'auto', revise: getComputedStyle(rev).display };
     });
-    assert.deepEqual(r, { shown: ['Insert', 'Highlight', 'Review'], bottom: true, revise: 'none' });
+    assert.deepEqual(r, { shown: ['Insert', 'Maths', 'Highlight', 'Study', 'Help'], bottom: true, revise: 'none' });
   } finally {
     await context.close();
   }

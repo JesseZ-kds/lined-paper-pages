@@ -6,6 +6,54 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.38.0] - 2026-11-19
+
+### Added
+- **Maths and science notation.** *Insert: maths* (Alt+=, `$…$`), *maths on lines of its own*
+  (`$$`, in the notes column too), *maths or science symbol* (Alt+S: a searchable picker of maths,
+  Greek and science symbols and LaTeX templates; a symbol in writing, LaTeX inside `$…$`), *chemical
+  formula* (H2O → H₂O, SO4^2- → SO₄²⁻, `->` → →, `<=>` → ⇌), *superscript* and *subscript*. On lined
+  paper maths in a line keeps to its line, and the writing after maths on its own lines starts on a
+  line.
+- **A study vault** (*Paper: set up a study vault*, or the button in the settings): the folders
+  (Subjects, Definitions, Quotes, Diagrams, Cue cards, Templates, Attachments), a Home page (a lesson
+  from start to finish, revising, the hotkeys, the window), a Cornell note template and an example
+  note; only what is not there yet. And [a guide](docs/workspace.md) to setting up Obsidian for note
+  taking.
+- **Paper: hotkeys** (and **?** on the toolbar): every hotkey, by family, as you have them set.
+- **Each time Obsidian starts, the plugin says which version is running** and what is new in it
+  (*What's new* for the whole list); *Settings → Updates* to switch it off.
+- **Study hotkeys** (Mod+Shift): R review, S study the cards, K make cue cards, B cards beside the
+  note.
+
+### Changed
+- **The toolbar, rebuilt:** Cornell ▾, Insert ▾, ✦ AI, ∑ (quick symbols and the maths commands), the
+  pens, the highlighters, ◯ marks ▾, Review, Study, Cards ▾ and ?. Every menu lists its commands
+  with their hotkeys; every tooltip shows its hotkey (yours, if you changed it).
+- **Settings, organised:** Pages · Pen and paper · Colours · Cornell notes · Callouts · Toolbar ·
+  Definitions, quotes and diagrams · Cue cards · Revision and AI · Updates · Advanced. Sections fold
+  away (click a heading); a search finds a setting in any of them.
+- **Hotkeys in five families**, each command named after its family, none the same, all listed in
+  one place.
+
+### Fixed
+- **A page's date stays with its title.** The dates of later pages were kept by place (the 2nd title
+  the 1st date …): a title taken out moved every date after it onto the wrong page, and its date
+  stayed. They are now kept by title in the note's properties, each title with its date:
+  ```
+  page-dates:
+    IVF: 2026-11-19
+    Abortion: 2026-11-26
+  ```
+  A title taken out: its date is taken out of the properties too. Renamed a little: its date kept.
+  Moved: its date moves with it. The list of older versions is turned into this the next time the
+  note changes.
+- **Insert commands from reading view** did nothing (the toolbar's, the hotkeys): the note is now
+  switched to editing first.
+- **Ask AI:** Gemini's errors said plainly (a wrong key, the free limit, a network that blocks
+  Google: use Copy for NotebookLM), and no waiting forever (a minute at most). *Check* next to the
+  key tests it.
+
 ## [1.37.0] - 2026-11-18
 
 ### Changed

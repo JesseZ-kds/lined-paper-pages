@@ -55,7 +55,7 @@ function installPlugin({ src, exportMode, extra, ctx }) {
     addSettingTab() {} addCommand() {} registerEvent() {} register() {} registerDomEvent() {} registerInterval() {} registerEditorExtension() {}
     registerMarkdownPostProcessor(f) { processors.push(f); }
   }
-  const obsidian = { Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class { constructor(m) { console.error('NOTICE ' + m); } } };
+  const obsidian = { Plugin, PluginSettingTab: class {}, Setting: class {}, Notice: class { constructor(m) { console.error('NOTICE ' + (m && typeof m === 'object' ? m.textContent : m)); } hide() {} } };
   const module = { exports: {} };
   new Function('require', 'module', src)((name) => (name === 'obsidian' ? obsidian : (extra && extra[name]) || {}), module);
   const plugin = new module.exports();

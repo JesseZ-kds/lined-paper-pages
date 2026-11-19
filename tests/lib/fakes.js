@@ -6,6 +6,7 @@ require = (n) => (n !== 'obsidian' ? __require(n) : Object.assign({}, __require(
   Modal: class { constructor(app) { this.app = app; this.modalEl = document.createElement('div'); this.modalEl.className = 'modal'; this.titleEl = document.createElement('div'); this.titleEl.setText = (t) => { this.titleEl.textContent = t; }; this.modalEl.addClass = (c) => this.modalEl.classList.add(c); this.contentEl = document.createElement('div'); this.modalEl.append(this.titleEl, this.contentEl); }
     open() { document.body.appendChild(this.modalEl); } close() { this.modalEl.remove(); if (this.onClose) this.onClose(); } },
   ItemView: class { constructor(leaf) { this.leaf = leaf; this.contentEl = document.createElement('div'); } },
+  MarkdownView: class {},
   requestUrl: async (o) => { const r = await window.__request(o); return { status: r.status || 200, get json() { return typeof r.body === 'string' ? JSON.parse(r.body) : r.body; }, text: typeof r.body === 'string' ? r.body : JSON.stringify(r.body) }; },
 }));
 ` + MAIN;

@@ -309,20 +309,23 @@ written.
 The date in the title bar's corner is the note's **`date` property** (`date: 2026-10-26`, shown as
 26 Oct 2026; `Date` or `created` work too). It is not written into the title, so the title line is
 just `# Title`. *Insert title* and *Insert Cornell page* set it to today when the note has none.
-**Every new page has a date too.** The title bar of each page that starts with a `# Title` shows
-the note's date, or that page's own date from the `page-dates` list property: the first date in it
-for the 2nd `# Title`, the second for the 3rd, and so on (an empty item: the note's date).
-*Insert title* / *Insert Cornell page* on a later page put today in that list, at that page's place,
-and clicking a page's date sets that page's own date.
+**Every new page has a date too**, kept with its title in the `page-dates` property: each later
+page's `# Title` and its date (a page with none shows the note's date).
 
 ```yaml
 ---
 date: 2026-10-26
 page-dates:
-  - 2026-10-28
-  - 2026-11-02
+  IVF: 2026-10-28
+  Abortion: 2026-11-02
 ---
 ```
+
+*Insert title* / *Insert Cornell page* on a later page put today there for that page, and clicking a
+page's date sets that page's own date. Because each date is kept by its title, it stays with its page:
+**take a title out and its date is taken out too**; move a page and its date moves; rename a title a
+little and its date is kept. (The list of dates of older versions, by place, is turned into this the
+next time the note changes.)
 
 To change it: in reading view, **click the date** in the title bar and pick a new one (Enter or
 click away to save, Esc to cancel); run *Set this note's date* (also for a note with no date yet);
@@ -487,16 +490,40 @@ their boxes); boxes are kept close together so a diagram is not shrunk more than
 
 ## The toolbar
 
-Lined-paper notes have a small bar at the top right (it fades until you point at it):
+Lined-paper notes have a bar at the top right (it fades until you point at it):
 
-| Insert | Pen | Highlight | Mark | |
-| --- | --- | --- | --- | --- |
-| cue + notes, question, summary, title, divider, page break, definition, quote, arrow | the five pens, remove | the five highlighters, remove | circle, box, underline, wavy, cross out, remove | Review |
+| Group | What is in it |
+| --- | --- |
+| **Cornell ▾** | cue + notes, question, summary, title, a whole Cornell page, full-width lines, divider, page break, a cue for this line, the summary from the cues |
+| **Insert ▾** | definition (embedded / linked), quote, revised version, arrows, checkbox, a diagram from a list, this note's diagrams on pages of their own |
+| **✦ AI** | Ask AI: a diagram, an answer or practice questions |
+| **∑ ▾** | quick symbols (π ± × ÷ ≤ ≥ ≈ ≠ √ ° ² ³ → ⇌ Δ μ θ ∞), maths in the line, maths on its own lines, all symbols, chemical formula, superscript, subscript |
+| **● ● ● ● ● ⌫** | the five pens, remove |
+| **▬ ▬ ▬ ▬ ▬ ⌫** | the five highlighters, remove |
+| **◯ ▾** | circle, box, underline, wavy, scribble, cross out, remove |
+| **Review · Study · Cards ▾** | review the note, study the cards due, and the cue card commands (also in reading view) |
+| **?** | every hotkey, by family |
 
-The buttons do the same as the hotkeys (hover a button to see its hotkey), and keep your cursor and
-selection in the note. In reading view only Review and Cards show. Switch it off in *Settings → Toolbar*;
-choose which groups show, where it sits and whether it fades in *Settings → Toolbar and buttons* (also:
-the "Add a revised …" button on or off).
+Every menu shows each command's hotkey, as you have it set. The buttons keep your cursor and
+selection in the note. *Settings → Toolbar*: switch it off, choose which groups show, where it sits
+and whether it fades. An Insert command run in reading view switches the note to editing first.
+
+## Maths and science
+
+Obsidian writes maths between dollar signs, in LaTeX, and draws it: `$E = mc^2$` in a line,
+`$$ … $$` on lines of its own. On lined paper maths in a line takes one line (a fraction reaches a
+little above and below), and the writing after maths on its own lines starts on the next line.
+
+- **Insert: maths** (Alt+=): `$…$` round the selection, or the cursor between two dollars.
+- **Insert: maths on lines of its own**: `$$ … $$` (inside the notes column too).
+- **Insert: maths or science symbol** (Alt+S): a search box and every symbol by group (maths, Greek,
+  science) and templates (fraction, power, subscript, root, vector, mean, brackets, units, text).
+  Outside `$…$` a symbol is typed as it is (π, ≤, →, ⇌); inside, as LaTeX (`\pi`, `\leq`). A template
+  is maths: `$\frac{…}{}$`, the selection in its place.
+- **Insert: chemical formula**: H2O → H₂O, CO2 → CO₂, SO4^2- → SO₄²⁻, Na+ → Na⁺, `->` → →,
+  `<=>` → ⇌ (the selection, or the formula the cursor is in).
+- **Insert: superscript / subscript**: the selection raised or lowered (x², H₂; `^{…}` / `_{…}`
+  inside `$…$`).
 
 ## Definitions and quotes
 

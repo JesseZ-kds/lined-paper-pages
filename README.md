@@ -90,12 +90,19 @@ Use `cssclasses: [lined-paper]` for lined paper without the Cornell layout. Only
 classes are changed. Commands (with hotkeys if you like) set the classes and type the blocks for you:
 see [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys). The [examples](examples/) folder has two complete notes to copy.
 
+## Setting up
+
+**[A study vault: how to set up Obsidian for note taking](docs/workspace.md)**: the folders, the window,
+Obsidian's own settings, and a lesson from start to finish. *Paper: set up a study vault* makes the
+folders, a Home page, a Cornell template and an example note for you.
+
 ## Keyboard shortcuts
 
 The commands come with hotkeys, one family of keys per kind of command, and each command's name says
-its family (*Insert:*, *Pen:*, *Highlight:*, *Mark:*). **Mod** is Ctrl (Cmd on a Mac). A hotkey you set
-yourself in **Settings → Hotkeys** (search "Lined Paper") always wins; the *Paper:* and *Note:*
-commands have none, give them one there if you like.
+its family: **Insert:** Alt · **Pen:** Mod + Alt · **Highlight:** Alt + Shift · **Mark:** Mod + Alt +
+Shift · **Note:** (study) Mod + Shift. **Mod** is Ctrl (Cmd on a Mac). A hotkey you set yourself in
+**Settings → Hotkeys** (search "Lined Paper") always wins; **Paper: hotkeys** (or **?** on the toolbar)
+lists every one, with the keys you have.
 
 | Insert: (Alt + …) | | Pen: (Mod + Alt + …) | |
 | --- | --- | --- | --- |
@@ -117,6 +124,8 @@ commands have none, give them one there if you like.
 | Diagram from the selected list | Alt + M | | |
 | Diagram / answer / questions from AI | Alt + I | | |
 | Cue for the selected notes | Alt + U | | |
+| Maths in the line (`$…$`) | Alt + = | | |
+| Maths or science symbol | Alt + S | | |
 | Revised version (on its page) | Alt + R | | |
 
 | Highlight: (Alt + Shift + …) | | Mark: (Mod + Alt + Shift + …) | |
@@ -129,6 +138,13 @@ commands have none, give them one there if you like.
 | Your highlighter (`==`) | Alt + Shift + H | Cross out (`~~`) | Mod + Alt + Shift + K |
 | Remove highlight | Alt + Shift + X | Remove marks | Mod + Alt + Shift + X |
 | | | Remove all colours, highlights and marks | Mod + Alt + Shift + A |
+
+| Note: (Mod + Shift + …) | |
+| --- | --- |
+| Review (cover the notes) | Mod + Shift + R |
+| Study the cue cards due | Mod + Shift + S |
+| Make cue cards | Mod + Shift + K |
+| Cue cards beside the note | Mod + Shift + B |
 
 **Note:** review (cover the notes, or blank the highlighted words), study your cue cards (spaced
 repetition: each card back when it is due), make cue cards (ruled index cards to print: question on

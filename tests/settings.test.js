@@ -86,6 +86,15 @@ test('settings page: options, live changes, saving and Reset all', async () => {
         shown: Setting.all.length,
         cueBefore: cue(),
       };
+      // the sections fold away; a search finds a setting in any of them
+      const shownNow = (name) => find(name).settingEl.style.display !== 'none';
+      out.folded = [shownNow('Text size'), shownNow('Pen'), shownNow('Cue column width')];
+      Setting.all.find((x) => x.nameEl.textContent === 'Pen and paper').settingEl.click();
+      out.opened = shownNow('Pen');
+      const search = document.querySelector('.lp-set-search');
+      search.value = 'highlighter'; search.dispatchEvent(new Event('input'));
+      out.found = Setting.all.filter((x) => x.settingEl.isConnected && !x.settingEl.classList.contains('heading') && x.settingEl.style.display !== 'none').map((x) => x.nameEl.textContent).slice(2);
+      search.value = ''; search.dispatchEvent(new Event('input'));
       await find('Cue column width').controls[0].cb(0.4);
       out.cueAfter = cue();
       out.savedCue = window.ui.saved()['cn-cue'];
@@ -116,8 +125,11 @@ test('settings page: options, live changes, saving and Reset all', async () => {
       return out;
     });
     assert.match(r.intro, /^Lined Paper Pages test\./);
-    assert.deepEqual(r.sections, ['Pages and text', 'Pen and paper', 'Cornell notes', 'Embeds', 'Cue cards', 'Revision and AI', 'Toolbar and buttons', 'Updates', 'Callouts', 'Colours', 'Advanced']);
+    assert.deepEqual(r.sections, ['Pages', 'Pen and paper', 'Colours', 'Cornell notes', 'Callouts', 'Toolbar', 'Definitions, quotes and diagrams', 'Cue cards', 'Revision and AI', 'Updates', 'Advanced']);
     assert.ok(r.shown >= 30, `${r.shown} settings shown`);
+    assert.deepEqual(r.folded, [true, false, false], 'Pages open, the other sections folded');
+    assert.equal(r.opened, true, 'a click on a heading opens it');
+    assert.deepEqual(r.found, ['Highlighter (==text==)', 'Toolbar', 'Toolbar: Highlighters'], 'found in any section');
     assert.equal(r.cueAfter, '0.4', 'a change shows straight away');
     assert.equal(r.savedCue, 0.4, 'and is saved');
     assert.ok(r.noPages, 'toggles switch their class');

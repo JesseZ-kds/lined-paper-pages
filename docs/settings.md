@@ -1,20 +1,22 @@
 # Settings
 
-Open **Settings → Lined Paper Pages**. Changes show straight away. Each setting has a ↺
+Open **Settings → Lined Paper Pages**. Changes show straight away. Click a section's heading to open or
+fold it; **Find a setting** searches every section. At the top: **Hotkeys** (every one) and **Set up a
+study vault**. Each setting has a ↺
 button to put it back to its default, and **Reset all** resets everything.
 
 | Section | Settings |
 |---|---|
-| **Pages and text** | Toolbar (on) · Light or dark paper (follow Obsidian, always light, always dark) · A4 pages in reading view (on/off) · Lines per page · Text size · Title size · Title position · Handwriting font · Title font · Start a new page at every # title (on) · A line under a table's header row (off) · Underline links |
+| **Pages** | Light or dark paper (follow Obsidian, always light, always dark) · A4 pages in reading view (on/off) · Lines per page · Text size · Title size · Title position · Handwriting font · Title font · Start a new page at every # title (on) · A line under a table's header row (off) · Underline links |
 | **Pen and paper** | Pen (theme ink, blue ballpoint, black gel pen, blue-black fountain pen, pencil) · Pen thickness · Ink soaks into the paper · Uneven handwriting · Paper (white, ivory, cream, yellow legal pad, recycled grey) · Sub-heading underline (straight, wavy, two lines, dashed, none) · Sub-headings in the heading pen · Bullets (dot, dash, arrow, ↳ arrow from the line above, small circle, star) · Bullets typed with * · Bullets typed with + (each: the same as Bullets, dot, dash, arrow, ↳, small circle, star) · Sub-point bullets (the same, ↳, arrow, dash, dot, small circle) · Bullet colour · Hand-drawn checkboxes (on) · Crossed-out text (one line, scribbled out, two lines, red line) · Highlighter colour (yellow, green, pink, blue, orange) · Arrows (hand-drawn, straight, bold, as typed) · Arrow colour · Marking pen colour |
-| **Cue cards** | Card size (18 / 8 / 6 / 4 a page) · Answers (on the back for double-sided printing, beside the question to fold, on their own pages) · Card text size · Ruled cards · Cards for definitions and quotes · A quote's card (who said it / the quote on the front) · Cue card pages (kept, or only for printing) · Cut lines · Handwriting on the cards · The note's name on each card · Folder for cue card pages |
-| **Revision and AI** | Review shows (the notes covered / the highlighted words blanked out) · Gemini API key · Gemini model |
-| **Updates** | Look for a new version when Obsidian starts (on) · Install a new version without asking (off) |
-| **Toolbar and buttons** | Toolbar: Insert / Pens / Highlighters / Marks / Review and Cards (each on or off) · Where (a corner) · Faded until you point at it · The "Add a revised …" button |
-| **Embeds** | Folder for definitions (Definitions) · Folder for quotes (Quotes) · Folder for diagrams |
+| **Colours** | Paper · Ruled lines · Red margin line & divider · Text · Title · Labels · Heading underline · Desk |
 | **Cornell notes** | Cue column width · Centre the question across the page (off) · Centre full-width lines · Summary height · Summary minimum height · Full-width block lines · Column labels · Labels on page 2, 3 … |
 | **Callouts** | Callout box height (80 %) · Callout text size |
-| **Colours** | Paper · Ruled lines · Red margin line & divider · Text · Title · Labels · Heading underline · Desk |
+| **Toolbar** | Toolbar (on) · Toolbar: Insert / Maths / Pens / Highlighters / Marks / Study (each on or off) · Where (a corner) · Faded until you point at it · The "Add a revised …" button |
+| **Definitions, quotes and diagrams** | Folder for definitions (Definitions) · Folder for quotes (Quotes) · Folder for diagrams |
+| **Cue cards** | Card size (18 / 8 / 6 / 4 a page) · Answers (on the back for double-sided printing, beside the question to fold, on their own pages) · Card text size · Ruled cards · Cards for definitions and quotes · A quote's card (who said it / the quote on the front) · Cue card pages (kept, or only for printing) · Cut lines · Handwriting on the cards · The note's name on each card · Folder for cue card pages |
+| **Revision and AI** | Review shows (the notes covered / the highlighted words blanked out) · Gemini API key (and Check) · Gemini model |
+| **Updates** | Say which version is running each time Obsidian starts (on) · Look for a new version when Obsidian starts (on) · Install a new version without asking (off) |
 | **Advanced** *(hidden until you switch it on)* | Page height used · Text scale on the A4 page · Title bar height · Footer · Gap between pages · Page margins (left, and right: by default the same as the red line's margin, for hole punching) · Ruled line position · Callout lift · Divider spacing · … |
 
 **Fonts:** pick the handwriting and title fonts from a list: Patrick Hand, Caveat, Kalam,

@@ -35,7 +35,7 @@ const { Plugin, Notice, PluginSettingTab, Setting, Modal, MarkdownRenderer, requ
 //   unit   appended to the number ('px', 'mm'; percentages are stored as 0..1)
 //   pct    shown as a percentage on the page (stored 0..1)
 const SETTINGS = [
-  { section: 'Pages and text' },
+  { section: 'Pages', desc: 'The A4 pages, the writing and the titles.' },
   { key: 'pages', type: 'toggle', cls: 'lp-no-pages', invert: true, def: true, name: 'A4 pages in reading view',
     desc: 'Show reading view as separate A4 sheets, exactly like the PDF export. Off: one long lined page.' },
   { key: 'paper-theme', type: 'select', cls: 'lp-paper-theme-', def: 'auto', name: 'Light or dark paper',
@@ -54,8 +54,6 @@ const SETTINGS = [
     desc: 'Every # title after the note\'s own title starts a new page and is that page\'s title, as if [!nextpage] were written above it.' },
   { key: 'table-gap', type: 'toggle', cls: 'lp-table-gap', def: false, name: 'A line under a table\'s header row',
     desc: 'Leave an empty ruled line between a table\'s header row and its other rows. Off: the rows follow the header straight away (an empty row typed there as a gap is left out).' },
-  { key: 'toolbar', type: 'toggle', cls: 'lp-no-toolbar', invert: true, def: true, name: 'Toolbar',
-    desc: 'A small bar on lined-paper notes: insert, pens, highlighters, marks and Review (hide the notes, answer the cues from memory). The same as the hotkeys.' },
   { key: 'links', type: 'toggle', cls: 'lp-link-underline', def: false, name: 'Underline links',
     desc: 'Links are shown in their colour only, like writing. Switch this on to underline them.' },
 
@@ -102,6 +100,16 @@ const SETTINGS = [
   { key: 'lp-mark', type: 'color', def: '#c0392b', name: 'Marking pen colour',
     desc: 'For the circles, boxes, underlines and scribbles of the "Pen: circle / box / underline …" commands. Default: the heading underline colour.' },
 
+  { section: 'Colours', desc: 'Leave a colour on its default to follow the light / dark theme. A colour you set is used in both.' },
+  { key: 'lp-paper', type: 'color', def: '#fffffe', name: 'Paper' },
+  { key: 'lp-rule', type: 'color', def: '#c9ddf1', name: 'Ruled lines' },
+  { key: 'lp-margin', type: 'color', def: '#f1a7b0', name: 'Red margin line and divider' },
+  { key: 'lp-ink', type: 'color', def: '#1f2937', name: 'Text' },
+  { key: 'lp-title-ink', type: 'color', def: '#111827', name: 'Title' },
+  { key: 'lp-muted', type: 'color', def: '#4b5d85', name: 'Labels and date' },
+  { key: 'lp-pen-red', type: 'color', def: '#c0392b', name: 'Heading underline' },
+  { key: 'lp-desk', type: 'color', def: '#d9dde3', name: 'Desk behind the pages' },
+
   { section: 'Cornell notes' },
   { key: 'cn-cue', type: 'slider', min: 0.15, max: 0.5, step: 0.01, def: 0.3, pct: true, name: 'Cue column width',
     desc: 'Share of the page for the cue column (left of the divider).' },
@@ -120,7 +128,27 @@ const SETTINGS = [
   { key: 'labels', type: 'toggle', cls: 'cn-hide-page-labels', invert: true, def: true, name: 'Column labels on page 2, 3 ...',
     desc: 'Repeat the Cues | Notes labels under the header of every page.' },
 
-  { section: 'Embeds', desc: 'Definitions and quotes each get a page of their own (a note), embedded where you use them: Insert: definition / quote. Embedded blocks (![[Note#^id]]) all start on their line, and the writing after them on the next.' },
+  { section: 'Callouts', desc: 'Every callout except the Cornell ones (cue, notes, question, summary, wide).' },
+  { key: 'lp-callout-height', type: 'slider', min: 0.5, max: 1, step: 0.01, def: 0.8, pct: true, name: 'Callout box height',
+    desc: 'Height of a callout box, as a share of the ruled lines it spans. It is centred on them; its text is spaced to fit the box.' },
+  { key: 'lp-callout-text', type: 'slider', min: 0.6, max: 1, step: 0.01, def: 0.9, pct: true, name: 'Callout text size',
+    desc: 'As a share of the normal text size.' },
+
+  { section: 'Toolbar', desc: 'The bar at the top of a lined-paper note: Insert (Cornell, Insert, AI), Maths, the pens, the highlighters, Mark, Study and ? (the hotkeys).' },
+  { key: 'toolbar', type: 'toggle', cls: 'lp-no-toolbar', invert: true, def: true, name: 'Toolbar',
+    desc: 'A small bar on lined-paper notes: insert, pens, highlighters, marks and Review (hide the notes, answer the cues from memory). The same as the hotkeys.' },
+  { key: 'tb-insert', type: 'toggle', cls: 'lp-tb-no-insert', invert: true, def: true, name: 'Toolbar: Insert (Cornell, Insert, AI)' },
+  { key: 'tb-maths', type: 'toggle', cls: 'lp-tb-no-maths', invert: true, def: true, name: 'Toolbar: Maths (∑)' },
+  { key: 'tb-pen', type: 'toggle', cls: 'lp-tb-no-pen', invert: true, def: true, name: 'Toolbar: Pens' },
+  { key: 'tb-highlight', type: 'toggle', cls: 'lp-tb-no-highlight', invert: true, def: true, name: 'Toolbar: Highlighters' },
+  { key: 'tb-mark', type: 'toggle', cls: 'lp-tb-no-mark', invert: true, def: true, name: 'Toolbar: Marks' },
+  { key: 'tb-review', type: 'toggle', cls: 'lp-tb-no-review', invert: true, def: true, name: 'Toolbar: Study (Review, Study, Cards)' },
+  { key: 'tb-place', type: 'select', cls: 'lp-tb-at-', def: 'tr', name: 'Toolbar: where',
+    options: { tr: 'Top right', tl: 'Top left', br: 'Bottom right', bl: 'Bottom left' } },
+  { key: 'tb-fade', type: 'toggle', cls: 'lp-tb-solid', invert: true, def: true, name: 'Toolbar: faded until you point at it', desc: 'Off: always fully shown.' },
+  { key: 'revise-button', type: 'toggle', cls: 'lp-no-revise', invert: true, def: true, name: 'The "Add a revised …" button', desc: 'Under a definition\'s or quote\'s last version. (Insert: revised version, Alt + R, works either way.)' },
+
+  { section: 'Definitions, quotes and diagrams', desc: 'Definitions and quotes each get a page of their own (a note), embedded where you use them: Insert: definition / quote. Embedded blocks (![[Note#^id]]) all start on their line, and the writing after them on the next.' },
   { key: 'def-folder', type: 'path', def: 'Definitions', name: 'Folder for definitions',
     desc: 'Where Insert: definition makes the definition\'s page. Made if it is not there.' },
   { key: 'quote-folder', type: 'path', def: 'Quotes', name: 'Folder for quotes',
@@ -155,36 +183,11 @@ const SETTINGS = [
     desc: 'Free from Google AI Studio (aistudio.google.com → Get API key). Kept in this vault\'s plugin settings (.obsidian/plugins/lined-paper-pages/data.json), sent only to Google, only when you press Ask Gemini. Without one: Copy for NotebookLM.' },
   { key: 'ai-model', type: 'path', def: 'gemini-2.5-flash', name: 'Gemini model', desc: 'If Google retires it, the newest Flash model your key can use is taken instead.' },
 
-  { section: 'Toolbar and buttons', desc: 'The toolbar on lined-paper notes, and the buttons on the pages. (Toolbar on / off: Pages and text.)' },
-  { key: 'tb-insert', type: 'toggle', cls: 'lp-tb-no-insert', invert: true, def: true, name: 'Toolbar: Insert buttons' },
-  { key: 'tb-pen', type: 'toggle', cls: 'lp-tb-no-pen', invert: true, def: true, name: 'Toolbar: Pens' },
-  { key: 'tb-highlight', type: 'toggle', cls: 'lp-tb-no-highlight', invert: true, def: true, name: 'Toolbar: Highlighters' },
-  { key: 'tb-mark', type: 'toggle', cls: 'lp-tb-no-mark', invert: true, def: true, name: 'Toolbar: Marks' },
-  { key: 'tb-review', type: 'toggle', cls: 'lp-tb-no-review', invert: true, def: true, name: 'Toolbar: Review and Cards' },
-  { key: 'tb-place', type: 'select', cls: 'lp-tb-at-', def: 'tr', name: 'Toolbar: where',
-    options: { tr: 'Top right', tl: 'Top left', br: 'Bottom right', bl: 'Bottom left' } },
-  { key: 'tb-fade', type: 'toggle', cls: 'lp-tb-solid', invert: true, def: true, name: 'Toolbar: faded until you point at it', desc: 'Off: always fully shown.' },
-  { key: 'revise-button', type: 'toggle', cls: 'lp-no-revise', invert: true, def: true, name: 'The "Add a revised …" button', desc: 'Under a definition\'s or quote\'s last version. (Insert: revised version, Alt + R, works either way.)' },
-
   { section: 'Updates', desc: 'Lined Paper Pages can update itself, without BRAT: from GitHub through a few mirrors, one of which usually gets through a school or work network. (Paper: update Lined Paper Pages, to check now.)' },
+  { key: 'load-notice', type: 'toggle', cls: 'lp-load-quiet', invert: true, def: true, name: 'Say which version is running each time Obsidian starts',
+    desc: 'A short note with the version and what is new in it (What\'s new: the whole list).' },
   { key: 'update-check', type: 'toggle', cls: 'lp-update-nocheck', invert: true, def: true, name: 'Look for a new version when Obsidian starts' },
   { key: 'update-auto', type: 'toggle', cls: 'lp-update-auto', def: false, name: 'Install a new version without asking', desc: 'Off: a message offers it (Update now).' },
-
-  { section: 'Callouts', desc: 'Every callout except the Cornell ones (cue, notes, question, summary, wide).' },
-  { key: 'lp-callout-height', type: 'slider', min: 0.5, max: 1, step: 0.01, def: 0.8, pct: true, name: 'Callout box height',
-    desc: 'Height of a callout box, as a share of the ruled lines it spans. It is centred on them; its text is spaced to fit the box.' },
-  { key: 'lp-callout-text', type: 'slider', min: 0.6, max: 1, step: 0.01, def: 0.9, pct: true, name: 'Callout text size',
-    desc: 'As a share of the normal text size.' },
-
-  { section: 'Colours', desc: 'Leave a colour on its default to follow the light / dark theme. A colour you set is used in both.' },
-  { key: 'lp-paper', type: 'color', def: '#fffffe', name: 'Paper' },
-  { key: 'lp-rule', type: 'color', def: '#c9ddf1', name: 'Ruled lines' },
-  { key: 'lp-margin', type: 'color', def: '#f1a7b0', name: 'Red margin line and divider' },
-  { key: 'lp-ink', type: 'color', def: '#1f2937', name: 'Text' },
-  { key: 'lp-title-ink', type: 'color', def: '#111827', name: 'Title' },
-  { key: 'lp-muted', type: 'color', def: '#4b5d85', name: 'Labels and date' },
-  { key: 'lp-pen-red', type: 'color', def: '#c0392b', name: 'Heading underline' },
-  { key: 'lp-desk', type: 'color', def: '#d9dde3', name: 'Desk behind the pages' },
 
   { section: 'Advanced', advanced: true, desc: 'Fine-tuning. The defaults match the PDF export; change these only if something does not fit.' },
   { key: 'lp-print-h', type: 'slider', min: 270, max: 297, step: 1, def: 290, unit: 'mm', name: 'Page height used',
@@ -772,8 +775,8 @@ function roundTables(root, undo) {
 // A diagram (```mermaid, drawn by Obsidian) is as tall as it is drawn: the writing after it starts on
 // the next ruled line. Measured, then set.
 function roundDiagrams(root, undo) {
-  const blocks = Array.from(root.querySelectorAll('.block-language-mermaid, pre.mermaid, div.mermaid'))
-    .filter((b) => b.getClientRects().length && b.closest('.lined-paper, .print') && !b.closest('.lp-card-paper, .internal-embed') && !b.parentElement.closest('.block-language-mermaid'));
+  const blocks = Array.from(root.querySelectorAll('.block-language-mermaid, pre.mermaid, div.mermaid, .math-block, mjx-container[display="true"]'))
+    .filter((b) => b.getClientRects().length && b.closest('.lined-paper, .print') && !b.closest('.lp-card-paper, .internal-embed') && !b.parentElement.closest('.block-language-mermaid, .math-block'));
   if (!blocks.length) return;
   for (const b of blocks) if (b._lpPush) { b.style.removeProperty('margin-bottom'); b._lpPush = 0; }
   const L = px(blocks[0].closest('.markdown-preview-view, .print, .lined-paper') || root, 'var(--line)');
@@ -1377,7 +1380,8 @@ const showDate = (root, date) => showDates(root, date, []);
 function sectionDates(el, ctx, fm) {
   const hs = noteTitles(el);
   if (!hs.length || !fm) return;
-  const first = frontmatterDate(fm), pages = listValue(fm['page-dates']);
+  const first = frontmatterDate(fm);
+  let pages = listValue(Array.isArray(fm['page-dates']) ? fm['page-dates'] : []);
   let lines = null, start = 0;
   try {
     const info = ctx && ctx.getSectionInfo && ctx.getSectionInfo(el);
@@ -1387,7 +1391,7 @@ function sectionDates(el, ctx, fm) {
     // no source: the whole export, once this part is in it (which titles start a page is on the page
     // then); a part not in it yet: its title gets the note's date (put right with the rest later)
     const pr = el.closest('.print');
-    if (pr) { autoBreaks(pr); showDates(pr, first, pages); return; }
+    if (pr) { autoBreaks(pr); showDates(pr, first, pageDatesFor(noteTitles(pr).map((h) => { const c = h.cloneNode(true); c.querySelectorAll('.paper-date, .lp-prop-date').forEach((d) => d.remove()); return c.textContent; }), fm['page-dates']).slice(1)); return; }
     for (const h of hs) sectionDates(h.parentElement || h, { getSectionInfo: () => ({ text: '# x', lineStart: 0 }) }, { date: fm[dateKey(fm)] });
     return;
   }
@@ -1399,9 +1403,10 @@ function sectionDates(el, ctx, fm) {
   for (let prev = ''; i < lines.length; i++) {
     const l = lines[i];
     if (/^\s*(```|~~~)/.test(l)) fence = !fence;
-    else if (!fence && /^# /.test(l)) titles.push({ line: i, page: !titles.length || auto || /\[!nextpage\]/i.test(prev) });
+    else if (!fence && /^# /.test(l)) titles.push({ line: i, text: l.slice(2), page: !titles.length || auto || /\[!nextpage\]/i.test(prev) });
     if (l.trim()) prev = l;
   }
+  pages = pageDatesFor(titles.map((t) => t.text), fm['page-dates']).slice(1);
   const mine = titles.filter((t) => t.line >= start);
   hs.forEach((h, k) => {
     const t = mine[k];
@@ -1422,6 +1427,51 @@ function sectionDates(el, ctx, fm) {
 }
 // a list property's items ('' for none)
 const listValue = (v) => (Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [v]).map((x) => (x === null || x === undefined ? '' : String(x)));
+// The dates of the later pages are kept by their # title, so a date stays with its page whatever
+// is added, moved or taken out round it:
+//     page-dates:
+//       IVF: 2026-11-19
+//       Abortion: 2026-11-26
+// (a title written twice: the second "Abortion (2)"). The list of older versions, by place, is read
+// too (and turned into this the next time the note changes).
+const titleKey = (raw) => String(raw || '').replace(/<span[^>]*paper-date[\s\S]*?<\/span>/gi, '').replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/<[^>]+>/g, '').replace(/[*_=~`]/g, '').replace(/\s+/g, ' ').trim();
+function titleKeys(titles) {
+  const seen = {};
+  return titles.map((t) => { const k = titleKey(t) || 'Untitled'; seen[k] = (seen[k] || 0) + 1; return seen[k] > 1 ? `${k} (${seen[k]})` : k; });
+}
+// the same title, renamed a little (a word changed, added or taken off), or a title just written
+const renamed = (from, to) => {
+  if (!from || from === 'Untitled') return true;
+  const a = from.toLowerCase(), b = to.toLowerCase();
+  if (a.includes(b) || b.includes(a)) return true;
+  const wa = new Set(a.split(/\W+/).filter(Boolean)), wb = b.split(/\W+/).filter(Boolean);
+  return wb.filter((w) => wa.has(w)).length * 2 >= Math.max(wa.size, wb.length);
+};
+// each # title's own date ('' none: the note's date), for the note's # titles in order (the first is
+// the note's own title: its date is the date property)
+function pageDatesFor(titles, v) {
+  const out = titles.map(() => '');
+  if (v === null || v === undefined || v === '') return out;
+  if (Array.isArray(v) || typeof v !== 'object') { const list = listValue(v); titles.forEach((t, i) => { if (i) out[i] = list[i - 1] || ''; }); return out; }
+  const keys = titleKeys(titles);
+  const entries = Object.entries(v).map(([k, d]) => [String(k), d === null || d === undefined ? '' : String(d)]);
+  const used = new Set();
+  keys.forEach((k, i) => { if (!i) return; const n = entries.findIndex(([key], j) => !used.has(j) && key === k); if (n >= 0) { used.add(n); out[i] = entries[n][1]; } });
+  // (a title renamed, or one just written: the date left over that was its)
+  keys.forEach((k, i) => {
+    if (!i || out[i]) return;
+    const n = entries.findIndex(([key], j) => !used.has(j) && renamed(key, k));
+    if (n >= 0) { used.add(n); out[i] = entries[n][1]; }
+  });
+  return out;
+}
+// page-dates as it should be for these titles: each later page's title with its date (a title taken
+// out: its date with it); null when there are none
+function pageDatesMap(titles, v) {
+  const dates = pageDatesFor(titles, v), keys = titleKeys(titles), out = {};
+  keys.forEach((k, i) => { if (i && dates[i]) out[k] = dates[i]; });
+  return Object.keys(out).length ? out : null;
+}
 
 // the note's date property, set to today (YYYY-MM-DD) if it has none, through the editor (the
 // cursor stays where it was)
@@ -1454,30 +1504,43 @@ function addPageDate(editor) {
   let end = -1;
   for (let i = 1; i < n; i++) if (/^(---|\.\.\.)\s*$/.test(editor.getLine(i))) { end = i; break; }
   if (end < 0) return;
-  // # titles above the cursor (not in code)
-  let titles = 0, fence = false;
-  for (let i = end + 1; i < cur.line && i < n; i++) {
+  // the note's # titles (not in code), and which one is at the cursor
+  const titles = [];
+  let at = -1, fence = false;
+  for (let i = end + 1; i < n; i++) {
     const l = editor.getLine(i);
     if (/^\s*(```|~~~)/.test(l)) fence = !fence;
-    else if (!fence && /^# /.test(l)) titles++;
+    else if (!fence && /^# /.test(l)) { if (i <= cur.line) at = titles.length; titles.push(l.slice(2)); }
   }
-  if (titles < 1) return;   // (the note's own title: its date is the date property)
-  // the list as it is: `page-dates: [a, b]` or a `- a` line for each
-  let from = -1, to = -1, list = [];
+  if (at < 1) return;   // (the note's own title: its date is the date property)
+  // page-dates as it is: a map (title: date), or the list of older versions
+  let from = -1, to = -1, v = null;
   for (let i = 1; i < end; i++) {
     const m = /^page-dates\s*:\s*(.*)$/i.exec(editor.getLine(i));
     if (!m) continue;
     from = i; to = i + 1;
     const inline = m[1].trim();
-    if (inline.startsWith('[')) list = inline.replace(/^\[|\]$/g, '').split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter((x, k, a) => x || a.length > 1);
-    else if (inline) list = [inline.replace(/^["']|["']$/g, '')];
-    while (to < end && /^\s+-\s*/.test(editor.getLine(to))) { list.push(editor.getLine(to).replace(/^\s+-\s*/, '').trim().replace(/^["']|["']$/g, '')); to++; }
+    const unq = (x) => x.trim().replace(/^["']|["']$/g, '');
+    if (inline.startsWith('[')) v = inline.replace(/^\[|\]$/g, '').split(',').map(unq).filter((x, k, a) => x || a.length > 1);
+    else if (inline) v = [unq(inline)];
+    while (to < end && /^\s+\S/.test(editor.getLine(to))) {
+      const l = editor.getLine(to);
+      const item = /^\s+-\s*(.*)$/.exec(l), pair = /^\s+("(?:[^"\\]|\\.)*"|'[^']*'|[^:]+?)\s*:\s*(.*)$/.exec(l);
+      if (item) (v = Array.isArray(v) ? v : []).push(unq(item[1]));
+      else if (pair) { v = v && !Array.isArray(v) ? v : {}; v[pair[1].startsWith('"') ? JSON.parse(pair[1]) : unq(pair[1])] = unq(pair[2]); }
+      to++;
+    }
     break;
   }
-  const k = titles - 1;
-  while (list.length < k) list.push('');
-  list.splice(k, 0, iso);
-  const lines = ['page-dates:', ...list.map((x) => '  - ' + (x || '""'))];
+  // (the titles before this one with their dates as they are; this one: today)
+  const others = titles.slice();
+  others.splice(at, 1);
+  const map = pageDatesMap(others, v) || {};
+  const keys = titleKeys(titles);
+  const out = {};
+  keys.forEach((k, i) => { if (i === at) out[k] = iso; else if (i) { const ok = titleKeys(others)[i < at ? i : i - 1]; if (map[ok]) out[k] = map[ok]; } });
+  const yamlKey = (k) => (/^[\w][\w .()'’,&-]*$/.test(k) && !/:\s|\s$/.test(k) ? k : JSON.stringify(k));
+  const lines = ['page-dates:', ...Object.entries(out).map(([k, d]) => `  ${yamlKey(k)}: ${d}`)];
   const text = lines.join('\n') + '\n';
   if (from < 0) { editor.replaceRange(text, { line: end, ch: 0 }); from = end; to = end; }
   else editor.replaceRange(text, { line: from, ch: 0 }, { line: to, ch: 0 });
@@ -1505,12 +1568,13 @@ const COLOURS = [['blue', '#1e4fbf'], ['red', '#c62828'], ['green', '#2e7d32'], 
 //   Mark:       Mod + Alt + Shift + letter
 // (the Paper: and Note: commands have none: give them one in Settings → Hotkeys)
 const HK = (mods) => (key) => [{ modifiers: mods, key }];
-const ALT = HK(['Alt']), PEN = HK(['Mod', 'Alt']), HL = HK(['Alt', 'Shift']), MARK = HK(['Mod', 'Alt', 'Shift']);
+const ALT = HK(['Alt']), PEN = HK(['Mod', 'Alt']), HL = HK(['Alt', 'Shift']), MARK = HK(['Mod', 'Alt', 'Shift']), STUDY = HK(['Mod', 'Shift']);
 const HOTKEYS = {
   'insert-cue-notes': ALT('n'), 'insert-summary': ALT('c'), 'insert-question': ALT('q'), 'insert-title': ALT('t'),
   'insert-divider': ALT('d'), 'insert-nextpage': ALT('p'), 'insert-wide': ALT('w'), 'insert-cornell-page': ALT('l'),
   'insert-task': ALT('k'), 'insert-arrow': ALT('a'), 'insert-arrow-double': ALT('e'), 'insert-arrow-wavy': ALT('v'),
   'insert-diagram': ALT('m'), 'ask-ai': ALT('i'), 'insert-cue-from-selection': ALT('u'),
+  'insert-math': ALT('='), 'insert-symbol': ALT('s'),
   'insert-definition': ALT('f'), 'insert-definition-link': HL('f'), 'insert-quote': ALT('o'), 'add-revised': ALT('r'),
   'colour-red': PEN('r'), 'colour-blue': PEN('b'), 'colour-green': PEN('g'), 'colour-orange': PEN('o'), 'colour-purple': PEN('p'),
   'remove-colour': PEN('x'),
@@ -1518,7 +1582,25 @@ const HOTKEYS = {
   'highlighter-pink': HL('p'), 'highlighter': HL('h'), 'remove-highlight': HL('x'),
   'pen-circle': MARK('c'), 'pen-box': MARK('b'), 'pen-underline': MARK('u'), 'pen-wavy': MARK('w'), 'pen-scribble': MARK('s'),
   'cross-out': MARK('k'), 'remove-marks': MARK('x'), 'remove-all-styles': MARK('a'),
+  'review': STUDY('r'), 'review-cards': STUDY('s'), 'cue-cards': STUDY('k'), 'show-cue-cards': STUDY('b'),
 };
+// the families, in order: their keys, what their commands start with, and what they are for
+const HOTKEY_FAMILIES = [
+  { mods: 'Alt', prefix: 'Insert: ', name: 'Insert', what: 'cues, titles, pages, definitions, quotes, arrows, diagrams, maths' },
+  { mods: 'Mod+Alt', prefix: 'Pen: ', name: 'Pen', what: 'write in a colour (first letter of the colour; X: remove)' },
+  { mods: 'Alt+Shift', prefix: 'Highlight: ', name: 'Highlight', what: 'a highlighter (first letter of the colour; H: yours; X: remove)' },
+  { mods: 'Mod+Alt+Shift', prefix: 'Mark: ', name: 'Mark', what: 'circle, box, underline, wavy, scribble, cross out (X: remove)' },
+  { mods: 'Mod+Shift', prefix: 'Note: ', name: 'Study', what: 'review, study the cards, make cue cards, cards beside the note' },
+];
+// a hotkey as it reads on this computer: Alt+N, Ctrl+Alt+B (Windows / Linux), ⌥N, ⌘⌥B (Mac)
+function hotkeyText(h, mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')) {
+  if (!h) return '';
+  const key = h.key === '=' ? '=' : String(h.key).length === 1 ? String(h.key).toUpperCase() : h.key;
+  const names = mac ? { Mod: '⌘', Ctrl: '⌃', Meta: '⌘', Alt: '⌥', Shift: '⇧' } : { Mod: 'Ctrl', Ctrl: 'Ctrl', Meta: 'Win', Alt: 'Alt', Shift: 'Shift' };
+  const order = ['Mod', 'Ctrl', 'Meta', 'Alt', 'Shift'];
+  const mods = order.filter((m) => (h.modifiers || []).includes(m)).map((m) => names[m]);
+  return mac ? mods.join('') + key : mods.concat(key).join('+');
+}
 // the highlighters of the "Highlighter: …" commands, <mark class="hl-…">
 const HIGHLIGHTERS = ['yellow', 'green', 'pink', 'blue', 'orange'];
 // the marks of the "Pen: …" commands, <span class="pen-…">
@@ -2141,8 +2223,31 @@ function wrapSelection(editor, open, close) {
 
 function addPaperCommands(plugin) {
   // (each command with its default hotkeys, if it has some: HOTKEYS)
-  const add = (cmd) => plugin.addCommand(HOTKEYS[cmd.id] ? { ...cmd, hotkeys: HOTKEYS[cmd.id] } : cmd);
   const app = plugin.app;
+  const list = plugin._commands = [];
+  const add = (cmd) => {
+    let c = HOTKEYS[cmd.id] ? { ...cmd, hotkeys: HOTKEYS[cmd.id] } : cmd;
+    list.push({ id: c.id, name: c.name });
+    // (a command for the editor works from reading view too: the note is switched to editing first,
+    // instead of the command doing nothing there)
+    if (c.editorCallback && OB.MarkdownView && app && app.workspace && app.workspace.getActiveViewOfType) {
+      const run = c.editorCallback;
+      c = { ...c };
+      delete c.editorCallback;
+      c.checkCallback = (checking) => {
+        const v = app.workspace.getActiveViewOfType(OB.MarkdownView);
+        if (!v || !v.editor) return false;
+        if (!checking) {
+          if (v.getMode && v.getMode() === 'preview') {
+            Promise.resolve(v.setState(Object.assign({}, v.getState(), { mode: 'source' }), { history: false }))
+              .then(() => window.setTimeout(() => { v.editor.focus(); run(v.editor, v); }, 40));
+          } else run(v.editor, v);
+        }
+        return true;
+      };
+    }
+    return plugin.addCommand(c);
+  };
   const setPaper = (kind, label) => (checking) => {
     const file = app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile();
     if (!file || file.extension !== 'md') return false;
@@ -2192,6 +2297,50 @@ function addPaperCommands(plugin) {
   });
   add({ id: 'update', name: 'Paper: update Lined Paper Pages (look for a new version)', callback: () => plugin.checkForUpdate(false) });
   const withEditor = (f) => ({ editorCallback: (editor, view) => f(editor, (view && view.file) || (app && app.workspace && app.workspace.getActiveFile && app.workspace.getActiveFile())) });
+  // maths and science
+  add({ id: 'insert-math', name: 'Insert: maths ($…$, around the selection)', ...withEditor((e) => {
+    const sel = e.getSelection();
+    if (sel) { e.replaceSelection('$' + sel.trim() + '$'); return; }
+    const c = e.getCursor();
+    e.replaceRange('$$', c);
+    e.setCursor({ line: c.line, ch: c.ch + 1 });
+  }) });
+  add({ id: 'insert-math-block', name: 'Insert: maths on lines of its own ($$ … $$)', ...withEditor((e) => {
+    const c = e.getCursor('to'), line = e.getLine(c.line);
+    const pre = (/^\s*((?:>\s?)*)/.exec(line) || ['', ''])[1];
+    const sel = e.getSelection();
+    const body = sel ? sel.split('\n').map((l) => l.replace(/^\s*(?:>\s?)*/, '')).join('\n' + pre) : '';
+    if (sel) { e.replaceSelection(`$$\n${pre}${body}\n${pre}$$`); return; }
+    const empty = !line.replace(/^\s*(?:>\s?)*/, '').trim();
+    const at = empty ? { line: c.line, ch: 0 } : { line: c.line, ch: line.length };
+    e.replaceRange((empty ? '' : '\n') + `${pre}$$\n${pre}\n${pre}$$`, at, empty ? { line: c.line, ch: line.length } : at);
+    e.setCursor({ line: c.line + (empty ? 1 : 2), ch: pre.length });
+  }) });
+  add({ id: 'insert-symbol', name: 'Insert: maths or science symbol (π, ±, ≤, →, ⇌, Δ, μ, a fraction …)', ...withEditor((e) => plugin.symbolPicker(e)) });
+  add({ id: 'insert-chem', name: 'Insert: chemical formula (H2O becomes H₂O, SO4^2- becomes SO₄²⁻)', ...withEditor((e) => {
+    let sel = e.getSelection();
+    if (!sel) {
+      // (nothing selected: the formula the cursor is in)
+      const c = e.getCursor(), line = e.getLine(c.line);
+      let a = c.ch, b = c.ch;
+      while (a > 0 && /[A-Za-z0-9()^+\-]/.test(line[a - 1])) a--;
+      while (b < line.length && /[A-Za-z0-9()^+\-]/.test(line[b])) b++;
+      if (a === b) return;
+      e.setSelection({ line: c.line, ch: a }, { line: c.line, ch: b });
+      sel = line.slice(a, b);
+    }
+    e.replaceSelection(chemFormula(sel));
+  }) });
+  for (const [id, up] of [['insert-superscript', true], ['insert-subscript', false]]) {
+    add({ id, name: up ? 'Insert: superscript (the selection raised: x²)' : 'Insert: subscript (the selection lowered: H₂)', ...withEditor((e) => {
+      const sel = e.getSelection();
+      const c = e.getCursor('from');
+      if (inMath(e.getLine(c.line), c.ch)) { e.replaceSelection((up ? '^{' : '_{') + sel + '}'); return; }
+      if (sel) e.replaceSelection(scriptText(sel, up));
+    }) });
+  }
+  add({ id: 'setup-vault', name: 'Paper: set up a study vault (folders, home page, a Cornell template, an example)', callback: () => plugin.setupVault() });
+  add({ id: 'hotkeys', name: 'Paper: hotkeys (all of them, by family)', callback: () => plugin.showHotkeys() });
   add({ id: 'insert-diagram', name: 'Insert: diagram from the selected list (mind map, flow, cycle, tree, timeline, table)', ...withEditor((e) => plugin.insertDiagram(e)) });
   add({ id: 'ask-ai', name: 'Insert: diagram, answer or practice questions from AI (Gemini, or copied for NotebookLM)', ...withEditor((e, f) => plugin.askAI(e, f)) });
   add({ id: 'insert-cue-from-selection', name: 'Insert: cue for the selected notes (a question drafted)', ...withEditor((e) => plugin.cueFromSelection(e)) });
@@ -2323,8 +2472,183 @@ function addPaperCommands(plugin) {
   } });
 }
 
+// ---------- maths and science ----------
+// Obsidian writes maths between dollar signs, in LaTeX ($x^2$, $$…$$ on lines of its own), drawn
+// with MathJax. The symbols: typed as they are (× ÷ ± ≤ π …) in writing, as LaTeX inside $…$.
+const SYMBOLS = [
+  // [group, symbol, LaTeX, words to find it by]
+  ['Maths', '×', '\\times', 'times multiply'], ['Maths', '÷', '\\div', 'divide'], ['Maths', '±', '\\pm', 'plus minus'],
+  ['Maths', '≠', '\\neq', 'not equal'], ['Maths', '≈', '\\approx', 'approximately about'], ['Maths', '≡', '\\equiv', 'identical congruent'],
+  ['Maths', '≤', '\\leq', 'less or equal'], ['Maths', '≥', '\\geq', 'greater or equal'], ['Maths', '<', '<', 'less than'], ['Maths', '>', '>', 'greater than'],
+  ['Maths', '√', '\\sqrt{}', 'square root'], ['Maths', '∛', '\\sqrt[3]{}', 'cube root'], ['Maths', '∞', '\\infty', 'infinity'],
+  ['Maths', 'π', '\\pi', 'pi'], ['Maths', '°', '^\\circ', 'degrees angle'], ['Maths', '∠', '\\angle', 'angle'], ['Maths', '⊥', '\\perp', 'perpendicular'],
+  ['Maths', '∥', '\\parallel', 'parallel'], ['Maths', '∝', '\\propto', 'proportional to'], ['Maths', '∑', '\\sum', 'sum sigma'],
+  ['Maths', '∫', '\\int', 'integral'], ['Maths', '∂', '\\partial', 'partial'], ['Maths', '∴', '\\therefore', 'therefore'], ['Maths', '∵', '\\because', 'because'],
+  ['Maths', '∈', '\\in', 'element of in set'], ['Maths', '∪', '\\cup', 'union'], ['Maths', '∩', '\\cap', 'intersection'], ['Maths', '∅', '\\emptyset', 'empty set'],
+  ['Greek', 'α', '\\alpha', 'alpha'], ['Greek', 'β', '\\beta', 'beta'], ['Greek', 'γ', '\\gamma', 'gamma'], ['Greek', 'δ', '\\delta', 'delta small'],
+  ['Greek', 'Δ', '\\Delta', 'delta change'], ['Greek', 'ε', '\\epsilon', 'epsilon'], ['Greek', 'θ', '\\theta', 'theta angle'], ['Greek', 'λ', '\\lambda', 'lambda wavelength'],
+  ['Greek', 'μ', '\\mu', 'mu micro'], ['Greek', 'ρ', '\\rho', 'rho density'], ['Greek', 'σ', '\\sigma', 'sigma'], ['Greek', 'Σ', '\\Sigma', 'sigma sum'],
+  ['Greek', 'φ', '\\phi', 'phi'], ['Greek', 'ω', '\\omega', 'omega'], ['Greek', 'Ω', '\\Omega', 'omega ohm'],
+  ['Science', '→', '\\rightarrow', 'arrow yields reaction'], ['Science', '⇌', '\\rightleftharpoons', 'reversible equilibrium'], ['Science', '↑', '\\uparrow', 'gas up increase'],
+  ['Science', '↓', '\\downarrow', 'precipitate down decrease'], ['Science', '°C', '^\\circ\\mathrm{C}', 'degrees celsius temperature'], ['Science', 'Ω', '\\Omega', 'ohm resistance'],
+  ['Science', 'μm', '\\mu\\mathrm{m}', 'micrometre'], ['Science', 'm/s²', '\\mathrm{m/s^2}', 'acceleration'], ['Science', 'Å', '\\mathring{A}', 'angstrom'],
+  ['Science', '·', '\\cdot', 'dot multiply'], ['Science', '⁺', '^+', 'plus charge ion'], ['Science', '⁻', '^-', 'minus charge ion'],
+];
+// LaTeX templates: the cursor (or the selection) goes where | is
+const MATH_TEMPLATES = [
+  ['Fraction', '\\frac{|}{}', 'a over b'], ['Power', '^{|}', 'squared cubed exponent'], ['Subscript', '_{|}', 'index'],
+  ['Square root', '\\sqrt{|}', 'root'], ['Vector', '\\vec{|}', 'arrow vector'], ['Bar / mean', '\\bar{|}', 'mean average'],
+  ['Brackets', '\\left( | \\right)', 'parentheses'], ['Units', '\\,\\mathrm{|}', 'unit text'], ['Text', '\\text{|}', 'words in maths'],
+];
+const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', '−': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', i: 'ⁱ', x: 'ˣ' };
+const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', '+': '₊', '-': '₋', '−': '₋', '=': '₌', '(': '₍', ')': '₎', a: 'ₐ', e: 'ₑ', o: 'ₒ', x: 'ₓ', n: 'ₙ', m: 'ₘ' };
+// text raised or lowered: in small characters where every one has one (x², H₂), else <sup> / <sub>
+function scriptText(text, up) {
+  const map = up ? SUP : SUB, chars = [...String(text)];
+  return chars.every((c) => map[c] || map[c.toLowerCase()]) ? chars.map((c) => map[c] || map[c.toLowerCase()]).join('') : (up ? `<sup>${text}</sup>` : `<sub>${text}</sub>`);
+}
+// a chemical formula written properly: H2O → H₂O, CO2 → CO₂, Ca(OH)2 → Ca(OH)₂, SO4^2- → SO₄²⁻,
+// Na+ → Na⁺, 2H2 + O2 -> 2H2O → 2H₂ + O₂ → 2H₂O (a number at the start of a formula stays)
+function chemFormula(text) {
+  return String(text)
+    .replace(/\^?(\d*[+\-−])(?=\s|$|[)\],.;])/g, (m, c, off, all) => (/[A-Za-z)\]\d]/.test(all[off - 1] || '') ? scriptText(c.replace(/^(\d*)([+\-−])$/, '$1$2'), true) : m))
+    .replace(/([A-Za-z)\]])(\d+)/g, (m, a, n) => a + scriptText(n, false))
+    .replace(/\s?(->|-->)\s?/g, ' → ').replace(/\s?<=>\s?/g, ' ⇌ ');
+}
+// is the cursor inside $…$ on its line (maths: LaTeX, not symbols)
+const inMath = (line, ch) => ((line.slice(0, ch).replace(/\\\$/g, '').match(/\$/g) || []).length % 2 === 1);
+
+// ---------- a study vault (Paper: set up a study vault) ----------
+const STUDY_VAULT = {
+  folders: [
+    ['Subjects', 'a folder for each subject, a folder for each topic in it (Subjects/RS/Beginning of Life)'],
+    ['Definitions', 'Insert: definition makes a page here for each word (Alt+F)'],
+    ['Quotes', 'Insert: quote makes a page here for each quote (Alt+O)'],
+    ['Diagrams', 'every diagram\'s page (Alt+M, Alt+I)'],
+    ['Cue cards', 'the cue card pages to print'],
+    ['Templates', 'Obsidian\'s templates (a Cornell note)'],
+    ['Attachments', 'pictures you paste in'],
+  ],
+  files: () => [
+    ['Home.md', `---
+cssclasses:
+  - lined-paper
+---
+# Home
+
+## Before a lesson
+- Open the subject's folder (Subjects/…) and the topic's folder in it. Make one if it is new.
+- New note, named after the lesson. **Insert: Cornell page** (Alt+L) puts in the title (today's date in
+  its properties), the essential question, a cue + notes group and the summary.
+
+## In the lesson
+- Write in the **notes** column. A new point: **Alt+N** (cue + notes).
+- A word to learn: **Alt+F** (a definition, on a page of its own, embedded). A quote: **Alt+O**.
+- Colours: pens **Ctrl+Alt+letter** (B blue, R red, G green …), highlighters **Alt+Shift+letter**.
+- Maths and science: **Alt+=** for maths ($E = mc^2$), **Alt+S** for symbols (π ± ≤ → ⇌ Δ μ),
+  *Insert: chemical formula* for H₂O.
+- A list that is a process, a cycle or a comparison: select it, **Alt+M** (a diagram).
+
+## After the lesson (10 minutes)
+1. Each line that matters: put the cursor on it, **Alt+U** (a question in the cue beside it).
+2. *Insert: summary from the cues and highlights*, then the summary in your own words.
+3. **Ask AI** (Alt+I): a diagram of the topic, or 5 practice questions (they become cue cards).
+
+## Revise
+- Every day: **Study** (Ctrl+Shift+S): the cue cards due today, from this note, its folder or all.
+- **Review** (Ctrl+Shift+R): the notes covered, answer the cues.
+- Before a test: *Note: cue cards for every note in this folder*, print (Export to PDF, A4, margin
+  none, double-sided).
+- Each topic folder: *Note: make an index of this folder* (its notes, definitions and quotes).
+
+## Hotkeys
+| Family | Keys | For |
+| --- | --- | --- |
+| Insert | Alt + … | cues, titles, pages, definitions, quotes, arrows, diagrams, maths |
+| Pen | Ctrl + Alt + … | colours (first letter of the colour) |
+| Highlight | Alt + Shift + … | highlighters (first letter of the colour) |
+| Mark | Ctrl + Alt + Shift + … | circle, box, underline, wavy, cross out |
+| Study | Ctrl + Shift + … | R review, S study, K make cue cards, B cards beside the note |
+
+All of them: *Paper: hotkeys*, or **?** on the toolbar. (Mac: ⌘ for Ctrl, ⌥ for Alt.)
+
+## The workspace
+- **Left:** the file list (Subjects, Definitions, Quotes …) and search.
+- **Middle:** the note, in Live Preview while you write, reading view to read and print.
+- **Right:** the **cue cards beside the note** (Ctrl+Shift+B), the **outline** of the note, and
+  backlinks (where a definition or quote is used).
+- Pin this page (right-click its tab → Pin) to come back to it.
+`],
+    ['Templates/Cornell note.md', `---
+cssclasses:
+  - lined-paper
+  - cornell
+date: {{date:YYYY-MM-DD}}
+---
+# {{title}}
+
+>> [!question] Question
+>> 
+
+>> [!cue]
+>> 
+>
+>> [!notes]
+>> 
+
+>> [!summary] Summary
+>> 
+`],
+    ['Subjects/Example/Beginning of Life (example).md', `---
+cssclasses:
+  - lined-paper
+  - cornell
+date: 2026-11-19
+---
+# Beginning of Life
+
+>> [!question] Question
+>> When does life begin, and why does it matter?
+
+>> [!cue]
+>> When does Judaism hold life begins?
+>
+>> [!notes]
+>> - <font color="#1e4fbf">Rabbinic scholars</font> hold that the foetus is special, but life begins <mark class="hl-blue">at birth</mark>.
+>> - Until 40 days the foetus is "water" -> it is not yet a person.
+
+>> [!cue]
+>> When does the Catholic Church hold life begins?
+>
+>> [!notes]
+>> - <font color="#c62828">Catholics</font> hold that life begins ==at conception==.
+>> - Sanctity of life: life is holy because God made it.
+
+>> [!cue]
+>> What happens at fertilisation?
+>
+>> [!notes]
+>> - Sperm meets egg -> a zygote (one cell) -> an embryo -> a foetus (from 8 weeks).
+>> - Cells divide: 1 -> 2 -> 4 -> 8, that is $2^n$ cells after $n$ divisions.
+>> - Respiration in every cell: C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O
+
+>> [!summary] Summary
+>> Judaism: life at birth; Catholics: at conception. Biology: a new organism from fertilisation.
+`],
+  ],
+};
+
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.38.0': [
+    ['Page dates by title', 'each page\'s date is kept with its title in the properties (page-dates: Title: date); a title taken out takes its date with it.'],
+    ['Says its version', 'each time Obsidian starts: the version and what is new (Settings → Updates to switch it off).'],
+    ['A new toolbar', 'Cornell ▾, Insert ▾, ✦ AI, ∑ maths, the pens and highlighters, Mark ▾, Review, Study, Cards ▾, and ? for the hotkeys. Every menu shows each command\'s hotkey.'],
+    ['Maths and science', 'Alt+= maths in the line ($E = mc^2$), Alt+S every symbol (π ± ≤ → ⇌ Δ μ, fractions, powers), chemical formulas (H2O becomes H₂O), superscript and subscript.'],
+    ['Hotkeys in families', 'Alt: Insert · Ctrl+Alt: Pen · Alt+Shift: Highlight · Ctrl+Alt+Shift: Mark · Ctrl+Shift: Study (R review, S study, K cue cards, B cards beside the note). Paper: hotkeys lists them all.'],
+    ['Commands from reading view', 'an Insert command switches the note to editing first, instead of doing nothing.'],
+    ['Settings', 'sections fold away, a search finds any setting; Set up a study vault makes the folders, a Home page, a Cornell template and an example.'],
+  ],
   '1.37.0': [
     ['Alt+U', 'drafts proper questions ("Why do Catholics oppose abortion?", "When does life begin?"); with nothing selected, from the line the cursor is on; with a Gemini key, Gemini improves it.'],
     ['Printing', 'see-through colours print as they look (callout tints no longer vanish in dark theme), and the soft-ink writing prints crisp.'],
@@ -2856,7 +3180,7 @@ module.exports = class LinedPaperPages extends Plugin {
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
       if (onCards(el)) return;
       // (a diagram is drawn a moment later: the pages are laid out again once it is)
-      if (el.querySelector('.block-language-mermaid, pre.mermaid, code.language-mermaid')) for (const t of [600, 1500, 3500]) window.setTimeout(() => this.scheduleScan(true), t);
+      if (el.querySelector('.block-language-mermaid, pre.mermaid, code.language-mermaid, .math-block, mjx-container')) for (const t of [600, 1500, 3500]) window.setTimeout(() => this.scheduleScan(true), t);
       // (also runs for PDF export; the callout may only be built after this, so look again shortly)
       // (reading view unwraps embeds in layout(), where it can be undone when the note changes)
       // a definition's / quote's page: under its last version, a button to add a revised one
@@ -2898,14 +3222,17 @@ module.exports = class LinedPaperPages extends Plugin {
     }, true);
     // the date in the title bar (reading view): click it to change it
     this.registerDomEvent(document, 'click', (e) => this.onDateClick(e), true);
+    // (a toolbar menu closes on a click anywhere else, or Escape)
+    this.registerDomEvent(document, 'mousedown', (e) => { for (const w of document.querySelectorAll('.lp-tb-menuwrap.lp-open')) if (!w.contains(e.target)) w.classList.remove('lp-open'); }, true);
+    this.registerDomEvent(document, 'keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.lp-tb-menuwrap.lp-open').forEach((w) => w.classList.remove('lp-open')); });
     // the "Definitions and quotes" cue cards kept up to date; print-only cue card pages removed once closed
     if (this.app.vault && this.app.vault.on && this.app.metadataCache && this.app.metadataCache.on) {
       const touched = (f) => { const fm = f && this.app.metadataCache.getFileCache && (this.app.metadataCache.getFileCache(f) || {}).frontmatter; if (!f || (fm && (fm.format === 'def' || fm.format === 'quote')) || this._formatPaths && this._formatPaths.has(f.path)) this.scheduleFormatDeck(f); };
-      this.registerEvent(this.app.metadataCache.on('changed', (f) => { if (this._cardCache && (!f || !this.cardSource || f.path !== this.cardSource.path)) this._cardCache.clear(); touched(f); this.scheduleIndexes(f); }));
+      this.registerEvent(this.app.metadataCache.on('changed', (f) => { this.schedulePageDates(f); if (this._cardCache && (!f || !this.cardSource || f.path !== this.cardSource.path)) this._cardCache.clear(); touched(f); this.scheduleIndexes(f); }));
       this.registerEvent(this.app.vault.on('delete', (f) => touched(f)));
       this.registerEvent(this.app.vault.on('rename', (f) => touched(f)));
       this.registerEvent(this.app.workspace.on('layout-change', () => { window.clearTimeout(this._sweepT); this._sweepT = window.setTimeout(() => this.sweepPrintOnly().catch(() => {}), 1500); }));
-      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => this.whatsNew(), 2500); });
+      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => { this.loadNotice(); this.whatsNew(); }, 2500); });
     }
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
@@ -3792,6 +4119,180 @@ module.exports = class LinedPaperPages extends Plugin {
     }
   }
 
+  // ---------- a study vault: folders, a home page, a template, an example (Paper: set up a study vault) ----------
+  // Only what is not there yet is made; nothing of yours is changed.
+  setupVault() {
+    if (!Modal) return;
+    const app = this.app;
+    const m = new Modal(app);
+    m.titleEl.setText('Set up a study vault');
+    m.modalEl.addClass('lp-setup-modal');
+    const root = m.contentEl;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    mk(root, 'p', '', 'Made only where they are not there yet (nothing of yours is changed or moved):');
+    const ul = mk(root, 'ul', 'lp-setup-list');
+    for (const [what, why] of STUDY_VAULT.folders) { const li = mk(ul, 'li'); mk(li, 'b', '', what + '/'); li.appendChild(document.createTextNode(' ' + why)); }
+    for (const [what, why] of [['Home', 'your start page: the way to take a lesson\'s notes, revise, and the hotkeys'], ['Templates/Cornell note', 'a new Cornell note (Templates → Insert template)'], ['Subjects/Example/Beginning of Life (example)', 'a note using everything, to look at']]) { const li = mk(ul, 'li'); mk(li, 'b', '', what); li.appendChild(document.createTextNode(' ' + why)); }
+    const optL = mk(root, 'label', 'lp-setup-opt');
+    const opt = mk(optL, 'input'); opt.type = 'checkbox'; opt.checked = true;
+    optL.appendChild(document.createTextNode(' Also set Obsidian\'s Templates folder (Templates) and where pasted pictures go (Attachments)'));
+    const foot = mk(root, 'div', 'lp-setup-foot');
+    const go = mk(foot, 'button', 'mod-cta', 'Set up');
+    go.addEventListener('click', async () => { go.disabled = true; const made = await this.makeStudyVault(opt.checked); m.close(); new Notice(`Lined Paper Pages: study vault ready (${made} made). Home is open.`); });
+    m.open();
+  }
+  async makeStudyVault(settings = true) {
+    const app = this.app, v = app.vault;
+    let made = 0;
+    for (const [f] of STUDY_VAULT.folders) if (!v.getAbstractFileByPath(f)) { await v.createFolder(f).catch(() => {}); made++; }
+    for (const [path, text] of STUDY_VAULT.files()) {
+      if (v.getAbstractFileByPath(path)) continue;
+      const dir = path.replace(/\/[^/]*$/, '');
+      if (dir !== path && !v.getAbstractFileByPath(dir)) await v.createFolder(dir).catch(() => {});
+      await v.create(path, text);
+      made++;
+    }
+    if (settings) {
+      try { if (v.getConfig && v.setConfig && (!v.getConfig('attachmentFolderPath') || v.getConfig('attachmentFolderPath') === '/')) v.setConfig('attachmentFolderPath', 'Attachments'); } catch (e) { /* */ }
+      try {
+        const t = app.internalPlugins && app.internalPlugins.getPluginById && app.internalPlugins.getPluginById('templates');
+        if (t && t.instance && t.instance.options && !t.instance.options.folder) { t.instance.options.folder = 'Templates'; if (t.instance.saveData) t.instance.saveData(t.instance.options); }
+        if (t && !t.enabled && app.internalPlugins.enablePluginAndSave) await app.internalPlugins.enablePluginAndSave('templates');
+      } catch (e) { /* (Obsidian's own settings: set them by hand, Home says how) */ }
+    }
+    const home = v.getAbstractFileByPath('Home.md');
+    if (home && app.workspace.getLeaf) await app.workspace.getLeaf(false).openFile(home);
+    try { await this.showCardPanel(); } catch (e) { /* */ }
+    return made;
+  }
+
+  // ---------- page dates kept with their titles ----------
+  // A note's page-dates, a little after it changes: each later page's title with its date; a title
+  // taken out, its date with it; a title renamed, its date kept (the list of older versions turned
+  // into this). Only when something differs: nothing is written otherwise.
+  schedulePageDates(file) {
+    if (!file || !file.path) return;
+    const t = this._pdT || (this._pdT = {});
+    window.clearTimeout(t[file.path]);
+    t[file.path] = window.setTimeout(() => { delete t[file.path]; this.syncPageDates(file).catch(() => {}); }, 1500);
+  }
+  async syncPageDates(file) {
+    const app = this.app;
+    const cache = app.metadataCache.getFileCache(file);
+    const fm = cache && cache.frontmatter;
+    if (!fm || fm['page-dates'] === undefined || !app.fileManager || !app.fileManager.processFrontMatter) return false;
+    const titles = (cache.headings || []).filter((h) => h.level === 1).map((h) => h.heading);
+    const want = pageDatesMap(titles, fm['page-dates']);
+    if (JSON.stringify(want) === JSON.stringify(fm['page-dates']) || (!want && (fm['page-dates'] === null || fm['page-dates'] === ''))) return false;
+    await app.fileManager.processFrontMatter(file, (f) => { if (want) f['page-dates'] = want; else delete f['page-dates']; });
+    return true;
+  }
+
+  // ---------- hotkeys: as set (Settings → Hotkeys can change them), shown everywhere ----------
+  // a command's hotkey as it reads here (yours, if you changed it; else the plugin's), or ''
+  hotkeyLabel(id) {
+    const full = ((this.manifest && this.manifest.id) || 'lined-paper-pages') + ':' + id;
+    let keys = null;
+    try {
+      const hm = this.app && this.app.hotkeyManager;
+      if (hm) keys = (hm.getHotkeys && hm.getHotkeys(full)) || (hm.getDefaultHotkeys && hm.getDefaultHotkeys(full));
+    } catch (e) { keys = null; }
+    if (!keys) keys = HOTKEYS[id] || [];
+    return keys.length ? hotkeyText(keys[0]) : '';
+  }
+  // Paper: hotkeys: every command, by family, with its keys
+  showHotkeys() {
+    if (!Modal) return;
+    const m = new Modal(this.app);
+    m.titleEl.setText('Lined Paper Pages: hotkeys');
+    m.modalEl.addClass('lp-hotkeys-modal');
+    const root = m.contentEl;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    mk(root, 'p', 'lp-hk-intro', 'One family of keys for each kind of command. Change any of them in Settings → Hotkeys (search "Lined Paper").');
+    const cmds = this._commands || [];
+    for (const fam of HOTKEY_FAMILIES) {
+      const rows = cmds.filter((c) => c.name.startsWith(fam.prefix)).map((c) => ({ c, key: this.hotkeyLabel(c.id) }));
+      if (!rows.length) continue;
+      const sec = mk(root, 'div', 'lp-hk-family');
+      const head = mk(sec, 'div', 'lp-hk-head');
+      mk(head, 'b', '', fam.name);
+      mk(head, 'span', 'lp-hk-mods', hotkeyText({ modifiers: fam.mods.split('+'), key: '…' }));
+      mk(head, 'span', 'lp-hk-what', fam.what);
+      const table = mk(sec, 'div', 'lp-hk-rows');
+      rows.sort((a, b) => (!a.key - !b.key) || a.key.localeCompare(b.key));
+      for (const { c, key } of rows) {
+        const r = mk(table, 'div', 'lp-hk-row' + (key ? '' : ' lp-hk-none'));
+        mk(r, 'kbd', '', key || '—');
+        mk(r, 'span', '', c.name.slice(fam.prefix.length));
+      }
+    }
+    m.open();
+  }
+
+  // ---------- maths and science: the symbol picker ----------
+  // A search box and the symbols by group. Outside $…$ a symbol is typed as it is (π, ≤, →); inside,
+  // as LaTeX (\pi, \leq, \rightarrow). A template (fraction, power …) is maths: put in $…$ if needed,
+  // the selection (or the cursor) in its place.
+  symbolPicker(editor) {
+    if (!Modal) return;
+    const m = new Modal(this.app);
+    m.titleEl.setText('Maths and science');
+    m.modalEl.addClass('lp-symbols-modal');
+    const root = m.contentEl;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const from = editor.getCursor('from');
+    const math = inMath(editor.getLine(from.line), from.ch);
+    const search = mk(root, 'input', 'lp-sym-search');
+    search.type = 'search';
+    search.placeholder = math ? 'Find a symbol (inside $…$: written as LaTeX)' : 'Find a symbol: pi, less, arrow, delta, degrees, fraction …';
+    const body = mk(root, 'div', 'lp-sym-body');
+    const insertText = (text) => {
+      const sel = editor.getSelection();
+      const at = editor.getCursor('from');
+      const bar = text.indexOf('|');
+      const out = bar >= 0 ? text.slice(0, bar) + sel + text.slice(bar + 1) : text;
+      editor.replaceSelection(out);
+      if (bar >= 0 && !sel) editor.setCursor({ line: at.line, ch: at.ch + bar });
+      m.close();
+      if (editor.focus) editor.focus();
+    };
+    const pick = (item) => {
+      if (item.template) insertText(math ? item.tex : '$' + item.tex + '$');
+      else insertText(math ? item.tex + (/[a-z]$/i.test(item.tex) ? ' ' : '') : item.sym);
+    };
+    const items = MATH_TEMPLATES.map(([name, tex, words]) => ({ group: 'Templates (maths)', sym: name, tex, words: name + ' ' + words, template: true }))
+      .concat(SYMBOLS.map(([group, sym, tex, words]) => ({ group, sym, tex, words })));
+    let shown = [];
+    const draw = () => {
+      body.replaceChildren();
+      const q = search.value.trim().toLowerCase();
+      shown = items.filter((it) => !q || (it.words + ' ' + it.sym + ' ' + it.tex).toLowerCase().includes(q));
+      for (const group of [...new Set(shown.map((it) => it.group))]) {
+        mk(body, 'div', 'lp-sym-group', group);
+        const grid = mk(body, 'div', 'lp-sym-grid' + (group.startsWith('Templates') ? ' lp-sym-wide' : ''));
+        for (const it of shown.filter((x) => x.group === group)) {
+          const b = mk(grid, 'button', 'lp-sym', it.sym);
+          b.type = 'button';
+          b.title = `${it.words} · ${it.tex.replace(/\|/g, '…')}`;
+          b.addEventListener('click', (e) => { e.preventDefault(); pick(it); });
+        }
+      }
+      if (!shown.length) mk(body, 'div', 'lp-sym-none', 'Nothing found. Inside $…$ you can type any LaTeX.');
+    };
+    search.addEventListener('input', draw);
+    search.addEventListener('keydown', (e) => { if (e.key === 'Enter' && shown[0]) { e.preventDefault(); pick(shown[0]); } });
+    const foot = mk(root, 'div', 'lp-sym-foot');
+    const tip = (label, title, f) => { const b = mk(foot, 'button', '', label); b.type = 'button'; b.title = title; b.addEventListener('click', (e) => { e.preventDefault(); f(); }); };
+    tip('$ maths $', 'Maths in the line (Alt+=)', () => insertText(editor.getSelection() ? '$' + editor.getSelection() + '$' : '$|$'));
+    tip('H₂O', 'The selection as a chemical formula', () => { const s2 = editor.getSelection(); if (s2) insertText(chemFormula(s2)); });
+    tip('x²', 'The selection raised', () => { const s2 = editor.getSelection(); insertText(math ? '^{' + s2 + '}' : s2 ? scriptText(s2, true) : '²'); });
+    tip('x₂', 'The selection lowered', () => { const s2 = editor.getSelection(); insertText(math ? '_{' + s2 + '}' : s2 ? scriptText(s2, false) : '₂'); });
+    draw();
+    m.open();
+    window.setTimeout(() => search.focus(), 30);
+    this._symbols = { modal: m, search, pick, items };
+  }
+
   // ---------- revision: the cards of a note, a folder or every note, reviewed (spaced repetition) ----------
   // the cards of one file: its cue card block; its question cues (and the definitions and quotes it
   // uses); or, a definition's or quote's page, its own card
@@ -4120,15 +4621,27 @@ module.exports = class LinedPaperPages extends Plugin {
     const base = 'https://generativelanguage.googleapis.com/v1beta/models';
     const json = (r) => { try { return r.json; } catch (e) { return null; } };
     const call = (model) => requestUrl({ url: `${base}/${encodeURIComponent(model)}:generateContent`, method: 'POST', contentType: 'application/json', headers: { 'x-goog-api-key': key }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } }), throw: false });
-    let r = await call(this._aiModel || String(this.settings['ai-model'] || '').trim() || 'gemini-2.5-flash');
+    // (no answer in a minute: given up, said why)
+    const timed = (p) => Promise.race([p, new Promise((ok, no) => window.setTimeout(() => no(new Error('no answer in a minute: the network may be slow or blocking Google (Copy for NotebookLM works without it)')), 60000))]);
+    const call0 = call;
+    const callT = (model) => timed(call0(model)).catch((e) => { throw /Failed to fetch|net::|ENOTFOUND|ECONN|network/i.test(String(e && e.message)) ? new Error('Google could not be reached: this network may block it (Copy for NotebookLM works without it)') : e; });
+    let r = await callT(this._aiModel || String(this.settings['ai-model'] || '').trim() || 'gemini-2.5-flash');
     if (r.status === 404) {
       const list = json(await requestUrl({ url: base + '?pageSize=200', headers: { 'x-goog-api-key': key }, throw: false })) || {};
       const names = (list.models || []).filter((x) => (x.supportedGenerationMethods || []).includes('generateContent')).map((x) => String(x.name).replace(/^models\//, ''));
       const pick = names.filter((n) => /flash/.test(n) && !/lite|image|tts|live|audio|thinking|exp|preview/.test(n)).sort().reverse()[0] || names.filter((n) => /flash/.test(n)).sort().reverse()[0] || names[0];
-      if (pick) { this._aiModel = pick; r = await call(pick); }
+      if (pick) { this._aiModel = pick; r = await callT(pick); }
     }
     const body = json(r) || {};
-    if (r.status >= 400) throw new Error((body.error && body.error.message) || 'HTTP ' + r.status);
+    if (r.status >= 400) {
+      const said = (body.error && body.error.message) || '';
+      const why = r.status === 400 && /api key/i.test(said) ? 'the API key is not right (copy it again from Google AI Studio into Settings → Revision and AI)'
+        : r.status === 403 ? 'this key may not use Gemini (make a new one in Google AI Studio)'
+          : r.status === 429 ? 'the free limit for now is used up: try again in a minute'
+            : r.status >= 500 ? 'Google\'s side had a problem: try again in a moment'
+              : said || 'HTTP ' + r.status;
+      throw new Error(why);
+    }
     const parts = (((body.candidates || [])[0] || {}).content || {}).parts || [];
     const text = parts.map((p) => p.text || '').join('');
     if (!text) throw new Error('no answer came back' + (body.promptFeedback && body.promptFeedback.blockReason ? ' (' + body.promptFeedback.blockReason + ')' : ''));
@@ -4291,6 +4804,25 @@ module.exports = class LinedPaperPages extends Plugin {
   }
 
   // ---------- what's new, once after an update ----------
+  // each time the plugin starts: which version is running, and what is new in it
+  loadNotice() {
+    const v = (this.manifest && this.manifest.version) || '';
+    console.log(`[lined-paper-pages] ${v} loaded`);
+    if (this.settings['load-notice'] === false || this.settings._seenVersion !== v) return;   // (just updated: the whole list shows instead)
+    const items = WHATS_NEW[v];
+    const frag = document.createDocumentFragment();
+    const b = document.createElement('b');
+    b.textContent = `Lined Paper Pages ${v}`;
+    frag.append(b, items ? ` · new: ${items.map(([t]) => t).join(', ')}. ` : ' loaded. ');
+    if (items) {
+      const btn = document.createElement('button');
+      btn.textContent = 'What\'s new';
+      btn.style.marginLeft = '6px';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); try { n.hide(); } catch (err) { /* */ } this.whatsNew(true); });
+      frag.append(btn);
+    }
+    const n = new Notice(frag, 7000);
+  }
   whatsNew(always = false) {
     const v = (this.manifest && this.manifest.version) || '';
     const items = WHATS_NEW[v];
@@ -4396,7 +4928,8 @@ module.exports = class LinedPaperPages extends Plugin {
       for (const c of Array.from(root.classList)) if (c.startsWith('lp-format-') && c !== want) root.classList.remove(c);
       if (want && !root.classList.contains(want)) root.classList.add(want);
     }
-    showDates(root, info ? this.noteDate(root) : frontmatterDate(fm), listValue(fm && fm['page-dates']));
+    const titles = noteTitles(root).map((h) => { const c = h.cloneNode(true); c.querySelectorAll('.paper-date, .lp-prop-date').forEach((d) => d.remove()); return c.textContent; });
+    showDates(root, info ? this.noteDate(root) : frontmatterDate(fm), pageDatesFor(titles, fm && fm['page-dates']).slice(1));
   }
   // the note shown in `el` (a reading view, or the PDF export: the open note), and its date property:
   // { file, key (null: none yet), value }
@@ -4466,41 +4999,123 @@ module.exports = class LinedPaperPages extends Plugin {
     };
     const bar = document.createElement('div');
     bar.className = 'lp-toolbar';
-    const group = (name, cls) => { const g = document.createElement('div'); g.className = 'lp-tb-group ' + (cls || ''); g.setAttribute('aria-label', name); bar.appendChild(g); return g; };
+    const el = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const group = (name, cls) => { const g = el(bar, 'div', 'lp-tb-group ' + (cls || '')); g.setAttribute('aria-label', name); return g; };
+    const keep = (b) => b.addEventListener('mousedown', (e) => e.preventDefault());   // (keeps the cursor and the selection in the note)
+    const tip = (title, cmd) => { const k = cmd ? this.hotkeyLabel(cmd) : ''; return k ? `${title} (${k})` : title; };
+    // a button that runs a command
     const button = (g, label, title, cmd, extra) => {
-      const b = document.createElement('button');
+      const b = el(g, 'button', 'lp-tb-btn' + (extra && extra.cls ? ' ' + extra.cls : ''), label);
       b.type = 'button';
-      b.className = 'lp-tb-btn' + (extra && extra.cls ? ' ' + extra.cls : '');
-      b.textContent = label;
-      b.title = title;
+      b.title = tip(title, cmd);
       b.dataset.cmd = cmd;
       if (extra && extra.style) b.setAttribute('style', extra.style);
-      // (keeps the cursor and the selection in the note)
-      b.addEventListener('mousedown', (e) => e.preventDefault());
+      keep(b);
       b.addEventListener('click', (e) => { e.preventDefault(); run(cmd); });
-      g.appendChild(b);
       return b;
     };
+    // a menu: its button, and a list of commands (each with its hotkey); '-' a line between
+    const menu = (g, label, title, items, extra) => {
+      const wrap = el(g, 'div', 'lp-tb-menuwrap');
+      const b = el(wrap, 'button', 'lp-tb-btn lp-tb-menubtn' + (extra && extra.cls ? ' ' + extra.cls : ''), label);
+      b.type = 'button';
+      b.title = title;
+      b.setAttribute('aria-haspopup', 'true');
+      keep(b);
+      const list = el(wrap, 'div', 'lp-tb-menu');
+      list.setAttribute('role', 'menu');
+      if (extra && extra.before) extra.before(list);
+      for (const it of items) {
+        if (it === '-') { el(list, 'div', 'lp-tb-sep'); continue; }
+        const [cmd, text] = it;
+        const row = el(list, 'button', 'lp-tb-item');
+        row.type = 'button';
+        row.dataset.cmd = cmd;
+        row.setAttribute('role', 'menuitem');
+        el(row, 'span', 'lp-tb-label', text);
+        const k = this.hotkeyLabel(cmd);
+        if (k) el(row, 'kbd', 'lp-tb-key', k);
+        keep(row);
+        row.addEventListener('click', (e) => { e.preventDefault(); wrap.classList.remove('lp-open'); run(cmd); });
+      }
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        const open = !wrap.classList.contains('lp-open');
+        bar.querySelectorAll('.lp-tb-menuwrap.lp-open').forEach((w) => w.classList.remove('lp-open'));
+        wrap.classList.toggle('lp-open', open);
+        // (opens to the left when it would run off the page)
+        if (open) { list.classList.remove('lp-left'); const r = list.getBoundingClientRect(); if (r.right > window.innerWidth - 8) list.classList.add('lp-left'); }
+      });
+      return wrap;
+    };
+
+    // Write: Cornell, Insert (definitions, quotes, arrows, diagrams), AI
     const ins = group('Insert', 'lp-tb-edit');
-    for (const [l, t, c] of [['Cue', 'Insert: cue + notes (Alt+N)', 'insert-cue-notes'], ['Q', 'Insert: essential question (Alt+Q)', 'insert-question'], ['Sum', 'Insert: summary (Alt+C)', 'insert-summary'],
-      ['Title', 'Insert: title (Alt+T)', 'insert-title'], ['—', 'Insert: divider line (Alt+D)', 'insert-divider'], ['Page', 'Insert: page break (Alt+P)', 'insert-nextpage'],
-      ['Def', 'Insert: definition (Alt+F)', 'insert-definition'], ['“ ”', 'Insert: quote (Alt+O)', 'insert-quote'], ['→', 'Insert: arrow (Alt+A)', 'insert-arrow'],
-      ['◇', 'Insert: diagram from the selected list (Alt+M)', 'insert-diagram'], ['✦', 'Insert: diagram, answer or questions from AI (Alt+I)', 'ask-ai']]) button(ins, l, t, c);
+    menu(ins, 'Cornell ▾', 'Cornell notes: cues, question, summary, title, pages', [
+      ['insert-cue-notes', 'Cue + notes'], ['insert-question', 'Essential question'], ['insert-summary', 'Summary'],
+      ['insert-title', 'Title (with today\'s date)'], ['insert-cornell-page', 'A whole Cornell page'], '-',
+      ['insert-wide', 'Full-width lines'], ['insert-divider', 'Divider line'], ['insert-nextpage', 'Page break'], '-',
+      ['insert-cue-from-selection', 'Cue for this line (a question drafted)'], ['insert-summary-from-cues', 'Summary from the cues'],
+    ]);
+    menu(ins, 'Insert ▾', 'Definitions, quotes, arrows, checkbox, diagrams', [
+      ['insert-definition', 'Definition (embedded)'], ['insert-definition-link', 'Definition (linked)'], ['insert-quote', 'Quote'], ['add-revised', 'Revised version'], '-',
+      ['insert-arrow', 'Arrow →'], ['insert-arrow-double', 'Double arrow ⇒'], ['insert-arrow-wavy', 'Wavy arrow ⇝'], ['insert-task', 'Checkbox'], '-',
+      ['insert-diagram', 'Diagram from the selected list'], ['diagrams-to-pages', 'This note\'s diagrams on pages of their own'],
+    ]);
+    button(ins, '✦ AI', 'Ask AI: a diagram, an answer or practice questions', 'ask-ai', { cls: 'lp-tb-ai' });
+    // Maths and science: a few symbols straight away, the rest in the picker
+    const maths = group('Maths', 'lp-tb-edit');
+    menu(maths, '∑ ▾', 'Maths and science', [
+      ['insert-math', 'Maths in the line  $x$'], ['insert-math-block', 'Maths on its own lines  $$'], ['insert-symbol', 'All symbols and templates …'], '-',
+      ['insert-chem', 'Chemical formula  H2O → H₂O'], ['insert-superscript', 'Superscript  x²'], ['insert-subscript', 'Subscript  x₂'],
+    ], {
+      before: (list) => {
+        const grid = el(list, 'div', 'lp-tb-quick');
+        for (const sym of ['π', '±', '×', '÷', '≤', '≥', '≈', '≠', '√', '°', '²', '³', '→', '⇌', 'Δ', 'μ', 'θ', '∞']) {
+          const q = el(grid, 'button', 'lp-tb-q', sym);
+          q.type = 'button';
+          const item = SYMBOLS.find((x) => x[1] === sym);
+          q.title = item ? item[3] : sym;
+          keep(q);
+          q.addEventListener('click', (e) => { e.preventDefault(); grid.closest('.lp-tb-menuwrap').classList.remove('lp-open'); this.typeSymbol(sym); });
+        }
+        el(list, 'div', 'lp-tb-sep');
+      },
+    });
+    // Pens and highlighters: one click each
     const pen = group('Pen', 'lp-tb-edit');
-    for (const [name, hex] of COLOURS) button(pen, '●', `Pen: ${name} (Mod+Alt+${name[0].toUpperCase()})`, 'colour-' + name, { cls: 'lp-tb-swatch', style: `color: var(--pen-${name}, ${hex})` });
-    button(pen, '⌫', 'Pen: remove colour (Mod+Alt+X)', 'remove-colour');
+    for (const [name, hex] of COLOURS) button(pen, '●', `Pen: ${name}`, 'colour-' + name, { cls: 'lp-tb-swatch', style: `color: var(--pen-${name}, ${hex})` });
+    button(pen, '⌫', 'Pen: remove colour', 'remove-colour', { cls: 'lp-tb-remove' });
     const hl = group('Highlight', 'lp-tb-edit');
-    for (const c of ['yellow', 'orange', 'blue', 'green', 'pink']) button(hl, '▬', `Highlight: ${c} (Alt+Shift+${c[0].toUpperCase()})`, 'highlighter-' + c, { cls: 'lp-tb-swatch lp-tb-hl hl-' + c });
-    button(hl, '⌫', 'Highlight: remove (Alt+Shift+X)', 'remove-highlight');
+    for (const c of ['yellow', 'orange', 'blue', 'green', 'pink']) button(hl, '▬', `Highlight: ${c}`, 'highlighter-' + c, { cls: 'lp-tb-swatch lp-tb-hl hl-' + c });
+    button(hl, '⌫', 'Highlight: remove', 'remove-highlight', { cls: 'lp-tb-remove' });
     const mark = group('Mark', 'lp-tb-edit');
-    for (const [l, t, c] of [['◯', 'Mark: circle (Mod+Alt+Shift+C)', 'pen-circle'], ['▢', 'Mark: box (Mod+Alt+Shift+B)', 'pen-box'], ['U̲', 'Mark: underline (Mod+Alt+Shift+U)', 'pen-underline'],
-      ['〰', 'Mark: wavy underline (Mod+Alt+Shift+W)', 'pen-wavy'], ['S̶', 'Mark: cross out (Mod+Alt+Shift+K)', 'cross-out'], ['⌫', 'Mark: remove marks (Mod+Alt+Shift+X)', 'remove-marks']]) button(mark, l, t, c);
-    const rev = group('Review', 'lp-tb-review');
-    button(rev, 'Review', 'Note: review: cover the notes, answer the cues, click to reveal', 'review', { cls: 'lp-tb-reviewbtn' });
-    button(rev, 'Study', 'Note: review cue cards (the ones due today)', 'review-cards');
-    button(rev, 'Cards', 'Note: make cue cards (a printable page)', 'cue-cards');
-    button(rev, '▤', 'Note: show cue cards beside the note (as you write)', 'show-cue-cards');
+    menu(mark, '◯ ▾', 'Mark: circle, box, underline …', [
+      ['pen-circle', '◯ Circle'], ['pen-box', '▢ Box'], ['pen-underline', 'U̲ Underline'], ['pen-wavy', '〰 Wavy underline'], ['pen-scribble', '▒ Scribble out'], ['cross-out', 'S̶ Cross out'], '-',
+      ['remove-marks', 'Remove marks'], ['remove-all-styles', 'Remove all colours, highlights and marks'],
+    ]);
+    // Study (in reading view too)
+    const rev = group('Study', 'lp-tb-review');
+    button(rev, 'Review', 'Review: cover the notes, answer the cues, click to check', 'review', { cls: 'lp-tb-reviewbtn' });
+    button(rev, 'Study', 'Study the cue cards due today', 'review-cards', { cls: 'lp-tb-study' });
+    menu(rev, 'Cards ▾', 'Cue cards', [
+      ['cue-cards', 'Make cue cards (to print)'], ['show-cue-cards', 'Cards beside the note'], ['edit-cue-cards', 'Edit cue cards'], '-',
+      ['folder-cue-cards', 'Cue cards for this folder'], ['format-cue-cards', 'Definitions and quotes cards'], ['topic-index', 'Index of this folder'],
+    ]);
+    const help = group('Help', 'lp-tb-help');
+    button(help, '?', 'Hotkeys (every one, by family)', 'hotkeys', { cls: 'lp-tb-helpbtn' });
     return bar;
+  }
+  // a symbol typed in the note in use (π outside $…$, \pi inside)
+  typeSymbol(sym) {
+    const ed = this.app.workspace.activeEditor && this.app.workspace.activeEditor.editor;
+    if (!ed) return;
+    const c = ed.getCursor('from');
+    const item = SYMBOLS.find((x) => x[1] === sym);
+    const math = inMath(ed.getLine(c.line), c.ch);
+    const text = math ? (sym === '²' ? '^2' : sym === '³' ? '^3' : item ? item[2] + (/[a-z]$/i.test(item[2]) ? ' ' : '') : sym) : sym;
+    ed.replaceSelection(text);
+    if (ed.focus) ed.focus();
   }
   syncToolbars() {
     const ws = this.app && this.app.workspace;
@@ -4536,7 +5151,14 @@ module.exports = class LinedPaperPages extends Plugin {
     if (!info || !info.file) { new Notice('Lined Paper Pages: open a note first'); return null; }
     document.querySelectorAll('.lp-date-picker').forEach((p) => p.remove());
     // (a later page: its own date in page-dates, else the note's date to start from)
-    const own = page > 0 ? (listValue(info.fm && info.fm['page-dates'])[page - 1] || '') : null;
+    // (the note's # titles: from Obsidian's cache of the note, or, without it, from the page)
+    const titlesNow = () => {
+      const cache = this.app.metadataCache && this.app.metadataCache.getFileCache && info.file && this.app.metadataCache.getFileCache(info.file);
+      if (cache && cache.headings) return cache.headings.filter((h) => h.level === 1).map((h) => h.heading);
+      const root = (el && el.closest && el.closest('.markdown-preview-view, .print')) || document;
+      return noteTitles(root).map((h) => { const c = h.cloneNode(true); c.querySelectorAll('.paper-date, .lp-prop-date').forEach((d) => d.remove()); return c.textContent; });
+    };
+    const own = page > 0 ? (pageDatesFor(titlesNow(), info.fm && info.fm['page-dates'])[page] || '') : null;
     const current = own || info.value;
     const iso = isoDate(current);
     const text = !iso && String(current || '').trim() !== '';
@@ -4561,11 +5183,11 @@ module.exports = class LinedPaperPages extends Plugin {
       if (!app.fileManager || !app.fileManager.processFrontMatter) return;
       app.fileManager.processFrontMatter(info.file, (fm) => {
         if (page > 0) {
-          const list = listValue(fm['page-dates']);
-          while (list.length < page) list.push('');
-          list[page - 1] = v;
-          while (list.length && !list[list.length - 1]) list.pop();
-          if (list.length) fm['page-dates'] = list; else delete fm['page-dates'];
+          const titles = titlesNow();
+          const map = pageDatesMap(titles, fm['page-dates']) || {};
+          const key = titleKeys(titles)[page];
+          if (key) { if (v) map[key] = v; else delete map[key]; }
+          if (Object.keys(map).length) fm['page-dates'] = map; else delete fm['page-dates'];
           return;
         }
         const key = dateKey(fm) || 'date';
@@ -5170,6 +5792,7 @@ module.exports.setDateProperty = setDateProperty;
 module.exports.formatDate = formatDate;
 module.exports.isoDate = isoDate;
 module.exports.addPageDate = addPageDate;
+Object.assign(module.exports, { pageDatesFor, pageDatesMap, titleKeys });
 module.exports.sectionDates = sectionDates;
 module.exports.wrapSelection = wrapSelection;
 module.exports.restyleLine = restyleLine;
@@ -5186,7 +5809,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
-Object.assign(module.exports, { diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
+Object.assign(module.exports, { STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;
@@ -5228,20 +5851,49 @@ class LinedPaperSettingTab extends PluginSettingTab {
         this.display();
       }));
 
-    let inAdvanced = false;
+    // (a few things to do from here)
+    new Setting(containerEl)
+      .setName('Hotkeys and a study vault')
+      .setDesc('Every hotkey, by family; or make the folders, home page and template of a study vault (nothing of yours is changed).')
+      .addButton((b) => b.setButtonText('Hotkeys').onClick(() => pl.showHotkeys()))
+      .addButton((b) => b.setButtonText('Set up a study vault').onClick(() => pl.setupVault()));
+    // the sections fold away (click a heading); a search finds a setting in any of them
+    const open = this.openSections || (this.openSections = new Set(['Pages']));
+    const rows = [];   // { el, sec, text }
+    const heads = [];  // { el, sec }
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'lp-set-search';
+    search.placeholder = 'Find a setting …';
+    search.value = this.query || '';
+    containerEl.appendChild(search);
+    const refresh = () => {
+      const q = (this.query || '').trim().toLowerCase();
+      for (const r of rows) r.el.style.display = (q ? r.text.includes(q) : open.has(r.sec)) ? '' : 'none';
+      for (const h of heads) {
+        const any = rows.some((r) => r.sec === h.sec && r.text.includes(q));
+        h.el.style.display = !q || any ? '' : 'none';
+        h.el.classList.toggle('lp-set-open', q ? any : open.has(h.sec));
+      }
+    };
+    search.addEventListener('input', () => { this.query = search.value; refresh(); });
+    let inAdvanced = false, sec = '';
     for (const def of SETTINGS) {
       if (def.section) {
         inAdvanced = !!def.advanced;
+        sec = def.section;
+        const head = new Setting(containerEl).setHeading().setName(def.section);
+        head.settingEl.classList.add('lp-set-heading');
+        const name = def.section;
+        head.settingEl.addEventListener('click', () => { if (open.has(name)) open.delete(name); else open.add(name); refresh(); });
+        heads.push({ el: head.settingEl, sec: name });
         if (inAdvanced) {
-          new Setting(containerEl).setHeading().setName(def.section);
-          new Setting(containerEl)
+          const adv = new Setting(containerEl)
             .setName('Show advanced settings')
             .setDesc(def.desc)
             .addToggle((t) => t.setValue(this.showAdvanced).onChange((on) => { this.showAdvanced = on; this.display(); }));
-        } else {
-          const h = new Setting(containerEl).setHeading().setName(def.section);
-          if (def.desc) h.setDesc(def.desc);
-        }
+          rows.push({ el: adv.settingEl, sec, text: 'show advanced settings ' + String(def.desc || '').toLowerCase() });
+        } else if (def.desc) head.setDesc(def.desc);
         continue;
       }
       if (inAdvanced && !this.showAdvanced) continue;
@@ -5249,6 +5901,7 @@ class LinedPaperSettingTab extends PluginSettingTab {
       const value = stored === undefined ? def.def : stored;
       const row = new Setting(containerEl).setName(def.name);
       if (def.desc) row.setDesc(def.desc);
+      rows.push({ el: row.settingEl, sec, text: (def.name + ' ' + (def.desc || '') + ' ' + sec).toLowerCase() });
       if (def.type === 'toggle') {
         row.addToggle((t) => t.setValue(value).onChange((on) => pl.setSetting(def.key, on === def.def ? undefined : on)));
       } else if (def.type === 'slider') {
@@ -5289,11 +5942,17 @@ class LinedPaperSettingTab extends PluginSettingTab {
           t.setPlaceholder(def.def).setValue(stored || '').onChange((v) => pl.setSetting(def.key, v.trim() ? v.trim() : undefined));
           if (def.secret && t.inputEl) t.inputEl.type = 'password';
         });
+        if (def.key === 'ai-key') {
+          row.addButton((b) => b.setButtonText('Check').onClick(async () => {
+            try { await pl.gemini('Reply with the word OK.'); new Notice('Lined Paper Pages: the Gemini key works'); } catch (e) { new Notice('Lined Paper Pages: Gemini: ' + (e && e.message ? e.message : e)); }
+          }));
+        }
       }
       row.addExtraButton((b) => b.setIcon('rotate-ccw').setTooltip('Back to default').onClick(async () => {
         await pl.setSetting(def.key, undefined);
         this.display();
       }));
     }
+    refresh();
   }
 }

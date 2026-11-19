@@ -11,7 +11,7 @@ Module._load = function (name, ...rest) {
   if (name === 'obsidian') return { Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {} };
   return load.call(this, name, ...rest);
 };
-const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, formatCard, linkedPages, hardBreaks, cardNewLine, newerVersion, fetchPluginFile, fetchPluginVersion, UPDATE_MIRRORS } = require('../main.js');
+const { paperClasses, insertBlock, TEMPLATES, colourRuns, setDateProperty, frontmatterDate, noteThemeClasses, addPageDate, wrapSelection, restyleLine, HOTKEYS, addPaperCommands, formatNoteText, addRevised, nameAndAliases, sheetOrder, cueCardsNote, cornellCards, cueBlockText, parseCueBlock, formatCard, linkedPages, hardBreaks, cardNewLine, pageDatesFor, pageDatesMap, newerVersion, fetchPluginFile, fetchPluginVersion, UPDATE_MIRRORS } = require('../main.js');
 Module._load = load;
 
 test('cssclasses: lined paper, Cornell notes and off, other classes kept', () => {
@@ -98,21 +98,21 @@ test('a note\'s own light or dark paper: its cssclasses, the rest kept', () => {
   assert.deepEqual(noteThemeClasses({}, 'light'), ['light-paper']);
 });
 
-test('a title on a later page: today in the page-dates list, at its place', () => {
+test('a title on a later page: today in page-dates, by its title (the other pages keep theirs)', () => {
   const iso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  // the 3rd # title: the 2nd item, the 1st kept
-  const e = editor('---\ndate: 2026-10-26\npage-dates:\n  - 2026-10-27\n---\n# One\n# Two\n\n# Three', 8, 0);
+  // a 3rd title written (the cursor on it, not named yet): today, the others kept
+  const e = editor('---\ndate: 2026-10-26\npage-dates:\n  Two: 2026-10-27\n---\n# One\n# Two\n\n# ', 8, 2);
   addPageDate(e);
-  assert.equal(e.text(), `---\ndate: 2026-10-26\npage-dates:\n  - 2026-10-27\n  - ${iso}\n---\n# One\n# Two\n\n# Three`);
-  assert.deepEqual(e.getCursor(), { line: 9, ch: 0 });
-  // put between two pages: the later page keeps its date
-  const f = editor('---\ndate: 2026-10-26\npage-dates: [2026-10-27]\n---\n# One\nx\n# Two', 5, 1);
+  assert.equal(e.text(), `---\ndate: 2026-10-26\npage-dates:\n  Two: 2026-10-27\n  Untitled: ${iso}\n---\n# One\n# Two\n\n# `);
+  assert.deepEqual(e.getCursor(), { line: 9, ch: 2 });
+  // put between two pages: the later page keeps its own date (the list of older versions, by place, read)
+  const f = editor('---\ndate: 2026-10-26\npage-dates: [2026-10-27]\n---\n# One\n# New page\n# Two', 5, 3);
   addPageDate(f);
-  assert.equal(f.text(), `---\ndate: 2026-10-26\npage-dates:\n  - ${iso}\n  - 2026-10-27\n---\n# One\nx\n# Two`);
-  // no list yet, the 3rd title: an empty place for the 2nd
-  const g = editor('---\ndate: 2026-10-26\n---\n# One\n# Two\n', 5, 0);
+  assert.equal(f.text(), `---\ndate: 2026-10-26\npage-dates:\n  New page: ${iso}\n  Two: 2026-10-27\n---\n# One\n# New page\n# Two`);
+  // a title with a colon in it: written so it is still read right
+  const g = editor('---\ndate: 2026-10-26\n---\n# One\n# Part 2: IVF', 4, 3);
   addPageDate(g);
-  assert.equal(g.text(), `---\ndate: 2026-10-26\npage-dates:\n  - ""\n  - ${iso}\n---\n# One\n# Two\n`);
+  assert.equal(g.text(), `---\ndate: 2026-10-26\npage-dates:\n  "Part 2: IVF": ${iso}\n---\n# One\n# Part 2: IVF`);
   // the note's own title: nothing (its date is the date property)
   const h = editor('---\ndate: 2026-10-26\n---\n', 3, 0);
   addPageDate(h);
@@ -209,7 +209,9 @@ test('hotkeys: one family per kind of command, named after it, no two the same',
   const keys = Object.values(HOTKEYS).map((h) => h[0].modifiers.join('+') + '+' + h[0].key);
   assert.equal(new Set(keys).size, keys.length, 'no two the same: ' + keys.join(' '));
   // each family: its keys and the start of its commands' names
-  const family = { 'Alt': 'Insert: ', 'Mod': 'Insert: ', 'Mod+Shift': 'Insert: ', 'Mod+Alt': 'Pen: ', 'Alt+Shift': 'Highlight: ', 'Mod+Alt+Shift': 'Mark: ' };
+  // (the families: as HOTKEY_FAMILIES says, which the hotkeys list and the toolbar show)
+  const family = Object.fromEntries(require('../main.js').HOTKEY_FAMILIES.map((f) => [f.mods, f.prefix]));
+  assert.deepEqual(family, { 'Alt': 'Insert: ', 'Mod+Alt': 'Pen: ', 'Alt+Shift': 'Highlight: ', 'Mod+Alt+Shift': 'Mark: ', 'Mod+Shift': 'Note: ' });
   for (const [id, h] of Object.entries(HOTKEYS)) {
     // (a definition linked, Alt + Shift + F, sits next to its embedded one, Alt + F)
     const want = id === 'insert-definition-link' ? 'Insert: ' : family[h[0].modifiers.join('+')];
@@ -471,4 +473,63 @@ test('a topic index: its notes (with how many questions), definitions, quotes an
     { kind: 'quote', file: f('Quotes/Yevamot 69b.md'), said: '"…the foetus is merely water."' },
   ]);
   assert.equal(text, '---\nformat: index\ncssclasses:\n  - lp-index\n---\n# RS/Life\n\n## Notes\n\n- [[RS/Life/Beginning of Life|Beginning of Life]] · 4 questions · 2026-11-12\n\n## Definitions\n\n- **[[Definitions/foetus|foetus]]**: An unborn baby from eight weeks.\n\n## Quotes\n\n- [[Quotes/Yevamot 69b|Yevamot 69b]]: "…the foetus is merely water."\n');
+});
+
+// an editor over a string, for the commands (the selection from / to)
+function stringEditor(text, from, to) {
+  const e = { text, from: from || { line: 0, ch: 0 }, to: to || from || { line: 0, ch: 0 } };
+  const lines = () => e.text.split('\n');
+  const off = (p) => lines().slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.ch;
+  const pos = (o) => { const b = e.text.slice(0, o).split('\n'); return { line: b.length - 1, ch: b[b.length - 1].length }; };
+  Object.assign(e, {
+    getValue: () => e.text, getLine: (l) => lines()[l], lineCount: () => lines().length,
+    getSelection: () => e.text.slice(off(e.from), off(e.to)),
+    getCursor: (w) => (w === 'from' ? e.from : e.to),
+    replaceRange: (t, a, b) => { const x = off(a), y = off(b || a); e.text = e.text.slice(0, x) + t + e.text.slice(y); e.from = e.to = pos(x + t.length); },
+    replaceSelection: (t) => { const x = off(e.from); e.text = e.text.slice(0, x) + t + e.text.slice(off(e.to)); e.from = e.to = pos(x + t.length); },
+    setSelection: (a, h) => { e.from = a; e.to = h || a; }, setCursor: (p) => { e.from = e.to = p; }, focus: () => {},
+  });
+  return e;
+}
+
+test('maths and science: $…$ in the line, $$ on lines of its own (inside a callout too), chemical formulas, raised and lowered text (LaTeX inside $…$)', () => {
+  const cmds = {};
+  addPaperCommands({ app: {}, settings: {}, addCommand: (c) => { cmds[c.id] = c; }, addRibbonIcon: () => {} });
+  const run = (id, text, from, to) => { const e = stringEditor(text, from, to); cmds[id].editorCallback(e); return e; };
+  let e = run('insert-math', 'speed = ', { line: 0, ch: 8 });
+  assert.deepEqual([e.text, e.from.ch], ['speed = $$', 9], 'the cursor between the dollars');
+  assert.equal(run('insert-math', 'E = mc^2 here', { line: 0, ch: 0 }, { line: 0, ch: 8 }).text, '$E = mc^2$ here');
+  e = run('insert-math-block', '>> [!notes]\n>> Newton:', { line: 1, ch: 10 });
+  assert.equal(e.text, '>> [!notes]\n>> Newton:\n>> $$\n>> \n>> $$', 'on lines of its own, in the callout');
+  assert.deepEqual(e.from, { line: 3, ch: 3 });
+  assert.equal(run('insert-chem', 'Water is H2O.', { line: 0, ch: 10 }).text, 'Water is H₂O.', 'the formula the cursor is in');
+  assert.equal(run('insert-chem', 'C6H12O6 + 6O2 -> 6CO2 + 6H2O', { line: 0, ch: 0 }, { line: 0, ch: 28 }).text, 'C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O');
+  assert.equal(run('insert-superscript', 'x2', { line: 0, ch: 1 }, { line: 0, ch: 2 }).text, 'x²');
+  assert.equal(run('insert-subscript', 'v max', { line: 0, ch: 2 }, { line: 0, ch: 5 }).text, 'v ₘₐₓ');
+  assert.equal(run('insert-superscript', 'a $x2$', { line: 0, ch: 4 }, { line: 0, ch: 5 }).text, 'a $x^{2}$', 'inside $…$: LaTeX');
+  assert.equal(run('insert-subscript', 'F word', { line: 0, ch: 2 }, { line: 0, ch: 6 }).text, 'F <sub>word</sub>', 'no small letters for all of it: <sub>');
+});
+
+test('hotkeys: the study family (Ctrl+Shift), the maths keys; each shown as it reads (Ctrl+Alt+B, ⌘⌥B)', () => {
+  const { hotkeyText } = require('../main.js');
+  const k = (id) => HOTKEYS[id][0].modifiers.join('+') + '+' + HOTKEYS[id][0].key;
+  assert.deepEqual(['review', 'review-cards', 'cue-cards', 'show-cue-cards', 'insert-math', 'insert-symbol'].map(k), ['Mod+Shift+r', 'Mod+Shift+s', 'Mod+Shift+k', 'Mod+Shift+b', 'Alt+=', 'Alt+s']);
+  assert.equal(hotkeyText(HOTKEYS['colour-blue'][0], false), 'Ctrl+Alt+B');
+  assert.equal(hotkeyText(HOTKEYS['colour-blue'][0], true), '⌘⌥B');
+  assert.equal(hotkeyText(HOTKEYS['pen-box'][0], false), 'Ctrl+Alt+Shift+B');
+  assert.equal(hotkeyText(HOTKEYS['insert-math'][0], false), 'Alt+=');
+});
+
+test('page dates go with their titles: a title taken out, its date with it; renamed, its date kept; moved, its date moves; the list of older versions read by place', () => {
+  const v = { IVF: '2026-11-12', Abortion: '2026-11-19', Euthanasia: '2026-11-26' };
+  // (the first title is the note's own: its date is the date property)
+  assert.deepEqual(pageDatesFor(['Life', 'IVF', 'Abortion', 'Euthanasia'], v), ['', '2026-11-12', '2026-11-19', '2026-11-26']);
+  assert.deepEqual(pageDatesMap(['Life', 'IVF', 'Euthanasia'], v), { IVF: '2026-11-12', Euthanasia: '2026-11-26' }, 'Abortion taken out: its date too');
+  assert.deepEqual(pageDatesFor(['Life', 'Euthanasia', 'IVF'], v), ['', '2026-11-26', '2026-11-12'], 'moved: each keeps its own');
+  assert.deepEqual(pageDatesMap(['Life', 'IVF treatment', 'Abortion', 'Euthanasia'], v), { 'IVF treatment': '2026-11-12', Abortion: '2026-11-19', Euthanasia: '2026-11-26' }, 'renamed a little: kept');
+  assert.deepEqual(pageDatesMap(['Life', 'IVF', 'Genetic engineering'], { IVF: '2026-11-12', Abortion: '2026-11-19' }), { IVF: '2026-11-12' }, 'a different title is not given the date of one taken out');
+  assert.deepEqual(pageDatesMap(['Life', 'IVF', 'Abortion'], { IVF: '2026-11-12', Untitled: '2026-11-19' }), { IVF: '2026-11-12', Abortion: '2026-11-19' }, 'a title just written, then named');
+  assert.deepEqual(pageDatesMap(['Life', 'Recap', 'Recap'], { Recap: '2026-11-12', 'Recap (2)': '2026-11-19' }), { Recap: '2026-11-12', 'Recap (2)': '2026-11-19' }, 'a title written twice');
+  assert.deepEqual(pageDatesMap(['Life', 'IVF', 'Abortion'], ['2026-11-12', '2026-11-19']), { IVF: '2026-11-12', Abortion: '2026-11-19' }, 'the list of older versions: by place');
+  assert.equal(pageDatesMap(['Life'], v), null, 'no later pages: none');
 });

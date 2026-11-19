@@ -160,7 +160,7 @@ for (const [mode, cssPaging] of [['plugin pagination', false], ['CSS pagination'
       });
       assert.deepEqual(r.dates, [['26 Oct 2026', 0, true], ['28 Oct 2026', 1, true], ['26 Oct 2026', 2, true]], 'each page\'s date at the top of its page');
       assert.equal(r.startsFrom, '2026-10-26', 'the picker starts from the date shown');
-      assert.deepEqual(r.list, ['2026-10-28', '2026-11-02'], 'that page\'s own date');
+      assert.deepEqual(r.list, { 'Part two': '2026-10-28', 'Part three': '2026-11-02' }, 'that page\'s own date, by its title (the list of older versions read by place)');
       assert.equal(r.noteDate, '2026-10-26', 'the note\'s date unchanged');
     } finally {
       await context.close();

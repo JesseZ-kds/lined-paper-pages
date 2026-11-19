@@ -455,3 +455,214 @@ test('an embedded diagram looks exactly as the same diagram typed on the page (n
     await context.close();
   }
 });
+
+test('commands for the editor run from reading view too (the note switched to editing first); the toolbar\'s maths menu types a symbol (π in writing, \\pi inside $…$)', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(async () => {
+      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+      const plugin = window.plugin;
+      const cmds = {};
+      let state = { mode: 'preview' };
+      const editor = window.makeEditor('Area = ', { line: 0, ch: 7 });
+      editor.focus = () => {};
+      const view = { editor, getMode: () => state.mode, getState: () => state, setState: async (s) => { state = s; } };
+      plugin.app.workspace.getActiveViewOfType = () => view;
+      plugin.addCommand = (c) => { cmds[c.id] = c; };
+      window.plugin.constructor.addPaperCommands(plugin);
+      const c = cmds['insert-math'];
+      const shape = [typeof c.editorCallback, typeof c.checkCallback];
+      const available = c.checkCallback(true);
+      c.checkCallback(false);
+      await wait(150);
+      const afterMath = editor.text;
+      // the toolbar's quick symbols
+      plugin.app.workspace.activeEditor = { editor };
+      editor.setCursor({ line: 0, ch: editor.text.length });
+      plugin.typeSymbol('π');                                   // (after the $$: in writing)
+      const outside = editor.text;
+      editor.setCursor({ line: 0, ch: 8 });                      // (between the dollars)
+      plugin.typeSymbol('π');
+      return { shape, available, mode: state.mode, afterMath, outside, inside: editor.text };
+    });
+    assert.deepEqual(r.shape, ['undefined', 'function'], 'an editor command made a command that is there in reading view too');
+    assert.equal(r.available, true);
+    assert.equal(r.mode, 'source', 'switched to editing');
+    assert.equal(r.afterMath, 'Area = $$');
+    assert.equal(r.outside, 'Area = $$π');
+    assert.equal(r.inside, 'Area = $\\pi $π');
+  } finally {
+    await context.close();
+  }
+});
+
+test('the symbol picker: found by name, typed as a symbol in writing, as LaTeX inside $…$; a template (a fraction) is maths, around the selection', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(() => {
+      const plugin = window.plugin;
+      const pick = (text, from, to, query) => {
+        const e = window.makeEditor(text, from, to);
+        plugin.symbolPicker(e);
+        const s = plugin._symbols;
+        s.search.value = query; s.search.dispatchEvent(new Event('input'));
+        const first = s.modal.contentEl.querySelector('.lp-sym');
+        const found = [...s.modal.contentEl.querySelectorAll('.lp-sym')].map((b) => b.textContent);
+        first.click();
+        return { text: e.text, found };
+      };
+      return {
+        pi: pick('Area = r', { line: 0, ch: 8 }, null, 'pi'),
+        piMath: pick('$A = r$', { line: 0, ch: 5 }, null, 'pi'),
+        frac: pick('half is 1/2', { line: 0, ch: 8 }, { line: 0, ch: 11 }, 'fraction'),
+        equilibrium: pick('N2 + 3H2 ', { line: 0, ch: 9 }, null, 'reversible'),
+        groups: (() => { const e = window.makeEditor('', { line: 0, ch: 0 }); plugin.symbolPicker(e); const g = [...plugin._symbols.modal.contentEl.querySelectorAll('.lp-sym-group')].map((x) => x.textContent); plugin._symbols.modal.close(); return g; })(),
+      };
+    });
+    assert.deepEqual(r.pi.found.slice(0, 1), ['π']);
+    assert.equal(r.pi.text, 'Area = rπ');
+    assert.equal(r.piMath.text, '$A = \\pi r$');
+    assert.equal(r.frac.text, 'half is $\\frac{1/2}{}$');
+    assert.equal(r.equilibrium.text, 'N2 + 3H2 ⇌');
+    assert.deepEqual(r.groups, ['Templates (maths)', 'Maths', 'Greek', 'Science']);
+  } finally {
+    await context.close();
+  }
+});
+
+test('the hotkeys list: every family in turn, each command with its keys; Gemini\'s errors said plainly (a wrong key, the limit, a blocked network)', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(async () => {
+      const plugin = window.plugin;
+      plugin.addCommand = () => {};
+      window.plugin.constructor.addPaperCommands(plugin);
+      plugin.showHotkeys();
+      const m = document.querySelector('.lp-hotkeys-modal');
+      const fams = [...m.querySelectorAll('.lp-hk-head b')].map((b) => b.textContent);
+      const row = (name) => [...m.querySelectorAll('.lp-hk-row')].find((x) => x.querySelector('span').textContent.startsWith(name));
+      const out = { fams, cue: row('cue + notes').querySelector('kbd').textContent, blue: row('blue').querySelector('kbd').textContent, study: row('review cue cards').querySelector('kbd').textContent };
+      plugin.settings['ai-key'] = 'bad';
+      const err = async (resp) => { window.__request = resp; try { await plugin.gemini('x'); return 'no error'; } catch (e) { return e.message; } };
+      out.key = await err(async () => ({ status: 400, body: { error: { message: 'API key not valid. Please pass a valid API key.' } } }));
+      out.limit = await err(async () => ({ status: 429, body: { error: { message: 'Resource has been exhausted' } } }));
+      out.net = await err(async () => { throw new Error('net::ERR_CONNECTION_RESET'); });
+      return out;
+    });
+    assert.deepEqual(r.fams, ['Insert', 'Pen', 'Highlight', 'Mark', 'Study']);
+    assert.deepEqual([r.cue, r.blue, r.study], ['Alt+N', 'Ctrl+Alt+B', 'Ctrl+Shift+S']);
+    assert.match(r.key, /API key is not right/);
+    assert.match(r.limit, /free limit/);
+    assert.match(r.net, /could not be reached[\s\S]*NotebookLM/);
+  } finally {
+    await context.close();
+  }
+});
+
+test('a study vault: its folders, Home, the Cornell template and the example made; nothing there already is changed', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(async () => {
+      const plugin = window.plugin;
+      const { vault, open } = window.makeVault(plugin, { 'Home.md': 'my own home page' });
+      vault.createFolder = async (f) => { vault.files[f + '/.folder'] = { path: f + '/.folder', text: '' }; };
+      plugin.showCardPanel = async () => {};
+      const made = await plugin.makeStudyVault(false);
+      return { made, home: vault.files['Home.md'].text, files: Object.keys(vault.files).sort(), open };
+    });
+    assert.equal(r.home, 'my own home page', 'not changed');
+    assert.ok(r.files.includes('Templates/Cornell note.md') && r.files.includes('Subjects/Example/Beginning of Life (example).md'));
+    for (const f of ['Subjects', 'Definitions', 'Quotes', 'Diagrams', 'Cue cards', 'Templates', 'Attachments']) assert.ok(r.files.includes(f + '/.folder'), f);
+    assert.deepEqual(r.open, ['Home.md']);
+  } finally {
+    await context.close();
+  }
+});
+
+test('maths on lined paper: in a line it takes one line (a fraction too), on lines of its own the writing after it starts on a ruled line', async () => {
+  const { page, context } = await openReading({ name: 'maths', cornell: false, blocks: [title('Maths'), block('<p>Speed is <mjx-container class="MathJax" jax="CHTML"><mjx-math style="display:inline-block;height:44px;width:40px;vertical-align:-16px"></mjx-math></mjx-container> metres per second, and so on for a second line of writing here.</p>'), block('<p>Next line.</p>'), '<div class="el-div"><div class="math math-block is-loaded"><mjx-container class="MathJax" jax="CHTML" display="true"><mjx-math style="display:block;height:61px"></mjx-math></mjx-container></div></div>', block('<p>After the maths.</p>')] }, { theme: 'theme-light' });
+  try {
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(() => {
+      const ps = document.querySelectorAll('.markdown-preview-view p');
+      const L = parseFloat(getComputedStyle(ps[0]).lineHeight);
+      const at = (p) => Math.round(((p.getBoundingClientRect().top - ps[0].getBoundingClientRect().top) / L) * 1000) / 1000;
+      return { next: at(ps[1]), after: at(ps[2]), lines: Math.round(ps[0].getBoundingClientRect().height / L * 100) / 100 };
+    });
+    assert.equal(r.lines % 1, 0, 'the paragraph with the fraction: whole lines: ' + r.lines);
+    assert.equal(r.next % 1, 0, 'the next paragraph on a line: ' + r.next);
+    assert.equal(r.after % 1, 0, 'the writing after the maths on a line: ' + r.after);
+  } finally {
+    await context.close();
+  }
+});
+
+test('each time it starts it says its version and what is new (after an update: the whole list instead); switched off in the settings', async () => {
+  const { page, context } = await open();
+  try {
+    const r = await page.evaluate(() => {
+      const plugin = window.plugin;
+      const notes = [];
+      const orig = console.error;
+      console.error = (m) => notes.push(String(m));
+      const said = () => { notes.length = 0; plugin.loadNotice(); return notes.slice(); };
+      plugin.manifest.version = '1.38.0';
+      plugin.settings._seenVersion = '1.38.0';
+      const each = said();
+      plugin.settings._seenVersion = '1.37.0';
+      const updated = said();
+      plugin.settings._seenVersion = '1.38.0';
+      plugin.settings['load-notice'] = false;
+      const off = said();
+      console.error = orig;
+      return { each, updated, off };
+    });
+    assert.equal(r.each.length, 1);
+    assert.match(r.each[0], /Lined Paper Pages 1\.38\.0 · new: Page dates by title, Says its version, A new toolbar, Maths and science/);
+    assert.deepEqual(r.updated, [], 'just updated: the whole list shows instead');
+    assert.deepEqual(r.off, []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('page dates kept with their titles: a title taken out, its date taken out of the properties; each page shows its own date', async () => {
+  const { page, context } = await openReading({ name: 'dates', cornell: false, blocks: [title('Life'), block('<p>one</p>'), title('IVF'), block('<p>two</p>'), title('Euthanasia'), block('<p>three</p>')] }, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(async () => {
+      const plugin = window.plugin;
+      let fm = { date: '2026-11-05', 'page-dates': { IVF: '2026-11-12', Abortion: '2026-11-19', Euthanasia: '2026-11-26' } };
+      let headings = ['Life', 'IVF', 'Euthanasia'];       // (Abortion's title taken out)
+      const file = { path: 'Life.md' };
+      plugin.app.metadataCache = { getFileCache: () => ({ frontmatter: fm, headings: headings.map((h) => ({ level: 1, heading: h })) }) };
+      let writes = 0;
+      plugin.app.fileManager = { processFrontMatter: async (f, fn) => { writes++; const copy = JSON.parse(JSON.stringify(fm)); fn(copy); fm = copy; } };
+      const changed = await plugin.syncPageDates(file);
+      const after = JSON.parse(JSON.stringify(fm['page-dates']));
+      const again = await plugin.syncPageDates(file);         // (nothing to change: nothing written)
+      headings = ['Life', 'IVF treatment', 'Euthanasia'];      // (renamed)
+      await plugin.syncPageDates(file);
+      const renamed = JSON.parse(JSON.stringify(fm['page-dates']));
+      fm = { date: '2026-11-05', 'page-dates': ['2026-11-12', '2026-11-26'] };   // (the list of older versions)
+      headings = ['Life', 'IVF', 'Euthanasia'];
+      await plugin.syncPageDates(file);
+      const converted = JSON.parse(JSON.stringify(fm['page-dates']));
+      // the title bars: each page its own date
+      const view = document.querySelector('.markdown-preview-view');
+      plugin.noteDateInfo = () => ({ file, fm: { date: '2026-11-05', 'page-dates': { IVF: '2026-11-12', Euthanasia: '2026-11-26' } }, value: '2026-11-05', key: 'date' });
+      plugin.noteDate = () => '5 Nov 2026';
+      plugin.showNoteDates(view);
+      const shown = [...view.querySelectorAll('h1 .lp-prop-date')].map((d) => d.textContent);
+      return { changed, after, again, writes, renamed, converted, shown };
+    });
+    assert.equal(r.changed, true);
+    assert.deepEqual(r.after, { IVF: '2026-11-12', Euthanasia: '2026-11-26' }, 'Abortion\'s date gone with its title');
+    assert.equal(r.again, false, 'nothing written when nothing changes');
+    assert.deepEqual(r.renamed, { 'IVF treatment': '2026-11-12', Euthanasia: '2026-11-26' });
+    assert.deepEqual(r.converted, { IVF: '2026-11-12', Euthanasia: '2026-11-26' }, 'the old list turned into titles and dates');
+    assert.equal(r.shown.length, 3);
+    assert.deepEqual(r.shown.slice(1), ['12 Nov 2026', '26 Nov 2026'], 'each page its own date: ' + r.shown);
+  } finally {
+    await context.close();
+  }
+});
