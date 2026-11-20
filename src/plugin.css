@@ -884,3 +884,21 @@ body:is(.lp-tb-at-br, .lp-tb-at-bl) .lp-tb-menu { top: auto; bottom: calc(100% +
 }
 .lined-paper mjx-container:not([display="true"]) > mjx-math { vertical-align: middle; }
 .lined-paper :is(.math-block, mjx-container[display="true"]) { margin: 0 !important; padding: 0; overflow-x: auto; overflow-y: visible; }
+
+/* ---------- With Editing Toolbar ----------
+   Its bar at the top of a note (its "top" style) sits where this toolbar floats: this one goes under it.
+   (Every command of this plugin has an icon, to put on Editing Toolbar or with Commander.) */
+.view-content.has-editing-toolbar > .lp-toolbar,
+.view-content:has(.editingToolbarModalBar[data-toolbar-style="top"], #editingToolbarModalBar.top) > .lp-toolbar {
+  top: calc(var(--toolbar-icon-size, 18px) + 26px);
+}
+
+/* ---------- With a theme's callout style (AnuPpuccin "sleek": a dashed line across the top of the
+   writing) ----------
+   A line across a callout takes a pixel of its height, and the writing after it no longer sits on
+   the ruled lines. On lined paper: no line there (the theme's tint and title colour stay). */
+.lined-paper .callout > .callout-content,
+.lined-paper .callout > .callout-title {
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+}

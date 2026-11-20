@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.38.1] - 2026-11-20
+
+### Changed
+- **Update notes only once.** What is new is said the first time Obsidian starts after an update, in a
+  short note (*What's new* for the whole list); no window opens by itself, and later starts are
+  quiet. *Settings → Updates → Say which version is running each time Obsidian starts* (now off) for
+  the note every time.
+
+### Added
+- **With Editing Toolbar:** its bar at the top of a note is no longer covered (this toolbar goes under
+  it); its highlight colours (`<mark style="background: …">`) are kept, drawn as the highlighter in
+  that colour (they turned yellow).
+- **Every command has an icon**, so it shows properly on Commander's ribbon, page header and menus,
+  on Editing Toolbar, and on the mobile toolbar.
+- Checked with the AnuPpuccin theme: everything stays on the lines with its defaults and its common
+  options (callout styles, coloured headings, list and table colours, card layout).
+
 ## [1.38.0] - 2026-11-19
 
 ### Added

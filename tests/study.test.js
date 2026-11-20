@@ -597,7 +597,7 @@ test('maths on lined paper: in a line it takes one line (a fraction too), on lin
   }
 });
 
-test('each time it starts it says its version and what is new (after an update: the whole list instead); switched off in the settings', async () => {
+test('what is new is said once, the first time after an update (a short note, no window); after that nothing, unless the setting asks for it each time', async () => {
   const { page, context } = await open();
   try {
     const r = await page.evaluate(() => {
@@ -605,22 +605,23 @@ test('each time it starts it says its version and what is new (after an update: 
       const notes = [];
       const orig = console.error;
       console.error = (m) => notes.push(String(m));
-      const said = () => { notes.length = 0; plugin.loadNotice(); return notes.slice(); };
-      plugin.manifest.version = '1.38.0';
+      const said = () => { notes.length = 0; plugin.loadNotice(); return { notes: notes.slice(), window: !!document.querySelector('.lp-whatsnew') }; };
+      plugin.manifest.version = '1.38.1';
       plugin.settings._seenVersion = '1.38.0';
-      const each = said();
-      plugin.settings._seenVersion = '1.37.0';
       const updated = said();
-      plugin.settings._seenVersion = '1.38.0';
-      plugin.settings['load-notice'] = false;
-      const off = said();
+      const next = said();
+      const again = said();
+      plugin.settings['load-notice'] = true;
+      const asked = said();
       console.error = orig;
-      return { each, updated, off };
+      return { updated, next, again, asked, seen: plugin.settings._seenVersion };
     });
-    assert.equal(r.each.length, 1);
-    assert.match(r.each[0], /Lined Paper Pages 1\.38\.0 · new: Page dates by title, Says its version, A new toolbar, Maths and science/);
-    assert.deepEqual(r.updated, [], 'just updated: the whole list shows instead');
-    assert.deepEqual(r.off, []);
+    assert.equal(r.updated.notes.length, 1);
+    assert.match(r.updated.notes[0], /Lined Paper Pages 1\.38\.1 \(updated\)/);
+    assert.equal(r.updated.window, false, 'no window opens by itself');
+    assert.deepEqual([r.next.notes, r.again.notes], [[], []], 'the next starts: nothing');
+    assert.equal(r.seen, '1.38.1');
+    assert.match(r.asked.notes[0], /Lined Paper Pages 1\.38\.1 /, 'with the setting on: each time');
   } finally {
     await context.close();
   }
@@ -662,6 +663,38 @@ test('page dates kept with their titles: a title taken out, its date taken out o
     assert.deepEqual(r.converted, { IVF: '2026-11-12', Euthanasia: '2026-11-26' }, 'the old list turned into titles and dates');
     assert.equal(r.shown.length, 3);
     assert.deepEqual(r.shown.slice(1), ['12 Nov 2026', '26 Nov 2026'], 'each page its own date: ' + r.shown);
+  } finally {
+    await context.close();
+  }
+});
+
+test('with Editing Toolbar: its highlight colours kept (as the highlighter), its bar at the top of the note not covered by this toolbar; every command has an icon (Commander, Editing Toolbar)', async () => {
+  const { page, context } = await openReading({ name: 'et', cornell: false, blocks: [title('Life'), block('<p>Life begins <mark style="background:#FFB8EBA6">at birth</mark> and <mark>here</mark>.</p>')] }, { theme: 'theme-light' });
+  try {
+    const r = await page.evaluate(() => {
+      const P = window.plugin.constructor;
+      P.tintMarks(document.body);
+      const [mine, plain] = document.querySelectorAll('mark');
+      const cs = getComputedStyle(mine);
+      // (Editing Toolbar's bar, "top" style: first in the note's view; the view marked has-editing-toolbar)
+      const vc = document.createElement('div'); vc.className = 'view-content has-editing-toolbar'; vc.style.cssText = 'position:relative;height:300px';
+      vc.innerHTML = '<div class="markdown-source-view"><div id="editingToolbarModalBar" class="editingToolbarModalBar top" data-toolbar-style="top" style="height:36px;position:relative"></div></div>';
+      document.body.appendChild(vc);
+      const bar = window.plugin.toolbarFor({ getMode: () => 'source' }); vc.appendChild(bar);
+      const etBottom = vc.querySelector('#editingToolbarModalBar').getBoundingClientRect().bottom;
+      const cmds = [];
+      P.addPaperCommands({ app: {}, settings: {}, addCommand: (c) => cmds.push(c), addRibbonIcon: () => {} });
+      return {
+        mine: [cs.backgroundColor, /255, 184, 235/.test(cs.backgroundImage), mine.style.getPropertyValue('--pen-highlight-a')],
+        plain: /255, 232, 26/.test(getComputedStyle(plain).backgroundImage),
+        below: bar.getBoundingClientRect().top >= etBottom,
+        noIcon: cmds.filter((c) => !c.icon).map((c) => c.id),
+      };
+    });
+    assert.deepEqual(r.mine, ['rgba(0, 0, 0, 0)', true, '0.65'], 'its pink, as the highlighter (not a flat box, not yellow)');
+    assert.equal(r.plain, true, 'a plain highlight: the highlighter set');
+    assert.equal(r.below, true, 'this toolbar under Editing Toolbar\'s bar');
+    assert.deepEqual(r.noIcon, []);
   } finally {
     await context.close();
   }

@@ -184,8 +184,8 @@ const SETTINGS = [
   { key: 'ai-model', type: 'path', def: 'gemini-2.5-flash', name: 'Gemini model', desc: 'If Google retires it, the newest Flash model your key can use is taken instead.' },
 
   { section: 'Updates', desc: 'Lined Paper Pages can update itself, without BRAT: from GitHub through a few mirrors, one of which usually gets through a school or work network. (Paper: update Lined Paper Pages, to check now.)' },
-  { key: 'load-notice', type: 'toggle', cls: 'lp-load-quiet', invert: true, def: true, name: 'Say which version is running each time Obsidian starts',
-    desc: 'A short note with the version and what is new in it (What\'s new: the whole list).' },
+  { key: 'load-notice', type: 'toggle', cls: 'lp-load-say', def: false, name: 'Say which version is running each time Obsidian starts',
+    desc: 'Off: only once, the first time after an update (a short note; What\'s new for the whole list).' },
   { key: 'update-check', type: 'toggle', cls: 'lp-update-nocheck', invert: true, def: true, name: 'Look for a new version when Obsidian starts' },
   { key: 'update-auto', type: 'toggle', cls: 'lp-update-auto', def: false, name: 'Install a new version without asking', desc: 'Off: a message offers it (Update now).' },
 
@@ -2221,12 +2221,30 @@ function wrapSelection(editor, open, close) {
   }
 }
 
+// each command's icon (Obsidian's Lucide icons): shown by Commander, Editing Toolbar and the mobile
+// toolbar, wherever you put a command
+const COMMAND_ICONS = {
+  'make-lined-paper': 'notebook-pen', 'make-cornell': 'columns-2', 'make-plain': 'file-text', 'toggle-paper-theme': 'sun-moon', 'paper-theme-auto': 'monitor',
+  'insert-cue-notes': 'columns-2', 'insert-question': 'help-circle', 'insert-summary': 'align-left', 'insert-title': 'heading-1', 'insert-cornell-page': 'file-plus',
+  'insert-wide': 'rectangle-horizontal', 'insert-divider': 'separator-horizontal', 'insert-nextpage': 'file-down', 'insert-task': 'square-check',
+  'insert-arrow': 'arrow-right', 'insert-arrow-double': 'arrow-big-right', 'insert-arrow-wavy': 'waves',
+  'insert-definition': 'book-open', 'insert-definition-link': 'book-marked', 'insert-quote': 'quote', 'insert-quote-link': 'message-square-quote', 'add-revised': 'history',
+  'insert-diagram': 'git-fork', 'diagrams-to-pages': 'files', 'ask-ai': 'sparkles', 'insert-cue-from-selection': 'message-circle-question', 'insert-summary-from-cues': 'list-collapse',
+  'insert-math': 'sigma', 'insert-math-block': 'square-sigma', 'insert-symbol': 'omega', 'insert-chem': 'flask-conical', 'insert-superscript': 'superscript', 'insert-subscript': 'subscript',
+  'remove-colour': 'eraser', 'remove-highlight': 'eraser', 'remove-marks': 'eraser', 'remove-all-styles': 'remove-formatting', 'highlighter': 'highlighter', 'cross-out': 'strikethrough',
+  'pen-circle': 'circle', 'pen-box': 'square', 'pen-underline': 'underline', 'pen-wavy': 'audio-waveform', 'pen-scribble': 'pen-tool',
+  'review': 'eye-off', 'review-cards': 'graduation-cap', 'cue-cards': 'printer', 'show-cue-cards': 'panel-right', 'edit-cue-cards': 'pencil', 'folder-cue-cards': 'layers',
+  'format-cue-cards': 'library', 'topic-index': 'list-tree', 'set-date': 'calendar', 'update': 'refresh-cw', 'whats-new': 'info', 'hotkeys': 'keyboard', 'setup-vault': 'folder-tree',
+};
+const commandIcon = (id) => COMMAND_ICONS[id] || (/^colour-/.test(id) ? 'palette' : /^highlighter-/.test(id) ? 'highlighter' : /^pen-/.test(id) ? 'pen-tool' : /^insert-/.test(id) ? 'plus' : 'notebook-pen');
+
 function addPaperCommands(plugin) {
   // (each command with its default hotkeys, if it has some: HOTKEYS)
   const app = plugin.app;
   const list = plugin._commands = [];
   const add = (cmd) => {
-    let c = HOTKEYS[cmd.id] ? { ...cmd, hotkeys: HOTKEYS[cmd.id] } : cmd;
+    let c = HOTKEYS[cmd.id] ? { ...cmd, hotkeys: HOTKEYS[cmd.id] } : { ...cmd };
+    if (!c.icon) c.icon = commandIcon(c.id);
     list.push({ id: c.id, name: c.name });
     // (a command for the editor works from reading view too: the note is switched to editing first,
     // instead of the command doing nothing there)
@@ -2640,9 +2658,14 @@ date: 2026-11-19
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.38.1': [
+    ['Quieter', 'what is new is said once after an update, then never again (Settings → Updates to have it each time).'],
+    ['Editing Toolbar', 'its bar is not covered any more, and its highlight colours are kept, as the highlighter.'],
+    ['Icons', 'every command has one, for Commander, Editing Toolbar and the mobile toolbar.'],
+  ],
   '1.38.0': [
     ['Page dates by title', 'each page\'s date is kept with its title in the properties (page-dates: Title: date); a title taken out takes its date with it.'],
-    ['Says its version', 'each time Obsidian starts: the version and what is new (Settings → Updates to switch it off).'],
+    ['Update notes', 'once, the first time after an update: what is new, in a short note (What\'s new for the whole list).'],
     ['A new toolbar', 'Cornell ▾, Insert ▾, ✦ AI, ∑ maths, the pens and highlighters, Mark ▾, Review, Study, Cards ▾, and ? for the hotkeys. Every menu shows each command\'s hotkey.'],
     ['Maths and science', 'Alt+= maths in the line ($E = mc^2$), Alt+S every symbol (π ± ≤ → ⇌ Δ μ, fractions, powers), chemical formulas (H2O becomes H₂O), superscript and subscript.'],
     ['Hotkeys in families', 'Alt: Insert · Ctrl+Alt: Pen · Alt+Shift: Highlight · Ctrl+Alt+Shift: Mark · Ctrl+Shift: Study (R review, S study, K cue cards, B cards beside the note). Paper: hotkeys lists them all.'],
@@ -2670,6 +2693,25 @@ const WHATS_NEW = {
     ['Cue cards of a whole folder', '(Note: cue cards for every note in this folder): one page, the cards sharing the sheets.'],
   ],
 };
+
+// A highlight in a colour of its own (Editing Toolbar's background colour: <mark style="background:
+// #FFB8EBA6">): drawn as the highlighter, in that colour (it was the yellow one). The colour is
+// handed to the highlighter's look (--pen-highlight-rgb / -a); an element done is marked.
+function tintMarks(root) {
+  if (!root || !root.querySelectorAll) return;
+  const marks = root.matches && root.matches('mark[style*="background"]') ? [root] : Array.from(root.querySelectorAll('mark[style*="background"]'));
+  for (const m of marks) {
+    const css = m.style.backgroundColor || m.style.background || '';
+    if (m.dataset.lpTint === css) continue;
+    const c = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?/.exec(css);
+    if (!c) continue;
+    let a = c[4] === undefined ? 0.5 : c[4].endsWith('%') ? parseFloat(c[4]) / 100 : parseFloat(c[4]);
+    a = Math.max(0.3, Math.min(0.7, a));   // (as see-through as a highlighter: never a solid block, never too faint)
+    m.style.setProperty('--pen-highlight-rgb', `${c[1]} ${c[2]} ${c[3]}`);
+    m.style.setProperty('--pen-highlight-a', String(Math.round(a * 100) / 100));
+    m.dataset.lpTint = css;
+  }
+}
 
 // ---------- revision: spaced repetition, quote gaps, questions drafted from notes ----------
 // Each card has a box (Leitner): known, it moves up a box and comes back after longer (the days
@@ -3178,6 +3220,7 @@ module.exports = class LinedPaperPages extends Plugin {
       const openLink = (href, e) => this.app.workspace.openLinkText(href, (ctx && ctx.sourcePath) || '', !!(e && (e.ctrlKey || e.metaKey)));
       fixColouredLinks(el, ctx, openLink);
       window.setTimeout(() => fixColouredLinks(el, ctx, openLink), 0);
+      tintMarks(el);
       if (onCards(el)) return;
       // (a diagram is drawn a moment later: the pages are laid out again once it is)
       if (el.querySelector('.block-language-mermaid, pre.mermaid, code.language-mermaid, .math-block, mjx-container')) for (const t of [600, 1500, 3500]) window.setTimeout(() => this.scheduleScan(true), t);
@@ -3222,6 +3265,15 @@ module.exports = class LinedPaperPages extends Plugin {
     }, true);
     // the date in the title bar (reading view): click it to change it
     this.registerDomEvent(document, 'click', (e) => this.onDateClick(e), true);
+    // (highlights in a colour of their own, as they appear while you write: drawn in that colour)
+    if (typeof MutationObserver !== 'undefined' && document.body) {
+      const mo = new MutationObserver((list) => {
+        for (const r of list) for (const n of r.addedNodes) if (n.nodeType === 1 && (n.matches('mark[style*="background"]') || n.querySelector('mark[style*="background"]')) && n.closest('.lined-paper')) tintMarks(n);
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+      this.register(() => mo.disconnect());
+      tintMarks(document.body);
+    }
     // (a toolbar menu closes on a click anywhere else, or Escape)
     this.registerDomEvent(document, 'mousedown', (e) => { for (const w of document.querySelectorAll('.lp-tb-menuwrap.lp-open')) if (!w.contains(e.target)) w.classList.remove('lp-open'); }, true);
     this.registerDomEvent(document, 'keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.lp-tb-menuwrap.lp-open').forEach((w) => w.classList.remove('lp-open')); });
@@ -3232,7 +3284,7 @@ module.exports = class LinedPaperPages extends Plugin {
       this.registerEvent(this.app.vault.on('delete', (f) => touched(f)));
       this.registerEvent(this.app.vault.on('rename', (f) => touched(f)));
       this.registerEvent(this.app.workspace.on('layout-change', () => { window.clearTimeout(this._sweepT); this._sweepT = window.setTimeout(() => this.sweepPrintOnly().catch(() => {}), 1500); }));
-      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => { this.loadNotice(); this.whatsNew(); }, 2500); });
+      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => this.loadNotice(), 2500); });
     }
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
@@ -4804,43 +4856,44 @@ module.exports = class LinedPaperPages extends Plugin {
   }
 
   // ---------- what's new, once after an update ----------
-  // each time the plugin starts: which version is running, and what is new in it
+  // a short note: which version is running and what is new in it (What's new: the whole list).
+  // Once, the first time after an update; each time Obsidian starts only if the setting says so.
   loadNotice() {
     const v = (this.manifest && this.manifest.version) || '';
     console.log(`[lined-paper-pages] ${v} loaded`);
-    if (this.settings['load-notice'] === false || this.settings._seenVersion !== v) return;   // (just updated: the whole list shows instead)
+    const updated = this.settings._seenVersion !== v;
+    if (updated) { this.settings._seenVersion = v; this.saveData(this.settings).catch(() => {}); }
+    if (!updated && this.settings['load-notice'] !== true) return;
     const items = WHATS_NEW[v];
     const frag = document.createDocumentFragment();
     const b = document.createElement('b');
     b.textContent = `Lined Paper Pages ${v}`;
-    frag.append(b, items ? ` · new: ${items.map(([t]) => t).join(', ')}. ` : ' loaded. ');
+    frag.append(b, updated ? (items ? ` (updated) · new: ${items.map(([t]) => t).join(', ')}. ` : ' (updated). ') : (items ? ` · new: ${items.map(([t]) => t).join(', ')}. ` : ' loaded. '));
+    let n = null;
     if (items) {
       const btn = document.createElement('button');
       btn.textContent = 'What\'s new';
       btn.style.marginLeft = '6px';
-      btn.addEventListener('click', (e) => { e.stopPropagation(); try { n.hide(); } catch (err) { /* */ } this.whatsNew(true); });
+      btn.addEventListener('click', (e) => { e.stopPropagation(); try { if (n) n.hide(); } catch (err) { /* */ } this.whatsNew(true); });
       frag.append(btn);
     }
-    const n = new Notice(frag, 7000);
+    n = new Notice(frag, updated ? 12000 : 6000);
   }
-  whatsNew(always = false) {
+  // Paper: what's new: the whole list of what is new in this version
+  whatsNew(always = true) {
+    if (!always) return;
     const v = (this.manifest && this.manifest.version) || '';
     const items = WHATS_NEW[v];
-    if (!always) {
-      if (this.settings._seenVersion === v) return;
-      this.settings._seenVersion = v;
-      this.saveData(this.settings).catch(() => {});
-      if (!items) return;
-    }
     if (!Modal) return;
     const m = new Modal(this.app);
     m.titleEl.setText(`What's new in Lined Paper Pages ${v}`);
     m.modalEl.addClass('lp-whatsnew');
     const ul = document.createElement('ul');
-    for (const [title, text] of items || [['', 'See CHANGELOG.md.']]) { const li = document.createElement('li'); const b = document.createElement('b'); b.textContent = title; li.append(b, title ? ' ' : '', text); ul.appendChild(li); }
+    for (const [title, text] of items || [['', 'See CHANGELOG.md.']]) { const li = document.createElement('li'); const bb = document.createElement('b'); bb.textContent = title; li.append(bb, title ? ' ' : '', text); ul.appendChild(li); }
     m.contentEl.appendChild(ul);
     m.open();
   }
+
 
   // Insert: definition / quote: a page of its own, made in its folder, and embedded where you write
   newFormatNote(kind, mode = 'embed') {
@@ -5809,7 +5862,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
-Object.assign(module.exports, { STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
+Object.assign(module.exports, { tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;

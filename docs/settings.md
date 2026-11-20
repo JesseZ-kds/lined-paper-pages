@@ -16,7 +16,7 @@ button to put it back to its default, and **Reset all** resets everything.
 | **Definitions, quotes and diagrams** | Folder for definitions (Definitions) · Folder for quotes (Quotes) · Folder for diagrams |
 | **Cue cards** | Card size (18 / 8 / 6 / 4 a page) · Answers (on the back for double-sided printing, beside the question to fold, on their own pages) · Card text size · Ruled cards · Cards for definitions and quotes · A quote's card (who said it / the quote on the front) · Cue card pages (kept, or only for printing) · Cut lines · Handwriting on the cards · The note's name on each card · Folder for cue card pages |
 | **Revision and AI** | Review shows (the notes covered / the highlighted words blanked out) · Gemini API key (and Check) · Gemini model |
-| **Updates** | Say which version is running each time Obsidian starts (on) · Look for a new version when Obsidian starts (on) · Install a new version without asking (off) |
+| **Updates** | Say which version is running each time Obsidian starts (off: only once after an update) · Look for a new version when Obsidian starts (on) · Install a new version without asking (off) |
 | **Advanced** *(hidden until you switch it on)* | Page height used · Text scale on the A4 page · Title bar height · Footer · Gap between pages · Page margins (left, and right: by default the same as the red line's margin, for hole punching) · Ruled line position · Callout lift · Divider spacing · … |
 
 **Fonts:** pick the handwriting and title fonts from a list: Patrick Hand, Caveat, Kalam,

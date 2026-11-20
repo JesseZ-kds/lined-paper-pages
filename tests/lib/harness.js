@@ -79,7 +79,12 @@ const UNPACK = "<script>document.addEventListener('DOMContentLoaded', () => docu
 function pages({ blocks, cornell }, theme, fonts = false, plugin = true) {
   const cls = cornell ? 'lined-paper cornell' : 'lined-paper';
   const css = (fonts ? STYLES_WITH_FONTS : STYLES)[plugin ? 'plugin' : 'snippets'];
-  const head = `${UNPACK}<style>html,body{margin:0;padding:0}</style><style>${SIM}</style><style>${css}</style>`;
+  // (a theme, as Obsidian loads it: after the plugin's styles. LP_THEME=path/to/theme.css runs every
+  // test with that theme, to find what of a theme gets in the way)
+  const themeCss = process.env.LP_THEME ? `<style>${fs.readFileSync(process.env.LP_THEME, 'utf8').replace(/@import url\([^)]*\);/g, '')}</style>` : '';
+  const head = `${UNPACK}<style>html,body{margin:0;padding:0}</style><style>${SIM}</style><style>${css}</style>${themeCss}`;
+  // (and the theme's options, as its Style Settings put them on <body>: LP_THEME_CLASSES)
+  if (process.env.LP_THEME_CLASSES) theme = theme + ' ' + process.env.LP_THEME_CLASSES;
   const reading = `<!doctype html><html><head>${head}</head><body class="${theme}">
 <div class="markdown-reading-view" style="height:100vh;overflow:auto;display:flex;flex-direction:column"><div class="markdown-preview-view markdown-rendered ${cls}" style="overflow:visible">
 <div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="width: 1px; height: 0.1px; margin-bottom: 0px;"></div><div class="mod-header"></div>${blocks.join('')}<div class="mod-footer"></div></div></div></div></body></html>`;
