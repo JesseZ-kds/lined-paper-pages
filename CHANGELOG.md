@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.38.2] - 2026-11-20
+
+### Fixed
+- **The toolbar at the bottom (or anywhere) in a narrow note:** it went onto two rows, with a stray
+  divider, and sat further from the side than from the bottom. It is now always one row, the same
+  12px from the note's edges in every corner: in a narrower note its labels are short (Obsidian's
+  icons), narrower still the pens and highlighters fold into one button each (● ▾, ▬ ▾), and in the
+  narrowest Review, Study and Cards are one Study ▾ menu.
+- **Menus opened over the toolbar's own buttons** (a menu from its first row covered the second).
+  A menu now opens clear of the bar, on the side of the note with more room (under a bar at the
+  top, over one at the bottom), no taller than that room and no wider than the note.
+
 ## [1.38.1] - 2026-11-20
 
 ### Changed

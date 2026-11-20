@@ -2658,6 +2658,9 @@ date: 2026-11-19
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.38.2': [
+    ['Toolbar', 'one row in any note and any corner, the same space from the edges; its menus open clear of it.'],
+  ],
   '1.38.1': [
     ['Quieter', 'what is new is said once after an update, then never again (Settings → Updates to have it each time).'],
     ['Editing Toolbar', 'its bar is not covered any more, and its highlight colours are kept, as the highlighter.'],
@@ -5058,7 +5061,8 @@ module.exports = class LinedPaperPages extends Plugin {
     const tip = (title, cmd) => { const k = cmd ? this.hotkeyLabel(cmd) : ''; return k ? `${title} (${k})` : title; };
     // a button that runs a command
     const button = (g, label, title, cmd, extra) => {
-      const b = el(g, 'button', 'lp-tb-btn' + (extra && extra.cls ? ' ' + extra.cls : ''), label);
+      const b = el(g, 'button', 'lp-tb-btn' + (extra && extra.cls ? ' ' + extra.cls : ''));
+      labelled(b, label, extra && extra.short);
       b.type = 'button';
       b.title = tip(title, cmd);
       b.dataset.cmd = cmd;
@@ -5067,10 +5071,46 @@ module.exports = class LinedPaperPages extends Plugin {
       b.addEventListener('click', (e) => { e.preventDefault(); run(cmd); });
       return b;
     };
+    // A menu opens clear of the bar (not over its own buttons), on the side of the note with more room
+    // (under a bar at the top, over one at the bottom), never taller than that room, and inside the
+    // note left and right.
+    const placeMenu = (wrap, list) => {
+      const host = bar.parentElement || document.body;
+      const H = host.getBoundingClientRect(), B = bar.getBoundingClientRect(), W = wrap.getBoundingClientRect();
+      const below = H.bottom - B.bottom - 8, above = B.top - H.top - 8;
+      list.style.maxHeight = '';
+      list.style.top = list.style.bottom = list.style.left = list.style.right = '';
+      list.style.maxWidth = Math.max(160, H.width - 16) + 'px';   // (never wider than the note)
+      list.style.minWidth = Math.min(240, Math.max(160, H.width - 16)) + 'px';
+      const need = Math.min(list.scrollHeight || 300, 420);
+      const down = below >= need || below >= above;
+      if (down) { list.style.top = (B.bottom - W.top + 4) + 'px'; list.style.maxHeight = Math.max(120, below - 4) + 'px'; }
+      else { list.style.bottom = (W.bottom - B.top + 4) + 'px'; list.style.maxHeight = Math.max(120, above - 4) + 'px'; }
+      const width = list.getBoundingClientRect().width;
+      if (W.left + width > H.right - 8) list.style.left = Math.max(H.left + 8 - W.left, H.right - 8 - width - W.left) + 'px';
+      else list.style.left = '0px';
+    };
     // a menu: its button, and a list of commands (each with its hotkey); '-' a line between
+    // (a label in full, and short for a narrow pane: "Cornell ▾" / "▤ ▾")
+    // (the short one: Obsidian's own icon where there is one, with ▾ for a menu; else the text given)
+    const labelled = (b, label, short) => {
+      if (!short) { b.textContent = label; return; }
+      b.replaceChildren();
+      el(b, 'span', 'lp-tb-full', label);
+      const sh = el(b, 'span', 'lp-tb-short');
+      const [text, icon] = Array.isArray(short) ? short : [short, null];
+      if (icon && OB.setIcon) {
+        const i = el(sh, 'span', 'lp-tb-icon');
+        try { OB.setIcon(i, icon); } catch (e) { i.remove(); }
+        if (sh.querySelector('svg')) { if (/▾$/.test(label)) sh.appendChild(document.createTextNode(' ▾')); return; }
+        sh.replaceChildren();
+      }
+      sh.textContent = text;
+    };
     const menu = (g, label, title, items, extra) => {
-      const wrap = el(g, 'div', 'lp-tb-menuwrap');
-      const b = el(wrap, 'button', 'lp-tb-btn lp-tb-menubtn' + (extra && extra.cls ? ' ' + extra.cls : ''), label);
+      const wrap = el(g, 'div', 'lp-tb-menuwrap' + (extra && extra.wrapCls ? ' ' + extra.wrapCls : ''));
+      const b = el(wrap, 'button', 'lp-tb-btn lp-tb-menubtn' + (extra && extra.cls ? ' ' + extra.cls : ''));
+      labelled(b, label, extra && extra.short);
       b.type = 'button';
       b.title = title;
       b.setAttribute('aria-haspopup', 'true');
@@ -5096,8 +5136,7 @@ module.exports = class LinedPaperPages extends Plugin {
         const open = !wrap.classList.contains('lp-open');
         bar.querySelectorAll('.lp-tb-menuwrap.lp-open').forEach((w) => w.classList.remove('lp-open'));
         wrap.classList.toggle('lp-open', open);
-        // (opens to the left when it would run off the page)
-        if (open) { list.classList.remove('lp-left'); const r = list.getBoundingClientRect(); if (r.right > window.innerWidth - 8) list.classList.add('lp-left'); }
+        if (open) placeMenu(wrap, list);
       });
       return wrap;
     };
@@ -5109,13 +5148,13 @@ module.exports = class LinedPaperPages extends Plugin {
       ['insert-title', 'Title (with today\'s date)'], ['insert-cornell-page', 'A whole Cornell page'], '-',
       ['insert-wide', 'Full-width lines'], ['insert-divider', 'Divider line'], ['insert-nextpage', 'Page break'], '-',
       ['insert-cue-from-selection', 'Cue for this line (a question drafted)'], ['insert-summary-from-cues', 'Summary from the cues'],
-    ]);
+    ], { short: ['▤ ▾', 'columns-2'] });
     menu(ins, 'Insert ▾', 'Definitions, quotes, arrows, checkbox, diagrams', [
       ['insert-definition', 'Definition (embedded)'], ['insert-definition-link', 'Definition (linked)'], ['insert-quote', 'Quote'], ['add-revised', 'Revised version'], '-',
       ['insert-arrow', 'Arrow →'], ['insert-arrow-double', 'Double arrow ⇒'], ['insert-arrow-wavy', 'Wavy arrow ⇝'], ['insert-task', 'Checkbox'], '-',
       ['insert-diagram', 'Diagram from the selected list'], ['diagrams-to-pages', 'This note\'s diagrams on pages of their own'],
-    ]);
-    button(ins, '✦ AI', 'Ask AI: a diagram, an answer or practice questions', 'ask-ai', { cls: 'lp-tb-ai' });
+    ], { short: ['＋ ▾', 'plus'] });
+    button(ins, '✦ AI', 'Ask AI: a diagram, an answer or practice questions', 'ask-ai', { cls: 'lp-tb-ai', short: ['✦', 'sparkles'] });
     // Maths and science: a few symbols straight away, the rest in the picker
     const maths = group('Maths', 'lp-tb-edit');
     menu(maths, '∑ ▾', 'Maths and science', [
@@ -5136,12 +5175,27 @@ module.exports = class LinedPaperPages extends Plugin {
       },
     });
     // Pens and highlighters: one click each
+    // (in a narrow pane each set folds into one button: ● ▾, ▬ ▾)
+    const swatches = (g, name, items, remove, folded) => {
+      const inline = el(g, 'div', 'lp-tb-inline');
+      for (const [label, title, cmd, extra] of items) button(inline, label, title, cmd, extra);
+      button(inline, '⌫', remove[0], remove[1], { cls: 'lp-tb-remove' });
+      menu(g, folded, name, [], {
+        wrapCls: 'lp-tb-folded',
+        before: (list) => {
+          const grid = el(list, 'div', 'lp-tb-quick lp-tb-swatches');
+          for (const [label, title, cmd, extra] of items.concat([['⌫', remove[0], remove[1], { cls: 'lp-tb-remove' }]])) {
+            const q = button(grid, label, title, cmd, extra);
+            q.classList.add('lp-tb-q');
+            q.addEventListener('click', () => grid.closest('.lp-tb-menuwrap').classList.remove('lp-open'));
+          }
+        },
+      });
+    };
     const pen = group('Pen', 'lp-tb-edit');
-    for (const [name, hex] of COLOURS) button(pen, '●', `Pen: ${name}`, 'colour-' + name, { cls: 'lp-tb-swatch', style: `color: var(--pen-${name}, ${hex})` });
-    button(pen, '⌫', 'Pen: remove colour', 'remove-colour', { cls: 'lp-tb-remove' });
+    swatches(pen, 'Pens', COLOURS.map(([name, hex]) => ['●', `Pen: ${name}`, 'colour-' + name, { cls: 'lp-tb-swatch', style: `color: var(--pen-${name}, ${hex})` }]), ['Pen: remove colour', 'remove-colour'], '● ▾');
     const hl = group('Highlight', 'lp-tb-edit');
-    for (const c of ['yellow', 'orange', 'blue', 'green', 'pink']) button(hl, '▬', `Highlight: ${c}`, 'highlighter-' + c, { cls: 'lp-tb-swatch lp-tb-hl hl-' + c });
-    button(hl, '⌫', 'Highlight: remove', 'remove-highlight', { cls: 'lp-tb-remove' });
+    swatches(hl, 'Highlighters', ['yellow', 'orange', 'blue', 'green', 'pink'].map((c) => ['▬', `Highlight: ${c}`, 'highlighter-' + c, { cls: 'lp-tb-swatch lp-tb-hl hl-' + c }]), ['Highlight: remove', 'remove-highlight'], '▬ ▾');
     const mark = group('Mark', 'lp-tb-edit');
     menu(mark, '◯ ▾', 'Mark: circle, box, underline …', [
       ['pen-circle', '◯ Circle'], ['pen-box', '▢ Box'], ['pen-underline', 'U̲ Underline'], ['pen-wavy', '〰 Wavy underline'], ['pen-scribble', '▒ Scribble out'], ['cross-out', 'S̶ Cross out'], '-',
@@ -5149,15 +5203,45 @@ module.exports = class LinedPaperPages extends Plugin {
     ]);
     // Study (in reading view too)
     const rev = group('Study', 'lp-tb-review');
-    button(rev, 'Review', 'Review: cover the notes, answer the cues, click to check', 'review', { cls: 'lp-tb-reviewbtn' });
-    button(rev, 'Study', 'Study the cue cards due today', 'review-cards', { cls: 'lp-tb-study' });
+    button(rev, 'Review', 'Review: cover the notes, answer the cues, click to check', 'review', { cls: 'lp-tb-reviewbtn', short: ['Rev', 'eye-off'] });
+    button(rev, 'Study', 'Study the cue cards due today', 'review-cards', { cls: 'lp-tb-study', short: ['Study', 'graduation-cap'] });
     menu(rev, 'Cards ▾', 'Cue cards', [
       ['cue-cards', 'Make cue cards (to print)'], ['show-cue-cards', 'Cards beside the note'], ['edit-cue-cards', 'Edit cue cards'], '-',
       ['folder-cue-cards', 'Cue cards for this folder'], ['format-cue-cards', 'Definitions and quotes cards'], ['topic-index', 'Index of this folder'],
-    ]);
+    ], { short: ['Cards ▾', 'layers'] });
+    // (in the narrowest note: all of Study in one menu)
+    menu(rev, 'Study ▾', 'Review, study and cue cards', [
+      ['review', 'Review: cover the notes'], ['review-cards', 'Study the cards due today'], '-',
+      ['cue-cards', 'Make cue cards (to print)'], ['show-cue-cards', 'Cards beside the note'], ['edit-cue-cards', 'Edit cue cards'], '-',
+      ['folder-cue-cards', 'Cue cards for this folder'], ['format-cue-cards', 'Definitions and quotes cards'], ['topic-index', 'Index of this folder'],
+    ], { wrapCls: 'lp-tb-foldstudy', short: ['Study ▾', 'graduation-cap'] });
     const help = group('Help', 'lp-tb-help');
     button(help, '?', 'Hotkeys (every one, by family)', 'hotkeys', { cls: 'lp-tb-helpbtn' });
     return bar;
+  }
+  // One row, whatever the width of the note: the labels short ("▤ ▾" for "Cornell ▾") when it is
+  // narrower, the pens and highlighters folded into one button each when narrower still. Done again
+  // whenever the note's pane changes size.
+  fitToolbar(bar) {
+    const host = bar.parentElement;
+    if (!host) return;
+    const fit = () => {
+      if (!bar.isConnected) return;
+      const levels = ['', 'lp-tb-compact', 'lp-tb-compact lp-tb-tiny', 'lp-tb-compact lp-tb-tiny lp-tb-mini'];
+      for (const lv of levels) {
+        bar.classList.remove('lp-tb-compact', 'lp-tb-tiny', 'lp-tb-mini');
+        if (lv) bar.classList.add(...lv.split(' '));
+        const rows = new Set(Array.from(bar.children).filter((g) => g.offsetParent).map((g) => Math.round(g.offsetTop)));
+        if (rows.size <= 1) break;
+      }
+    };
+    fit();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => window.requestAnimationFrame(fit));
+      ro.observe(host);
+      this.register(() => ro.disconnect());
+    }
+    bar.lpFit = fit;
   }
   // a symbol typed in the note in use (π outside $…$, \pi inside)
   typeSymbol(sym) {
@@ -5180,8 +5264,9 @@ module.exports = class LinedPaperPages extends Plugin {
       const lined = !!v.containerEl.querySelector('.view-content .lined-paper:not(.lp-card-paper)');
       let bar = host.querySelector(':scope > .lp-toolbar');
       if (off || !lined) { if (bar) bar.remove(); continue; }
-      if (!bar) { bar = this.toolbarFor(v); host.appendChild(bar); }
-      bar.dataset.mode = v.getMode ? v.getMode() : 'source';
+      if (!bar) { bar = this.toolbarFor(v); host.appendChild(bar); this.fitToolbar(bar); }
+      const mode = v.getMode ? v.getMode() : 'source';
+      if (bar.dataset.mode !== mode) { bar.dataset.mode = mode; if (bar.lpFit) bar.lpFit(); }
       const page = v.containerEl.querySelector('.markdown-reading-view .markdown-preview-view');
       bar.classList.toggle('lp-tb-reviewing', !!(page && page.classList.contains('lp-review')));
     }

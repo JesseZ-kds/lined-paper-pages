@@ -699,3 +699,49 @@ test('with Editing Toolbar: its highlight colours kept (as the highlighter), its
     await context.close();
   }
 });
+
+test('the toolbar in every corner and every width: one row, the same space from the note\'s edges, its menus clear of it and inside the note', async () => {
+  for (const [cls, corner] of [['', 'tr'], ['lp-tb-at-tl', 'tl'], ['lp-tb-at-br', 'br'], ['lp-tb-at-bl', 'bl']]) {
+    const { page, context } = await openReading({ name: 'tb-' + corner, cornell: true, blocks: [] }, { theme: 'theme-light ' + cls, src: SRC, viewport: { width: 1100, height: 600 } });
+    try {
+      await page.evaluate(FAKES);
+      const r = await page.evaluate(async () => {
+        const plugin = window.plugin;
+        plugin.addCommand = () => {};
+        window.plugin.constructor.addPaperCommands(plugin);
+        const out = [];
+        for (const w of [1000, 700, 520, 380]) {
+          const vc = document.createElement('div');
+          vc.className = 'view-content';
+          vc.style.cssText = `position:relative;width:${w}px;height:480px;overflow:hidden`;
+          document.body.appendChild(vc);
+          const bar = plugin.toolbarFor({ getMode: () => 'source' });
+          bar.dataset.mode = 'source';
+          vc.appendChild(bar);
+          plugin.fitToolbar(bar);
+          const V = vc.getBoundingClientRect(), B = bar.getBoundingClientRect();
+          const edges = [B.top - V.top, V.right - B.right, V.bottom - B.bottom, B.left - V.left].map(Math.round);
+          const menus = [];
+          for (const b of [...bar.querySelectorAll('.lp-tb-menubtn')].filter((x) => x.offsetParent)) {
+            b.click();
+            const m = b.closest('.lp-tb-menuwrap').querySelector('.lp-tb-menu').getBoundingClientRect();
+            menus.push({ name: b.textContent, m: [m.left - V.left, V.right - m.right, m.top - V.top, V.bottom - m.bottom].map(Math.round), clear: m.bottom <= B.top + 0.5 || m.top >= B.bottom - 0.5, inside: m.left >= V.left - 0.5 && m.right <= V.right + 0.5 && m.top >= V.top - 0.5 && m.bottom <= V.bottom + 0.5 });
+            b.click();
+          }
+          out.push({ w, height: Math.round(B.height), edges, menus: menus.length, bad: menus.filter((m) => !m.clear || !m.inside).length, which: JSON.stringify(menus.filter((m) => !m.clear || !m.inside)) });
+          vc.remove();
+        }
+        return out;
+      });
+      for (const x of r) {
+        assert.ok(x.height <= 36, `${corner} ${x.w}px: one row (${x.height}px)`);
+        const near = [corner[0] === 't' ? x.edges[0] : x.edges[2], corner[1] === 'r' ? x.edges[1] : x.edges[3]];
+        assert.deepEqual(near, [12, 12], `${corner} ${x.w}px: 12px from the edges of its corner (${x.edges})`);
+        assert.ok(x.menus >= 4, `${corner} ${x.w}px: menus`);
+        assert.equal(x.bad, 0, `${corner} ${x.w}px: every menu clear of the bar and inside the note ${x.which}`);
+      }
+    } finally {
+      await context.close();
+    }
+  }
+});

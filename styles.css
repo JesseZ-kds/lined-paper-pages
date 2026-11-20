@@ -143,16 +143,17 @@ body.lp-review-blanks .lp-review mark.lp-shown { outline: 1.5px solid color-mix(
   position: relative;
 }
 .lp-toolbar {
+  --lp-tb-edge: 12px;     /* (the same space from the note's edges in every corner) */
   position: absolute;
-  top: 6px;
-  right: 18px;
+  top: var(--lp-tb-edge);
+  right: var(--lp-tb-edge);
   z-index: 40;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
-  max-width: calc(100% - 36px);
+  max-width: calc(100% - 2 * var(--lp-tb-edge));
   padding: 3px;
   border: 1px solid var(--background-modifier-border, rgba(0, 0, 0, 0.12));
   border-radius: 10px;
@@ -261,7 +262,7 @@ body.lp-review-blanks .lp-review mark.lp-shown { outline: 1.5px solid color-mix(
   cursor: pointer;
 }
 .lp-tb-menu .lp-tb-item:hover { background: var(--background-modifier-hover, rgba(0, 0, 0, 0.08)); }
-.lp-tb-label { white-space: nowrap; }
+.lp-tb-label { min-width: 0; }   /* (a long one wraps in a narrow note) */
 .lp-tb-key {
   flex: none;
   padding: 1px 5px;
@@ -300,9 +301,9 @@ body.lp-tb-no-mark .lp-toolbar .lp-tb-group[aria-label="Mark"],
 body.lp-tb-no-review .lp-toolbar .lp-tb-group[aria-label="Study"] {
   display: none !important;
 }
-body.lp-tb-at-tl .lp-toolbar { right: auto; left: 18px; justify-content: flex-start; }
-body.lp-tb-at-br .lp-toolbar { top: auto; bottom: 10px; }
-body.lp-tb-at-bl .lp-toolbar { top: auto; bottom: 10px; right: auto; left: 18px; justify-content: flex-start; }
+body.lp-tb-at-tl .lp-toolbar { right: auto; left: var(--lp-tb-edge); justify-content: flex-start; }
+body.lp-tb-at-br .lp-toolbar { top: auto; bottom: var(--lp-tb-edge); }
+body.lp-tb-at-bl .lp-toolbar { top: auto; bottom: var(--lp-tb-edge); right: auto; left: var(--lp-tb-edge); justify-content: flex-start; }
 body.lp-tb-solid .lp-toolbar { opacity: 1; }
 body.lp-no-revise .lp-revise { display: none !important; }
 
@@ -833,8 +834,28 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
   body.lp-ink-soft :is(.lined-paper, .lined-paper *, .lp-card-text, .lp-card-text *) { text-shadow: none !important; }
 }
 
-/* (the toolbar at the bottom: its menus open upwards) */
+/* (the toolbar at the bottom: its menus open upwards; the plugin places each one clear of the bar) */
 body:is(.lp-tb-at-br, .lp-tb-at-bl) .lp-tb-menu { top: auto; bottom: calc(100% + 4px); }
+
+/* the toolbar in a narrow note: one row. Short labels ("▤ ▾" for "Cornell ▾"), then the pens and
+   highlighters folded into one button each */
+.lp-toolbar .lp-tb-short { display: none; }
+.lp-toolbar.lp-tb-compact .lp-tb-full { display: none; }
+.lp-toolbar.lp-tb-compact .lp-tb-short { display: inline; }
+.lp-toolbar .lp-tb-inline { display: flex; align-items: center; gap: 1px; }
+.lp-toolbar .lp-tb-folded { display: none; }
+.lp-toolbar.lp-tb-tiny .lp-tb-inline { display: none; }
+.lp-toolbar.lp-tb-tiny .lp-tb-folded { display: block; }
+.lp-tb-folded .lp-tb-menu { min-width: 0; width: max-content; }
+.lp-tb-quick.lp-tb-swatches { grid-template-columns: repeat(6, 30px); }
+.lp-tb-quick.lp-tb-swatches .lp-tb-q { height: 30px; min-width: 0; padding: 0; line-height: 30px; }
+.lp-toolbar.lp-tb-compact .lp-tb-group { padding: 0 2px; }
+.lp-toolbar .lp-tb-foldstudy { display: none; }
+.lp-toolbar.lp-tb-mini .lp-tb-foldstudy { display: block; }
+.lp-toolbar.lp-tb-mini .lp-tb-group[aria-label="Study"] > :not(.lp-tb-foldstudy),
+.lp-toolbar.lp-tb-mini .lp-tb-group[aria-label="Help"] { display: none; }
+.lp-toolbar .lp-tb-icon { display: inline-flex; vertical-align: -3px; }
+.lp-toolbar .lp-tb-icon svg { width: 15px; height: 15px; }
 
 /* ---------- Settings: sections that fold away, a search ---------- */
 .lp-set-search { width: 100%; margin: 6px 0 10px; padding: 6px 10px; font-size: 14px; }
