@@ -2658,6 +2658,9 @@ date: 2026-11-19
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.38.3': [
+    ['Toolbar', 'at the bottom of a note with Editing Toolbar it is one row again, not stretched down the whole note.'],
+  ],
   '1.38.2': [
     ['Toolbar', 'one row in any note and any corner, the same space from the edges; its menus open clear of it.'],
   ],

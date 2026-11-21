@@ -137,6 +137,12 @@ function pdfWords(file) {
 async function openReading(note, { cssPaging = false, plugin = true, dpr = 1, theme = 'theme-light', viewport = { width: 900, height: 9000 }, src = null, extra = null, fonts = false } = {}) {
   const b = await browser(cssPaging);
   const context = await b.newContext({ viewport, deviceScaleFactor: dpr });
+  // (a browser that has CSS column-wrap built in stands in for one without it, for the tests of the
+  // other way of paging: the page is told it isn't there)
+  if (!cssPaging) await context.addInitScript(() => {
+    const has = CSS.supports.bind(CSS);
+    CSS.supports = (a, b) => (/column-(wrap|height)/.test(String(a)) ? false : b === undefined ? has(a) : has(a, b));
+  });
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));

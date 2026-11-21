@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.38.3] - 2026-11-21
+
+### Fixed
+- **The toolbar stretched down the whole note** at the bottom (left or right) with Editing Toolbar's
+  bar at the top: the rule that moves it below that bar pinned it to the top as well as the bottom,
+  and, that tall, it folded to its narrowest. That rule is now only for a toolbar at the top, and the
+  toolbar is never pinned to both edges, by any theme or plugin, so it stays one row in its corner.
+
 ## [1.38.2] - 2026-11-20
 
 ### Fixed

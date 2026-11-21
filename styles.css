@@ -917,10 +917,15 @@ body:is(.lp-tb-at-br, .lp-tb-at-bl) .lp-tb-menu { top: auto; bottom: calc(100% +
 /* ---------- With Editing Toolbar ----------
    Its bar at the top of a note (its "top" style) sits where this toolbar floats: this one goes under it.
    (Every command of this plugin has an icon, to put on Editing Toolbar or with Commander.) */
-.view-content.has-editing-toolbar > .lp-toolbar,
-.view-content:has(.editingToolbarModalBar[data-toolbar-style="top"], #editingToolbarModalBar.top) > .lp-toolbar {
+body:not(.lp-tb-at-br, .lp-tb-at-bl) .view-content.has-editing-toolbar > .lp-toolbar,
+body:not(.lp-tb-at-br, .lp-tb-at-bl) .view-content:has(.editingToolbarModalBar[data-toolbar-style="top"], #editingToolbarModalBar.top) > .lp-toolbar {
   top: calc(var(--toolbar-icon-size, 18px) + 26px);
 }
+/* (the toolbar is never stretched: pinned to the top and the bottom at once, by a rule of a theme
+   or a plugin, it would be as tall as the note) */
+body.lp-tb-at-br .lp-toolbar, body.lp-tb-at-bl .lp-toolbar { top: auto !important; }
+body:not(.lp-tb-at-br, .lp-tb-at-bl) .lp-toolbar { bottom: auto !important; }
+.lp-toolbar { height: auto !important; align-content: flex-start; }
 
 /* ---------- With a theme's callout style (AnuPpuccin "sleek": a dashed line across the top of the
    writing) ----------

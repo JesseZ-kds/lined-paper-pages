@@ -710,10 +710,12 @@ test('the toolbar in every corner and every width: one row, the same space from 
         plugin.addCommand = () => {};
         window.plugin.constructor.addPaperCommands(plugin);
         const out = [];
-        for (const w of [1000, 700, 520, 380]) {
+        for (const w of [1000, 701, 520, 381, 1480]) {
           const vc = document.createElement('div');
-          vc.className = 'view-content';
+          // (half of them with Editing Toolbar's bar at the top of the note, as in Obsidian)
+          vc.className = 'view-content' + (w % 2 ? '' : ' has-editing-toolbar');
           vc.style.cssText = `position:relative;width:${w}px;height:480px;overflow:hidden`;
+          if (!(w % 2)) vc.innerHTML = '<div class="markdown-source-view"><div id="editingToolbarModalBar" class="editingToolbarModalBar top" data-toolbar-style="top" style="height:36px;position:relative"></div></div>';
           document.body.appendChild(vc);
           const bar = plugin.toolbarFor({ getMode: () => 'source' });
           bar.dataset.mode = 'source';
@@ -728,7 +730,7 @@ test('the toolbar in every corner and every width: one row, the same space from 
             menus.push({ name: b.textContent, m: [m.left - V.left, V.right - m.right, m.top - V.top, V.bottom - m.bottom].map(Math.round), clear: m.bottom <= B.top + 0.5 || m.top >= B.bottom - 0.5, inside: m.left >= V.left - 0.5 && m.right <= V.right + 0.5 && m.top >= V.top - 0.5 && m.bottom <= V.bottom + 0.5 });
             b.click();
           }
-          out.push({ w, height: Math.round(B.height), edges, menus: menus.length, bad: menus.filter((m) => !m.clear || !m.inside).length, which: JSON.stringify(menus.filter((m) => !m.clear || !m.inside)) });
+          out.push({ level: ['lp-tb-compact', 'lp-tb-tiny', 'lp-tb-mini'].filter((c) => bar.classList.contains(c)).join(' '), w, height: Math.round(B.height), edges, menus: menus.length, bad: menus.filter((m) => !m.clear || !m.inside).length, which: JSON.stringify(menus.filter((m) => !m.clear || !m.inside)) });
           vc.remove();
         }
         return out;
@@ -736,7 +738,10 @@ test('the toolbar in every corner and every width: one row, the same space from 
       for (const x of r) {
         assert.ok(x.height <= 36, `${corner} ${x.w}px: one row (${x.height}px)`);
         const near = [corner[0] === 't' ? x.edges[0] : x.edges[2], corner[1] === 'r' ? x.edges[1] : x.edges[3]];
-        assert.deepEqual(near, [12, 12], `${corner} ${x.w}px: 12px from the edges of its corner (${x.edges})`);
+        // (at the top, under Editing Toolbar's bar when it is there)
+        const top = corner[0] === 't' && !(x.w % 2) ? 44 : 12;
+        assert.deepEqual(near, [top, 12], `${corner} ${x.w}px: ${top}px / 12px from the edges of its corner (${x.edges})`);
+        if (x.w >= 1000) assert.equal(x.level, '', `${corner} ${x.w}px: in a wide note, the whole toolbar (nothing folded)`);
         assert.ok(x.menus >= 4, `${corner} ${x.w}px: menus`);
         assert.equal(x.bad, 0, `${corner} ${x.w}px: every menu clear of the bar and inside the note ${x.which}`);
       }
