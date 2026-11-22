@@ -1022,6 +1022,39 @@ test('cue cards print one sheet per A4 page, and nothing else', async () => {
   }
 });
 
+test('a page of cue cards printed: the backs exactly behind the fronts (each sheet at the top of its page); a page break in an answer is not on the card', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const { execFileSync } = require('node:child_process');
+  const { page, context } = await openReading({ name: 'cards', cornell: true, blocks: [] }, { theme: 'theme-light' });
+  try {
+    const texts = await page.evaluate(() => {
+      const P = window.plugin.constructor;
+      const block = '# Intro\nQ: Intro - Part 1\nA: Imagine being asked whether you wanted to be born.\n   > [!nextpage]\n   >> [!nextpage]\n   The question feels strange.\n\nQ: Intro - Part 2\nA: So today I ask: is having children unethical?';
+      const { cards } = P.parseCueBlock(block);
+      // (Obsidian's reading view of the page: its title, the space above, then the block)
+      document.body.innerHTML = '<div class="markdown-reading-view"><div class="markdown-preview-view markdown-rendered lp-cuecards"><div class="markdown-preview-sizer markdown-preview-section"><div class="markdown-preview-pusher" style="height:0.1px"></div><div class="mod-header"><div class="inline-title">Anti-natalism cue cards</div></div><div class="el-pre"><div class="block-language-cuecards lp-cuecards-block"></div></div></div></div></div>';
+      const html = (t) => { const d = document.createElement('div'); d.innerHTML = t.split('\n').map((l) => '<p>' + l + '</p>').join(''); return d; };
+      document.querySelector('.lp-cuecards-block').appendChild(P.buildCardWrap(cards.map((c) => ({ q: html(c.q), a: html(c.a) })), { size: 'standard', back: 'mirror', title: 'Anti-natalism' }));
+      P.fitCards(document.body);
+      return cards.map((c) => c.a);
+    });
+    assert.ok(texts.every((a) => !/nextpage/i.test(a)), 'no page break on a card: ' + JSON.stringify(texts));
+    assert.match(texts[0], /The question feels strange/, 'the writing after the page break kept');
+    await page.emulateMedia({ media: 'print' });
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lpp-cards-')), 'cards.pdf');
+    await page.pdf({ path: file, format: 'A4', margin: { top: 0, right: 0, bottom: 0, left: 0 }, printBackground: true });
+    // (where each page's first card begins: its heading, "Anti-natalism", at the top left)
+    const xml = execFileSync('pdftotext', ['-bbox', file, '-'], { encoding: 'utf8' });
+    const tops = xml.split('<page ').slice(1).map((pg) => { const m = /yMin="([\d.]+)"[^>]*>Anti-natalism</.exec(pg); return m ? +(+m[1]).toFixed(1) : null; });
+    fs.rmSync(path.dirname(file), { recursive: true, force: true });
+    assert.equal(tops.length, 2, 'a sheet of fronts, a sheet of backs');
+    assert.ok(tops[0] !== null && Math.abs(tops[0] - tops[1]) < 0.5, `the backs at the same height as the fronts (${tops})`);
+    assert.ok(tops[0] < 15, `the sheet at the top of the page (${tops[0]}pt)`);
+  } finally {
+    await context.close();
+  }
+});
+
 test('toolbar and buttons settings: groups hidden, the revise button off', async () => {
   const { page, context } = await openReading({ name: 'tb2', cornell: true, blocks: [] }, { theme: 'theme-light lp-tb-no-pen lp-tb-no-mark lp-no-revise lp-tb-at-bl' });
   try {

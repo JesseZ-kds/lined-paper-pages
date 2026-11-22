@@ -1750,6 +1750,10 @@ const FORMAT_DECK = 'Definitions and quotes cue cards';
 // > [!cue] …): the markdown of each, as written, without hidden comments (%% … %%, <!-- … -->), and
 // the heading each is under (h: the # Title before it). With { lines: true }, each card's line too.
 const plainHeading = (t) => String(t || '').replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_=~`]/g, '').replace(/\s+#+\s*$/, '').trim();
+// a page break or a divider ([!nextpage], [!divider]) is where the note's page ends, not writing: on a
+// card it is left out (and the writing after it, in the same notes, kept)
+const BREAK_LINE = /^\s*(?:>\s*)*\[!(?:nextpage|divider)\][+-]?.*$/i;
+const noBreaks = (s) => String(s || '').split('\n').filter((l) => !BREAK_LINE.test(l)).join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\s+$/g, '');
 function cornellCards(md, o = {}) {
   let src = String(md || '').replace(/\r\n?/g, '\n');
   const fm = /^---\n[\s\S]*?\n---\n/.exec(src);
@@ -1776,6 +1780,7 @@ function cornellCards(md, o = {}) {
     for (; j < lines.length; j++) {
       const q = /^((?:>\s?)*)(.*)$/.exec(lines[j]);
       const d = (q[1].match(/>/g) || []).length;
+      if (d > depth && BREAK_LINE.test(q[2])) continue;   // (a page break inside the notes)
       if (d < depth || /^\s*\[![\w-]+\]/.test(q[2])) break;
       body.push(q[2]);
     }
@@ -1828,7 +1833,7 @@ function parseCueBlock(src) {
     }
     cur[field] += '\n' + raw.replace(/^ {1,3}/, '');
   }
-  for (const c of cards) { c.q = c.q.replace(/\s+$/, ''); c.a = c.a.replace(/\s+$/, ''); }
+  for (const c of cards) { c.q = noBreaks(c.q); c.a = noBreaks(c.a); }
   return { opts, cards };
 }
 // the note made from a Cornell note: its properties and its cards
@@ -2730,6 +2735,9 @@ date: 2026-11-19
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.39.1': [
+    ['Cue cards', 'printed double-sided, the backs are exactly behind the fronts again; a page break in the notes is not on a card.'],
+  ],
   '1.39.0': [
     ['Text sizes', 'each kind of writing its own size (Settings → Text sizes), and a few words small, big or huge (Aa on the toolbar), still on their lines.'],
     ['Subjects', 'every subject\'s folder as a notebook on a shelf, in your theme\'s colours (Paper: subjects, the bookshelf icon).'],

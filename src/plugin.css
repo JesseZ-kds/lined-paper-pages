@@ -703,8 +703,19 @@ body.lp-cards-nolabel .lp-card-label { visibility: hidden; }
     print-color-adjust: exact;
   }
   .lp-card-sheet:last-child { break-after: auto; page-break-after: auto; }
+  /* A page of cue cards: its first sheet at the very top of the first page, as every other sheet is
+     on its page (the space above it on screen would push the fronts down, and not the backs, which
+     then no longer met their fronts when printed double-sided). Nothing but the sheets is printed. */
+  .lp-cuecards.markdown-preview-view, .lp-cuecards .markdown-preview-sizer,
+  .lp-cuecards .markdown-preview-section > div:has(.lp-cards-wrap), .lp-cuecards :is(.lp-cuecards-block, .block-language-cuecards, .lp-cards-wrap, .lp-card-sheets) {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+  .lp-cuecards :is(.inline-title, .metadata-container, .frontmatter-container, .markdown-preview-pusher, .mod-header, .mod-footer, .embedded-backlinks),
+  .lp-cuecards .markdown-preview-section > div:not(:has(.lp-cards-wrap)) { display: none !important; }
 }
-.lp-cuecards.markdown-preview-view { padding-top: 20px; }
+@media screen { .lp-cuecards.markdown-preview-view { padding-top: 20px; } }
 
 /* ---------- Review cue cards (spaced repetition) ---------- */
 .lp-review-modal { width: min(640px, 96vw); }

@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.39.1] - 2026-11-22
+
+### Fixed
+- **A page of cue cards printed with the backs out of line with the fronts.** The space above the
+  cards on screen was printed too, pushing the first sheet (the fronts) about 7 mm down but not the
+  next (the backs), so double-sided the backs sat higher than their fronts. Every sheet now starts at
+  the top of its page, and only the sheets are printed.
+- **"Nextpage" on a card.** A page break (`[!nextpage]`) or a divider in a cue's notes, or in a cue
+  card page's answers, showed on the card as "Nextpage" (and made the writing smaller to fit). It is
+  left out; the notes after it are kept on the card.
+
 ## [1.39.0] - 2026-11-22
 
 ### Added
