@@ -57,6 +57,18 @@ const SETTINGS = [
   { key: 'links', type: 'toggle', cls: 'lp-link-underline', def: false, name: 'Underline links',
     desc: 'Links are shown in their colour only, like writing. Switch this on to underline them.' },
 
+  { section: 'Text sizes', desc: 'Each kind of writing its own size, as a share of the text size (Pages → Text size). The lines stay where they are: bigger writing still sits on its line. A word or two bigger or smaller: select them, then Aa on the toolbar (or Mark: text small / big / huge).' },
+  { key: 'lp-size-h2', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: '## Headings' },
+  { key: 'lp-size-h3', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: '### Sub-headings' },
+  { key: 'lp-size-h4', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: '#### Smaller headings (####, #####, ######)' },
+  { key: 'lp-size-list', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: 'Bullet points and numbered lists' },
+  { key: 'lp-size-quote', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: '> Quotes (blockquotes)' },
+  { key: 'lp-size-table', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: 'Tables' },
+  { key: 'lp-size-code', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: 'Code' },
+  { key: 'lp-size-cue', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: 'Cornell: the cue column' },
+  { key: 'lp-size-notes', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: 'Cornell: the notes column' },
+  { key: 'lp-size-summary', type: 'slider', min: 0.6, max: 1.5, step: 0.05, def: 1, pct: true, name: 'Cornell: the summary' },
+
   { section: 'Pen and paper', desc: 'Make the page feel like writing by hand. Everything here shows in reading view, while editing and in the PDF.' },
   { key: 'pen', type: 'select', cls: 'lp-ink-', def: 'default', name: 'Pen',
     options: { default: 'Theme ink (Colours → Text)', ballpoint: 'Blue ballpoint', black: 'Black gel pen', fountain: 'Blue-black fountain pen', pencil: 'Pencil' },
@@ -149,6 +161,8 @@ const SETTINGS = [
   { key: 'revise-button', type: 'toggle', cls: 'lp-no-revise', invert: true, def: true, name: 'The "Add a revised …" button', desc: 'Under a definition\'s or quote\'s last version. (Insert: revised version, Alt + R, works either way.)' },
 
   { section: 'Definitions, quotes and diagrams', desc: 'Definitions and quotes each get a page of their own (a note), embedded where you use them: Insert: definition / quote. Embedded blocks (![[Note#^id]]) all start on their line, and the writing after them on the next.' },
+  { key: 'subjects-folder', type: 'path', def: 'Subjects', name: 'Folder of your subjects',
+    desc: 'A folder for each subject in it, a folder for each topic in those. Paper: subjects (the bookshelf icon) shows them all, as notebooks.' },
   { key: 'def-folder', type: 'path', def: 'Definitions', name: 'Folder for definitions',
     desc: 'Where Insert: definition makes the definition\'s page. Made if it is not there.' },
   { key: 'quote-folder', type: 'path', def: 'Quotes', name: 'Folder for quotes',
@@ -1070,11 +1084,33 @@ const COLOUR_RE = /<font\b[^>]*?\bcolor\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[
 // a pen mark: <span class="pen-circle"> (box, underline, wavy, scribble)
 const PEN_CLASS_RE = /\bclass\s*=\s*(?:"[^"]*?\b(pen-(?:circle|box|underline|wavy|scribble))\b[^"]*"|'[^']*?\b(pen-(?:circle|box|underline|wavy|scribble))\b[^']*')/i;
 const SAFE_COLOUR = /^[#\w(),.%\s-]+$/;
+// a size: <span class="lp-big"> (small, big, huge), the writing on its line all the same
+const SIZE_CLASS_RE = /\bclass\s*=\s*(?:"[^"]*?\b(lp-(?:small|big|huge))\b[^"]*"|'[^']*?\b(lp-(?:small|big|huge))\b[^']*')/i;
+const TEXT_SIZES = [['small', 'small'], ['big', 'big'], ['huge', 'huge']];
 // every coloured run in one line of source: where it is, where its text is, its colour
+// where a tag opened at `at` closes, tags of its name inside it counted (a <span> in a <span>)
+function tagEnd(text, at, name) {
+  const re = new RegExp(`<(/?)${name}\\b[^>]*>`, 'gi');
+  re.lastIndex = at;
+  let depth = 0;
+  for (let m; (m = re.exec(text));) {
+    depth += m[1] ? -1 : 1;
+    if (!depth) return { inner: m.index, end: m.index + m[0].length };
+  }
+  return null;
+}
 function colourRuns(text) {
   const out = [];
   COLOUR_RE.lastIndex = 0;
   for (let m; (m = COLOUR_RE.exec(text));) {
+    // (a span with a span in it: up to its own </span>)
+    if (m[6] !== undefined && /<span\b/i.test(m[6])) {
+      const e = tagEnd(text, m.index, 'span');
+      if (!e) continue;
+      const open = m[0].indexOf('>') + 1;
+      m = Object.assign([text.slice(m.index, e.end)], m, { 0: text.slice(m.index, e.end), 6: text.slice(m.index + open, e.inner), index: m.index });
+      COLOUR_RE.lastIndex = e.end;
+    }
     let colour = '', inner, mark = '';
     if (m[4] !== undefined) { colour = m[1] ?? m[2] ?? m[3]; inner = m[4]; }
     else if (m[8] !== undefined) {
@@ -1086,9 +1122,10 @@ function colourRuns(text) {
       const st = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(m[5]);
       const c = st && /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(st[1] ?? st[2] ?? '');
       const p = PEN_CLASS_RE.exec(m[5]);
-      if (!c && !p) continue;
+      const z = SIZE_CLASS_RE.exec(m[5]);
+      if (!c && !p && !z) continue;
       if (c) colour = c[1].trim();
-      if (p) mark = (p[1] || p[2]).toLowerCase();
+      mark = [p && (p[1] || p[2]), z && (z[1] || z[2])].filter(Boolean).join(' ').toLowerCase();
       inner = m[6];
     }
     if (colour && !SAFE_COLOUR.test(colour)) continue;
@@ -1105,7 +1142,24 @@ function linkLabel(target, alias) {
   return sub.length ? [file, ...sub.filter(Boolean)].filter(Boolean).join(' > ') : file;
 }
 // fill `parent` with `inner` (the source between the tags): text, **bold**, and [[links]]
-function fillColoured(parent, inner, open) {
+function fillColoured(parent, inner, open, nested) {
+  // (a coloured, marked or sized run inside: a span of its own, filled the same way)
+  const runs = colourRuns(inner);
+  if (runs.length) {
+    let last = 0;
+    for (const r of runs) {
+      fillColoured(parent, inner.slice(last, r.from), open, true);
+      const s = document.createElement('span');
+      s.className = 'lp-colour' + (r.mark ? ' ' + r.mark : '');
+      if (r.colour) s.style.color = PEN_VAR[r.colour.toLowerCase()] || r.colour;
+      fillColoured(s, r.inner, open, true);
+      parent.appendChild(s);
+      last = r.to;
+    }
+    fillColoured(parent, inner.slice(last), open, true);
+    if (!nested) drawArrows(parent);
+    return;
+  }
   const text = (str) => {
     str.split(/(\*\*[^*]+\*\*)/).forEach((part) => {
       if (!part) return;
@@ -1135,7 +1189,7 @@ function fillColoured(parent, inner, open) {
     parent.appendChild(a);
   }
   text(inner.slice(last));
-  drawArrows(parent);   // (an arrow in a colour: drawn, in that colour)
+  if (!nested) drawArrows(parent);   // (an arrow in a colour: drawn, in that colour)
 }
 // reading view / PDF: a coloured tag whose [[link]] did not come out as a link is rebuilt from the
 // note's source (or from its own text, when the link was left there as plain text)
@@ -1582,6 +1636,7 @@ const HOTKEYS = {
   'highlighter-pink': HL('p'), 'highlighter': HL('h'), 'remove-highlight': HL('x'),
   'pen-circle': MARK('c'), 'pen-box': MARK('b'), 'pen-underline': MARK('u'), 'pen-wavy': MARK('w'), 'pen-scribble': MARK('s'),
   'cross-out': MARK('k'), 'remove-marks': MARK('x'), 'remove-all-styles': MARK('a'),
+  'size-small': MARK('1'), 'size-big': MARK('2'), 'size-huge': MARK('3'), 'size-normal': MARK('0'),
   'review': STUDY('r'), 'review-cards': STUDY('s'), 'cue-cards': STUDY('k'), 'show-cue-cards': STUDY('b'),
 };
 // the families, in order: their keys, what their commands start with, and what they are for
@@ -1589,7 +1644,7 @@ const HOTKEY_FAMILIES = [
   { mods: 'Alt', prefix: 'Insert: ', name: 'Insert', what: 'cues, titles, pages, definitions, quotes, arrows, diagrams, maths' },
   { mods: 'Mod+Alt', prefix: 'Pen: ', name: 'Pen', what: 'write in a colour (first letter of the colour; X: remove)' },
   { mods: 'Alt+Shift', prefix: 'Highlight: ', name: 'Highlight', what: 'a highlighter (first letter of the colour; H: yours; X: remove)' },
-  { mods: 'Mod+Alt+Shift', prefix: 'Mark: ', name: 'Mark', what: 'circle, box, underline, wavy, scribble, cross out (X: remove)' },
+  { mods: 'Mod+Alt+Shift', prefix: 'Mark: ', name: 'Mark', what: 'circle, box, underline, wavy, scribble, cross out (X: remove); text size 1 small, 2 big, 3 huge, 0 normal' },
   { mods: 'Mod+Shift', prefix: 'Note: ', name: 'Study', what: 'review, study the cards, make cue cards, cards beside the note' },
 ];
 // a hotkey as it reads on this computer: Alt+N, Ctrl+Alt+B (Windows / Linux), ⌥N, ⌘⌥B (Mac)
@@ -2118,12 +2173,20 @@ function styledRuns(text) {
   // (==…== may hold an `=`, as in ==<mark class="hl-blue">…</mark>==)
   const re = /<(font|span|mark)\b([^>]*)>([\s\S]*?)<\/\1\s*>|==(?![=\s])([^\n]*?[^\s=])==/gi;
   for (let m; (m = re.exec(text));) {
+    // (a span with a span in it: up to its own </span>)
+    if (m[1] && m[1].toLowerCase() === 'span' && /<span\b/i.test(m[3])) {
+      const e = tagEnd(text, m.index, 'span');
+      if (!e) continue;
+      m = Object.assign([], m, { 0: text.slice(m.index, e.end), 3: text.slice(m.index + m[0].indexOf('>') + 1, e.inner), index: m.index });
+      re.lastIndex = e.end;
+    }
     let kind = null;
     if (m[4] !== undefined) kind = 'highlight';
     else {
       const tag = m[1].toLowerCase(), attrs = m[2];
       if (tag === 'mark') kind = 'highlight';
       else if (tag === 'span' && PEN_CLASS_RE.test(attrs)) kind = 'mark';
+      else if (tag === 'span' && SIZE_CLASS_RE.test(attrs)) kind = 'size';
       else if ((tag === 'font' && /\bcolor\s*=/i.test(attrs)) || (tag === 'span' && /\bstyle\s*=\s*["'][^"']*\bcolor\s*:/i.test(attrs))) kind = 'colour';
     }
     if (!kind) continue;
@@ -2233,6 +2296,7 @@ const COMMAND_ICONS = {
   'insert-math': 'sigma', 'insert-math-block': 'square-sigma', 'insert-symbol': 'omega', 'insert-chem': 'flask-conical', 'insert-superscript': 'superscript', 'insert-subscript': 'subscript',
   'remove-colour': 'eraser', 'remove-highlight': 'eraser', 'remove-marks': 'eraser', 'remove-all-styles': 'remove-formatting', 'highlighter': 'highlighter', 'cross-out': 'strikethrough',
   'pen-circle': 'circle', 'pen-box': 'square', 'pen-underline': 'underline', 'pen-wavy': 'audio-waveform', 'pen-scribble': 'pen-tool',
+  'size-small': 'a-arrow-down', 'size-big': 'a-arrow-up', 'size-huge': 'type', 'size-normal': 'case-sensitive', 'subjects': 'library-big',
   'review': 'eye-off', 'review-cards': 'graduation-cap', 'cue-cards': 'printer', 'show-cue-cards': 'panel-right', 'edit-cue-cards': 'pencil', 'folder-cue-cards': 'layers',
   'format-cue-cards': 'library', 'topic-index': 'list-tree', 'set-date': 'calendar', 'update': 'refresh-cw', 'whats-new': 'info', 'hotkeys': 'keyboard', 'setup-vault': 'folder-tree',
 };
@@ -2370,6 +2434,7 @@ function addPaperCommands(plugin) {
   add({ id: 'whats-new', name: 'Paper: what\'s new in Lined Paper Pages', callback: () => plugin.whatsNew(true) });
   add({ id: 'format-cue-cards', name: 'Note: cue cards for all definitions and quotes', callback: () => plugin.makeFormatCards() });
   add({ id: 'show-cue-cards', name: 'Note: show cue cards beside the note (as you write)', callback: () => plugin.showCardPanel() });
+  add({ id: 'subjects', name: 'Paper: subjects (every subject\'s folder, as notebooks)', callback: () => plugin.showSubjects() });
   add({
     id: 'edit-cue-cards', name: 'Note: edit cue cards (change, add, take out, move)',
     checkCallback: (checking) => {
@@ -2412,6 +2477,7 @@ function addPaperCommands(plugin) {
     },
   });
   if (plugin.addRibbonIcon) plugin.addRibbonIcon('sun-moon', 'Lined Paper: light / dark paper', () => plugin.togglePaperTheme());
+  if (plugin.addRibbonIcon) plugin.addRibbonIcon('library-big', 'Lined Paper: subjects', () => plugin.showSubjects());
 
   const insert = (id, name, key) => add({
     id, name,
@@ -2478,7 +2544,12 @@ function addPaperCommands(plugin) {
   add({ id: 'remove-colour', name: 'Pen: remove colour', editorCallback: (editor) => restyleSelection(editor, ['colour'], null) });
   add({ id: 'remove-highlight', name: 'Highlight: remove', editorCallback: (editor) => restyleSelection(editor, ['highlight'], null) });
   add({ id: 'remove-marks', name: 'Mark: remove marks (circle, box, underline …)', editorCallback: (editor) => restyleSelection(editor, ['mark'], null) });
-  add({ id: 'remove-all-styles', name: 'Mark: remove all colours, highlights and marks', editorCallback: (editor) => restyleSelection(editor, ['colour', 'highlight', 'mark'], null) });
+  add({ id: 'remove-all-styles', name: 'Mark: remove all colours, highlights, marks and sizes', editorCallback: (editor) => restyleSelection(editor, ['colour', 'highlight', 'mark', 'size'], null) });
+  // a size for a few words (Settings → Text sizes for a kind of writing)
+  for (const [id, name] of TEXT_SIZES) {
+    add({ id: 'size-' + id, name: 'Mark: text ' + name, editorCallback: (editor) => restyleSelection(editor, ['size'], { open: `<span class="lp-${id}">`, close: '</span>' }) });
+  }
+  add({ id: 'size-normal', name: 'Mark: text normal size', editorCallback: (editor) => restyleSelection(editor, ['size'], null) });
   add({ id: 'cross-out', name: 'Mark: cross out (~~)', editorCallback: (editor) => wrap(editor, '~~', '~~') });
   add({ id: 'insert-task', name: 'Insert: checkbox (task)', editorCallback: (editor) => {
     const cur = editor.getCursor();
@@ -2595,6 +2666,7 @@ All of them: *Paper: hotkeys*, or **?** on the toolbar. (Mac: ⌘ for Ctrl, ⌥ 
 - **Middle:** the note, in Live Preview while you write, reading view to read and print.
 - **Right:** the **cue cards beside the note** (Ctrl+Shift+B), the **outline** of the note, and
   backlinks (where a definition or quote is used).
+- **Paper: subjects** (the bookshelf icon): every subject as a notebook, its topics and notes inside.
 - Pin this page (right-click its tab → Pin) to come back to it.
 `],
     ['Templates/Cornell note.md', `---
@@ -2658,6 +2730,10 @@ date: 2026-11-19
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.39.0': [
+    ['Text sizes', 'each kind of writing its own size (Settings → Text sizes), and a few words small, big or huge (Aa on the toolbar), still on their lines.'],
+    ['Subjects', 'every subject\'s folder as a notebook on a shelf, in your theme\'s colours (Paper: subjects, the bookshelf icon).'],
+  ],
   '1.38.3': [
     ['Toolbar', 'at the bottom of a note with Editing Toolbar it is one row again, not stretched down the whole note.'],
   ],
@@ -3127,7 +3203,9 @@ function cardAction(id, editor) {
   if (id.startsWith('highlighter-')) return restyleSelection(editor, ['highlight'], { open: `<mark class="hl-${id.slice(12)}">`, close: '</mark>' });
   const mark = PEN_MARKS.find(([m]) => 'pen-' + m === id);
   if (mark) return restyleSelection(editor, ['mark'], { open: `<span class="pen-${mark[0]}">`, close: '</span>' });
-  const remove = { 'remove-colour': ['colour'], 'remove-highlight': ['highlight'], 'remove-marks': ['mark'], 'remove-all-styles': ['colour', 'highlight', 'mark'] }[id];
+  const size = TEXT_SIZES.find(([z]) => 'size-' + z === id);
+  if (size) return restyleSelection(editor, ['size'], { open: `<span class="lp-${size[0]}">`, close: '</span>' });
+  const remove = { 'remove-colour': ['colour'], 'remove-highlight': ['highlight'], 'remove-marks': ['mark'], 'remove-all-styles': ['colour', 'highlight', 'mark', 'size'], 'size-normal': ['size'] }[id];
   if (remove) return restyleSelection(editor, remove, null);
   if (id === 'cross-out') return wrapSelection(editor, '~~', '~~');
   if (id === 'bold') return wrapSelection(editor, '**', '**');
@@ -3183,6 +3261,85 @@ const CueCardsView = class extends (ItemView || class {}) {
   getDisplayText() { return 'Cue cards'; }
   getIcon() { return 'layers'; }
   async onOpen() { this.plugin.refreshCardPanel().catch(() => {}); }
+};
+
+// ---------- subjects: every subject's folder, as notebooks on a shelf ----------
+// The subjects folder (Settings: Folder of your subjects): a folder in it is a subject, a folder in a
+// subject is a topic. (No such folder: the vault's own folders, but the study vault's others.)
+const NOT_SUBJECTS = ['Definitions', 'Quotes', 'Diagrams', 'Cue cards', 'Templates', 'Attachments'];
+// the theme's own colours (AnuPpuccin's, or any other theme's), one for each subject
+const SUBJECT_COLOURS = ['blue', 'red', 'green', 'purple', 'orange', 'cyan', 'pink', 'yellow'];
+function subjectColour(name) {
+  let h = 0;
+  for (const ch of String(name).toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return SUBJECT_COLOURS[h % SUBJECT_COLOURS.length];
+}
+// files: [{ path, mtime }]; folders: the folders there are (with no notes in them yet too)
+// → { root, own (a folder of subjects there), subjects: [{ name, path, colour, notes, topics: [{ name, path, notes }], loose, last }] }
+function subjectTree(files, folders, root) {
+  root = String(root || 'Subjects').replace(/^\/+|\/+$/g, '');
+  const pre = root + '/';
+  const own = files.some((f) => f.path.startsWith(pre)) || folders.some((p) => p === root || p.startsWith(pre));
+  const base = own ? pre : '';
+  const subs = new Map();
+  const subject = (name) => {
+    if (!subs.has(name)) subs.set(name, { name, path: base + name, colour: subjectColour(name), notes: 0, topics: new Map(), loose: [], last: 0 });
+    return subs.get(name);
+  };
+  const skip = (name) => !own && (NOT_SUBJECTS.includes(name) || name.startsWith('.') || name === root);
+  for (const p of folders) {
+    if (!p.startsWith(base) || p === root) continue;
+    const parts = p.slice(base.length).split('/').filter(Boolean);
+    if (!parts.length || skip(parts[0])) continue;
+    const s = subject(parts[0]);
+    if (parts[1] && !s.topics.has(parts[1])) s.topics.set(parts[1], { name: parts[1], path: s.path + '/' + parts[1], notes: [] });
+  }
+  for (const f of files) {
+    if (!f.path.startsWith(base) || !/\.md$/i.test(f.path)) continue;
+    const parts = f.path.slice(base.length).split('/');
+    if (parts.length < 2 || skip(parts[0])) continue;   // (a note at the top: not in a subject)
+    const s = subject(parts[0]);
+    const note = { path: f.path, name: parts[parts.length - 1].replace(/\.md$/i, ''), mtime: f.mtime || 0 };
+    s.notes++;
+    s.last = Math.max(s.last, note.mtime);
+    if (parts.length === 2) s.loose.push(note);
+    else {
+      if (!s.topics.has(parts[1])) s.topics.set(parts[1], { name: parts[1], path: s.path + '/' + parts[1], notes: [] });
+      s.topics.get(parts[1]).notes.push(note);
+    }
+  }
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  const recent = (a, b) => (b.mtime - a.mtime) || byName(a, b);
+  const subjects = [...subs.values()].sort(byName).map((s) => {
+    const topics = [...s.topics.values()].sort(byName);
+    topics.forEach((t) => { t.notes.sort(recent); t.last = Math.max(0, ...t.notes.map((n) => n.mtime)); });
+    s.loose.sort(recent);
+    return { ...s, topics };
+  });
+  return { root, own, subjects };
+}
+// "today", "yesterday", "3 days ago", "12 Mar"
+function whenText(ms, now = Date.now()) {
+  if (!ms) return '';
+  const day = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const n = Math.round((day(now) - day(ms)) / 86400000);
+  if (n <= 0) return 'today';
+  if (n === 1) return 'yesterday';
+  if (n < 7) return `${n} days ago`;
+  return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+const SubjectsView = class extends (ItemView || class {}) {
+  constructor(leaf, plugin) { super(leaf); this.plugin = plugin; this.open = null; }
+  getViewType() { return 'lp-subjects'; }
+  getDisplayText() { return this.open ? this.open.replace(/^.*\//, '') : 'Subjects'; }
+  getIcon() { return 'library-big'; }
+  async onOpen() {
+    const again = () => { window.clearTimeout(this._t); this._t = window.setTimeout(() => this.draw(), 400); };
+    if (this.registerEvent) for (const e of ['create', 'delete', 'rename']) this.registerEvent(this.plugin.app.vault.on(e, again));
+    this.draw();
+  }
+  async onClose() { window.clearTimeout(this._t); }
+  draw() { this.plugin.drawSubjects(this.contentEl, this); }
 };
 
 module.exports = class LinedPaperPages extends Plugin {
@@ -3295,6 +3452,7 @@ module.exports = class LinedPaperPages extends Plugin {
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
     if (this.registerView && ItemView) this.registerView('lp-cue-cards', (leaf) => new CueCardsView(leaf, this));
+    if (this.registerView && ItemView) this.registerView('lp-subjects', (leaf) => new SubjectsView(leaf, this));
     const panel = (follow = false) => { window.clearTimeout(this._panelT); this._panelT = window.setTimeout(() => this.refreshCardPanel(follow).catch(() => {}), 500); };
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => { const v = leaf && leaf.view; if (v && v.file && v.getViewType && v.getViewType() === 'markdown') { this.cardSource = v.file; panel(); } }));
     if (this.app.workspace.on) this.registerEvent(this.app.workspace.on('editor-change', (ed, info) => { if (info && info.file && info.file === this.cardSource) panel(true); }));
@@ -4123,6 +4281,152 @@ module.exports = class LinedPaperPages extends Plugin {
   }
 
   // ---------- the cue cards beside a note (a side panel): the cards of the note you are in, as you write ----------
+  // ---------- subjects ----------
+  async showSubjects() {
+    const ws = this.app.workspace;
+    let leaf = ws.getLeavesOfType('lp-subjects')[0];
+    if (!leaf) { leaf = ws.getLeaf('tab'); await leaf.setViewState({ type: 'lp-subjects', active: true }); }
+    if (ws.revealLeaf) ws.revealLeaf(leaf);
+  }
+  subjects() {
+    const v = this.app.vault;
+    const files = v.getMarkdownFiles().map((f) => ({ path: f.path, mtime: (f.stat && f.stat.mtime) || 0 }));
+    const folders = v.getAllLoadedFiles ? v.getAllLoadedFiles().filter((f) => f.children).map((f) => f.path) : [];
+    return subjectTree(files, folders, this.settings['subjects-folder'] || 'Subjects');
+  }
+  // The shelf (every subject, as a notebook), or one subject (its topics, as index cards of its notes).
+  // view: { open: the subject shown (its path), or none for the shelf }
+  drawSubjects(el, view = {}) {
+    const app = this.app;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const icon = (parent, name, cls) => { const i = mk(parent, 'span', 'lp-sj-icon' + (cls ? ' ' + cls : '')); try { if (OB.setIcon) OB.setIcon(i, name); } catch (e) { /* */ } return i; };
+    const tree = this.subjects();
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const openNote = (path, e) => {
+      const f = app.vault.getAbstractFileByPath(path);
+      if (f) app.workspace.getLeaf(e && (e.ctrlKey || e.metaKey) ? 'tab' : false).openFile(f);
+    };
+    const go = (path) => { view.open = path; this.drawSubjects(el, view); if (view.leaf && view.leaf.updateHeader) view.leaf.updateHeader(); };
+    const study = (path, name) => this.reviewCards('folder', { path: path + '/' + name, basename: name, parent: { path } });
+    const newFolder = (title, parent, then) => {
+      if (!Modal) return;
+      const m = new Modal(app);
+      m.titleEl.setText(title);
+      const inp = mk(m.contentEl, 'input', 'lp-sj-input'); inp.type = 'text'; inp.placeholder = 'Name';
+      const ok = mk(m.contentEl, 'button', 'mod-cta', 'Make it'); ok.type = 'button';
+      const make = async () => {
+        const name = inp.value.trim().replace(/[\\/:*?"<>|#^[\]]/g, '');
+        if (!name) return;
+        const path = (parent ? parent + '/' : '') + name;
+        if (parent && !app.vault.getAbstractFileByPath(parent)) await app.vault.createFolder(parent).catch(() => {});
+        await app.vault.createFolder(path).catch(() => {});
+        m.close();
+        then(path);
+      };
+      ok.addEventListener('click', make);
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') make(); });
+      m.open();
+      window.setTimeout(() => inp.focus(), 30);
+    };
+    el.replaceChildren();
+    el.classList.add('lp-subjects');
+    const page = mk(el, 'div', 'lp-sj-page');
+    const subject = view.open && tree.subjects.find((s) => s.path === view.open);
+    if (view.open && !subject) view.open = null;
+
+    if (!subject) {
+      // the shelf
+      const head = mk(page, 'div', 'lp-sj-head');
+      const t = mk(head, 'div', 'lp-sj-titles');
+      mk(t, 'h1', 'lp-sj-title', 'Subjects');
+      const notes = tree.subjects.reduce((n, s) => n + s.notes, 0);
+      mk(t, 'div', 'lp-sj-sub', tree.subjects.length ? `${plural(tree.subjects.length, 'subject')} · ${plural(notes, 'note')}` + (tree.own ? '' : ` · your vault's folders (no ${tree.root} folder)`) : '');
+      const add = mk(head, 'button', 'lp-sj-btn', '');
+      icon(add, 'folder-plus'); add.appendChild(document.createTextNode(' New subject'));
+      add.type = 'button';
+      add.addEventListener('click', () => newFolder('New subject', tree.own || !tree.subjects.length ? tree.root : '', () => this.drawSubjects(el, view)));
+      if (!tree.subjects.length) {
+        const empty = mk(page, 'div', 'lp-sj-empty');
+        mk(empty, 'p', '', `No subjects yet. Make a folder for each subject in "${tree.root}" (New subject), and a folder for each topic in it.`);
+        return;
+      }
+      const shelf = mk(page, 'div', 'lp-sj-shelf');
+      for (const s of tree.subjects) {
+        const book = mk(shelf, 'button', 'lp-sj-book');
+        book.type = 'button';
+        book.dataset.path = s.path;
+        book.style.setProperty('--lp-sj-c', `var(--color-${s.colour}, var(--interactive-accent))`);
+        book.title = `Open ${s.name}`;
+        mk(book, 'span', 'lp-sj-spine');
+        const label = mk(book, 'span', 'lp-sj-label');
+        const nm = mk(label, 'span', 'lp-sj-name', s.name);
+        if (s.name.length > 8) nm.classList.add(s.name.length > 14 ? 'lp-sj-longer' : 'lp-sj-long');
+        mk(label, 'span', 'lp-sj-meta', [s.topics.length ? plural(s.topics.length, 'topic') : '', plural(s.notes, 'note')].filter(Boolean).join(' · '));
+        // (its topics, written on the cover)
+        if (s.topics.length) {
+          const tl = mk(book, 'span', 'lp-sj-topiclist');
+          for (const tp of s.topics.slice(0, 3)) mk(tl, 'span', '', tp.name);
+          if (s.topics.length > 3) mk(tl, 'span', 'lp-sj-andmore', `and ${s.topics.length - 3} more`);
+        }
+        const foot = mk(book, 'span', 'lp-sj-foot');
+        mk(foot, 'span', 'lp-sj-when', s.last ? 'Written in ' + whenText(s.last) : 'Nothing written yet');
+        const due = mk(foot, 'span', 'lp-sj-due');
+        book.addEventListener('click', () => go(s.path));
+        // (the cue cards due today in it: counted after, a subject at a time)
+        if (s.notes) window.setTimeout(async () => {
+          try {
+            const cards = await this.cardsIn('folder', { parent: { path: s.path } });
+            const n = this.dueCount(cards);
+            if (n && due.isConnected) { due.textContent = plural(n, 'card') + ' due'; due.classList.add('lp-sj-has-due'); }
+          } catch (e) { /* */ }
+        }, 50);
+      }
+      return;
+    }
+
+    // one subject: its topics
+    page.style.setProperty('--lp-sj-c', `var(--color-${subject.colour}, var(--interactive-accent))`);
+    const crumbs = mk(page, 'div', 'lp-sj-crumbs');
+    const back = mk(crumbs, 'button', 'lp-sj-back', ''); back.type = 'button';
+    icon(back, 'chevron-left'); back.appendChild(document.createTextNode(' Subjects'));
+    back.addEventListener('click', () => go(null));
+    const head = mk(page, 'div', 'lp-sj-head lp-sj-subject-head');
+    const t = mk(head, 'div', 'lp-sj-titles');
+    mk(t, 'h1', 'lp-sj-title', subject.name);
+    mk(t, 'div', 'lp-sj-sub', [subject.topics.length ? plural(subject.topics.length, 'topic') : '', plural(subject.notes, 'note'), subject.last ? 'written in ' + whenText(subject.last) : ''].filter(Boolean).join(' · '));
+    const acts = mk(head, 'div', 'lp-sj-actions');
+    const btn = (label, ic, title, f) => { const b = mk(acts, 'button', 'lp-sj-btn'); b.type = 'button'; icon(b, ic); b.appendChild(document.createTextNode(' ' + label)); b.title = title; b.addEventListener('click', f); return b; };
+    btn('Study', 'graduation-cap', 'The cue cards due today, from every note in this subject', () => study(subject.path, subject.name));
+    btn('New topic', 'folder-plus', 'A folder for a topic in this subject', () => newFolder('New topic in ' + subject.name, subject.path, () => this.drawSubjects(el, view)));
+    const cards = mk(page, 'div', 'lp-sj-topics');
+    const topicCard = (name, notes, path) => {
+      const c = mk(cards, 'div', 'lp-sj-topic');
+      if (path) c.dataset.path = path;
+      const h = mk(c, 'div', 'lp-sj-topic-head');
+      mk(h, 'span', 'lp-sj-topic-name', name);
+      mk(h, 'span', 'lp-sj-count', String(notes.length));
+      const list = mk(c, 'div', 'lp-sj-notes');
+      const MAX = 8;
+      const row = (n) => {
+        const a = mk(list, 'button', 'lp-sj-note'); a.type = 'button'; a.dataset.path = n.path;
+        mk(a, 'span', 'lp-sj-note-name', n.name);
+        if (n.mtime) mk(a, 'span', 'lp-sj-note-when', whenText(n.mtime));
+        a.addEventListener('click', (e) => openNote(n.path, e));
+      };
+      notes.slice(0, MAX).forEach(row);
+      if (notes.length > MAX) {
+        const more = mk(list, 'button', 'lp-sj-more', `+ ${notes.length - MAX} more`); more.type = 'button';
+        more.addEventListener('click', () => { more.remove(); notes.slice(MAX).forEach(row); });
+      }
+      if (!notes.length) mk(list, 'div', 'lp-sj-none', 'No notes yet');
+      // (a few empty ruled lines under the notes, like the rest of an index card)
+      for (let i = notes.length ? Math.min(notes.length, MAX) : 1; i < 3; i++) mk(list, 'div', 'lp-sj-blank');
+    };
+    for (const tp of subject.topics) topicCard(tp.name, tp.notes, tp.path);
+    if (subject.loose.length) topicCard(subject.topics.length ? 'Other notes' : 'Notes', subject.loose, null);
+    if (!subject.topics.length && !subject.loose.length) mk(page, 'div', 'lp-sj-empty', 'No topics yet: New topic makes a folder for one.');
+  }
+
   async showCardPanel() {
     const ws = this.app.workspace;
     let leaf = ws.getLeavesOfType('lp-cue-cards')[0];
@@ -5202,8 +5506,11 @@ module.exports = class LinedPaperPages extends Plugin {
     const mark = group('Mark', 'lp-tb-edit');
     menu(mark, '◯ ▾', 'Mark: circle, box, underline …', [
       ['pen-circle', '◯ Circle'], ['pen-box', '▢ Box'], ['pen-underline', 'U̲ Underline'], ['pen-wavy', '〰 Wavy underline'], ['pen-scribble', '▒ Scribble out'], ['cross-out', 'S̶ Cross out'], '-',
-      ['remove-marks', 'Remove marks'], ['remove-all-styles', 'Remove all colours, highlights and marks'],
+      ['remove-marks', 'Remove marks'], ['remove-all-styles', 'Remove all colours, highlights, marks and sizes'],
     ]);
+    menu(mark, 'Aa ▾', 'Text size: small, big, huge (Settings → Text sizes for each kind of writing)', [
+      ['size-small', 'Small'], ['size-big', 'Big'], ['size-huge', 'Huge'], '-', ['size-normal', 'Normal size'],
+    ], { cls: 'lp-tb-size' });
     // Study (in reading view too)
     const rev = group('Study', 'lp-tb-review');
     button(rev, 'Review', 'Review: cover the notes, answer the cues, click to check', 'review', { cls: 'lp-tb-reviewbtn', short: ['Rev', 'eye-off'] });
@@ -5950,7 +6257,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
-Object.assign(module.exports, { tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
+Object.assign(module.exports, { subjectTree, whenText, subjectColour, TEXT_SIZES, tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;

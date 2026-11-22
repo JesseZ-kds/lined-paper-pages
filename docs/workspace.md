@@ -31,6 +31,12 @@ Attachments/              pictures you paste
 - **Definitions and quotes have pages of their own**, so the same definition is used in every note
   that needs it, its revised versions are kept, and each one becomes a cue card by itself.
 
+**Paper: subjects** (the bookshelf icon on the left) shows every subject as a notebook, in your
+theme's colours: its topics on the cover, when you last wrote in it and the cue cards due. Click one
+for its topics, each an index card of its notes (the newest first); **Study** reviews the whole
+subject's cards, **New topic** makes a folder. (The folder of subjects: *Settings → Definitions,
+quotes and diagrams → Folder of your subjects*.)
+
 ## 2. The window
 
 | Where | What | How |

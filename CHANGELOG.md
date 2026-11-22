@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-11-22
+
+### Added
+- **Text sizes** (Settings → Text sizes): each kind of writing its own size, as a share of the text
+  size: ## headings, ### sub-headings, smaller headings, lists, quotes, tables, code, and the Cornell
+  cue column, notes column and summary. The ruled lines never move: bigger writing sits on its line.
+- **A few words small, big or huge**: Aa ▾ on the toolbar, or Mark: text small / big / huge / normal
+  (Ctrl+Alt+Shift+1, 2, 3, 0). `<span class="lp-big">…</span>`, in editing, reading view and the PDF,
+  with a pen, highlighter or mark on the same words.
+- **Subjects** (Paper: subjects, or the bookshelf icon): every subject's folder as a notebook on a
+  shelf, coloured from the theme's own palette (AnuPpuccin's, or any theme's), with its topics on the
+  cover, when it was last written in and the cue cards due. A subject opens to its topics, each an
+  index card of its notes, newest first; Study reviews the subject, New subject / New topic make the
+  folders. The folder of subjects is a setting (Subjects).
+  A size and a mark on the same words (a `<span>` in a `<span>`) show properly while editing.
+
 ## [1.38.3] - 2026-11-21
 
 ### Fixed

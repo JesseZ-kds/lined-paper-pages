@@ -125,7 +125,7 @@ test('settings page: options, live changes, saving and Reset all', async () => {
       return out;
     });
     assert.match(r.intro, /^Lined Paper Pages test\./);
-    assert.deepEqual(r.sections, ['Pages', 'Pen and paper', 'Colours', 'Cornell notes', 'Callouts', 'Toolbar', 'Definitions, quotes and diagrams', 'Cue cards', 'Revision and AI', 'Updates', 'Advanced']);
+    assert.deepEqual(r.sections, ['Pages', 'Text sizes', 'Pen and paper', 'Colours', 'Cornell notes', 'Callouts', 'Toolbar', 'Definitions, quotes and diagrams', 'Cue cards', 'Revision and AI', 'Updates', 'Advanced']);
     assert.ok(r.shown >= 30, `${r.shown} settings shown`);
     assert.deepEqual(r.folded, [true, false, false], 'Pages open, the other sections folded');
     assert.equal(r.opened, true, 'a click on a heading opens it');

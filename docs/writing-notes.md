@@ -627,6 +627,24 @@ little, slightly uneven handwriting, the paper (ivory, cream, a yellow legal pad
 how sub-headings are underlined, drawn bullets (dash, arrow, circle, star) and their colour,
 hand-drawn checkboxes ticked in green, how crossed-out text looks, and the highlighter's colour.
 
+## Text sizes
+
+Every kind of writing can have its own size: **Settings → Text sizes** (headings, sub-headings,
+lists, quotes, tables, code, and the Cornell cue column, notes column and summary). They are a share
+of the text size, so *Text size* still makes everything bigger or smaller together.
+
+A word or two bigger or smaller: select them, then **Aa ▾** on the toolbar, or
+
+| Size | Hotkey | Write |
+| --- | --- | --- |
+| Small | Ctrl+Alt+Shift+1 | `<span class="lp-small">words</span>` |
+| Big | Ctrl+Alt+Shift+2 | `<span class="lp-big">words</span>` |
+| Huge | Ctrl+Alt+Shift+3 | `<span class="lp-huge">words</span>` |
+| Normal again | Ctrl+Alt+Shift+0 | |
+
+Bigger writing stays on its line, like big handwriting: the rows never move, in editing, in
+reading view and in the PDF. A size goes with a pen, a highlighter or a mark on the same words.
+
 ## Tables without a header
 
 Markdown needs a header row on a table, so a table without one is written with an empty header

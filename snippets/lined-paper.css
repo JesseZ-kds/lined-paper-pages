@@ -697,7 +697,7 @@ settings:
 .lined-paper pre,
 .lined-paper code {
   font-family: var(--hand);
-  font-size: var(--text) !important;
+  font-size: calc(var(--text) * var(--lp-kind, 1) * var(--lp-area, 1)) !important;
   line-height: var(--line) !important;
   text-align: left;
   color: var(--ink);
@@ -706,6 +706,34 @@ settings:
   padding-bottom: 0 !important;
   letter-spacing: 0.01em;
 }
+
+/* ---------- 5b. TEXT SIZES ----------
+   Each kind of writing its own size (Settings → Text sizes: --lp-size-…, a share of the text size),
+   and a few words small, big or huge (<span class="lp-big">). The rows never change: the writing is
+   bigger or smaller on its line, still sitting on it. --lp-kind is the kind (a heading, a list …),
+   --lp-area where it is (the cue column, the notes, the summary); the text inside takes them on. */
+.lined-paper { --lp-kind: 1; --lp-area: 1; }
+.lined-paper :is(h2, .HyperMD-header-2, .cm-header-2) { --lp-kind: var(--lp-size-h2, 1); }
+.lined-paper :is(h3, .HyperMD-header-3, .cm-header-3) { --lp-kind: var(--lp-size-h3, 1); }
+.lined-paper :is(h4, h5, h6, .HyperMD-header-4, .HyperMD-header-5, .HyperMD-header-6, .cm-header-4, .cm-header-5, .cm-header-6) { --lp-kind: var(--lp-size-h4, 1); }
+.lined-paper :is(li, .HyperMD-list-line) { --lp-kind: var(--lp-size-list, 1); }
+.lined-paper :is(blockquote, .HyperMD-quote:not(.HyperMD-callout)) { --lp-kind: var(--lp-size-quote, 1); }
+/* (a callout is not a quote, though it is written as one: >> [!cue]) */
+.lined-paper .callout { --lp-kind: 1; }
+.lined-paper :is(td, th) { --lp-kind: var(--lp-size-table, 1); }
+.lined-paper :is(pre, code, .HyperMD-codeblock, .cm-inline-code) { --lp-kind: var(--lp-size-code, 1); }
+.lined-paper .callout[data-callout="cue" i] { --lp-area: var(--lp-size-cue, 1); }
+.lined-paper .callout[data-callout="notes" i] { --lp-area: var(--lp-size-notes, 1); }
+.lined-paper .callout[data-callout="summary" i] { --lp-area: var(--lp-size-summary, 1); }
+/* (a callout in one of them: a callout's own size again) */
+.lined-paper .callout .callout:not([data-callout="cue" i], [data-callout="notes" i], [data-callout="summary" i]) { --lp-area: 1; }
+/* a few words: bigger or smaller than the writing round them, on the same line (they take no more
+   room above it: the row stays the row) */
+.lined-paper :is(.lp-small, .lp-big, .lp-huge) { line-height: 0 !important; }
+.lined-paper .lp-small { font-size: 0.8em !important; }
+.lined-paper .lp-big { font-size: 1.25em !important; }
+.lined-paper .lp-huge { font-size: 1.5em !important; }
+.lined-paper :is(.lp-small, .lp-big, .lp-huge) :is(code, strong, em, a, font, mark, span) { font-size: inherit !important; }
 
 /* HTML alignment */
 .lined-paper :is(p, div, h2, h3, h4, h5, h6, li)[align="right"] {
@@ -735,7 +763,7 @@ settings:
 .lined-paper .cm-header-4,
 .lined-paper .cm-header-5,
 .lined-paper .cm-header-6 {
-  font-size: var(--text) !important;
+  font-size: calc(var(--text) * var(--lp-kind, 1) * var(--lp-area, 1)) !important;
   line-height: var(--line) !important;
   font-weight: 400;
   text-decoration: underline;
@@ -1045,7 +1073,7 @@ body.lp-table-gap .lined-paper thead > tr:last-child > :is(th, td) {
 /* Callout text is a little smaller than body text so the whole letters (tops and tails)
    stay inside their ruled row instead of touching the lines. Row height is unchanged. */
 .lined-paper .callout :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
-  font-size: calc(var(--text) * var(--callout-text-size)) !important;
+  font-size: calc(var(--text) * var(--callout-text-size) * var(--lp-kind, 1)) !important;
 }
 
 .lined-paper .cm-callout,

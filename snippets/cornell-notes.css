@@ -254,7 +254,7 @@ settings:
 
 /* The writing (not the titles) is a bit bigger than Obsidian's default callout text */
 .lined-paper.cornell .callout:is([data-callout="cue"], [data-callout="notes"], [data-callout="summary"], [data-callout="question"]) .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
-  font-size: calc(var(--text) * var(--text-size)) !important;
+  font-size: calc(var(--text) * var(--text-size) * var(--lp-kind, 1) * var(--lp-area, 1)) !important;
 }
 
 /* The Cornell callouts are plain writing: no half-line offset, the text sits ON the line.
@@ -626,7 +626,7 @@ settings:
   font-size: calc(var(--text) * var(--label-size));
 }
 .lined-paper.cornell .cn-sum-sizer .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
-  font-size: calc(var(--text) * var(--text-size)) !important;
+  font-size: calc(var(--text) * var(--text-size) * var(--lp-kind, 1) * var(--lp-area, 1)) !important;
 }
 
 /* The summary is a full-width bar (like the title bar), so it is exempt from the
@@ -734,11 +734,11 @@ settings:
 .lined-paper.cornell .callout[data-callout="wide"] > .callout-title { display: none; }
 .lined-paper.cornell .callout[data-callout="wide"] .callout-content :is(p, li) { white-space: pre-line; }
 .lined-paper.cornell .callout[data-callout="wide"] .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
-  font-size: calc(var(--text) * var(--text-size)) !important;
+  font-size: calc(var(--text) * var(--text-size) * var(--lp-kind, 1) * var(--lp-area, 1)) !important;
 }
 /* (a callout inside it keeps a callout's text size, like anywhere else) */
 .lined-paper.cornell .callout[data-callout="wide"] .callout .callout-content :is(p, li, td, th, pre, code, h2, h3, h4, h5, h6) {
-  font-size: calc(var(--text) * var(--callout-text-size)) !important;
+  font-size: calc(var(--text) * var(--callout-text-size) * var(--lp-kind, 1)) !important;
   white-space: normal;
 }
 /* the red lines: on the ruled line above its first row, and on the one under its last row. The
@@ -1344,7 +1344,7 @@ html body .markdown-source-view.lined-paper .callout.callout.callout[data-callou
   white-space: nowrap !important;
 }
 .lined-paper.cornell .callout[data-callout="question"] > .callout-content :is(p, li, h2, h3, h4, h5, h6) {
-  font-size: calc(var(--text) * var(--text-size) * var(--lp-q-fit, 1)) !important;
+  font-size: calc(var(--text) * var(--text-size) * var(--lp-q-fit, 1) * var(--lp-kind, 1)) !important;
 }
 
 
