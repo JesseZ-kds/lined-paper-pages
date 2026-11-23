@@ -1,6 +1,5 @@
 'use strict';
-// Subjects: every subject's folder as a notebook (Paper: subjects), only the subjects in the sidebar,
-// a canvas of quick links (a page for each subject, or each topic), a new note in a topic, and the
+// Subjects: everything in the subjects folder, as the file list (Paper: subjects), a canvas of quick links (a page for each subject, or each topic), a new note in a topic, and the
 // study vault's subjects (no example note any more).
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -26,78 +25,57 @@ const open = async () => {
   return r;
 };
 
-test('the shelf: a notebook for each subject in the theme\'s colours, with its sign; the notes written last; a subject opens to its topics', async () => {
+test('Paper: subjects: everything in the subjects folder in the file list\'s own markup (the theme draws it): a section for each subject, folders first', async () => {
   const { page, context } = await open();
   try {
     const r = await page.evaluate(async () => {
-      const plugin = window.plugin, { open } = window.made;
+      const plugin = window.plugin, { vault, open } = window.made;
+      const base = plugin.vaultEntries();
+      plugin.vaultEntries = () => base.concat([{ path: 'Subjects/RS/RS.canvas', folder: false }, { path: 'Subjects/RS/Empty topic', folder: true }]);
+      plugin.app.workspace.getActiveFile = () => vault.files['Subjects/RS/Plan.md'];
       const host = document.createElement('div');
       document.body.appendChild(host);
-      const view = {};
-      plugin.drawSubjects(host, view);
-      const books = () => [...host.querySelectorAll('.lp-sj-book:not(.lp-sj-addbook)')];
+      plugin.drawSubjects(host, {});
       const out = {};
-      out.books = books().map((b) => [b.querySelector('.lp-sj-name').textContent, b.querySelector('.lp-sj-meta').textContent, b.style.getPropertyValue('--lp-sj-c')]);
-      out.topicsOnCover = books().map((b) => [...b.querySelectorAll('.lp-sj-topiclist > span')].map((s) => s.textContent));
-      out.sub = host.querySelector('.lp-sj-sub').textContent;
-      out.recent = [...host.querySelectorAll('.lp-sj-recent-note')].map((n) => [n.querySelector('.lp-sj-recent-top').textContent, n.querySelector('.lp-sj-recent-name').textContent]);
-      out.add = !!host.querySelector('.lp-sj-addbook');
-      out.canvasBtn = books().every((b) => b.querySelector('.lp-sj-canvasbtn'));
-      out.long = host.querySelector('.lp-sj-book[data-path="Subjects/Chemistry Higher Tier"] .lp-sj-name').className;
-      host.querySelector('.lp-sj-recent-note').click();
-      host.querySelector('.lp-sj-book[data-path="Subjects/RS"]').click();
-      out.open = view.open;
-      out.title = host.querySelector('.lp-sj-title').textContent;
-      out.topics = [...host.querySelectorAll('.lp-sj-topic')].map((t) => [t.querySelector('.lp-sj-topic-name').textContent, [...t.querySelectorAll('.lp-sj-note-name')].map((n) => n.textContent), !!t.querySelector('.lp-sj-newnote')]);
-      host.querySelector('.lp-sj-note[data-path="Subjects/RS/End of Life/Euthanasia.md"]').click();
+      // (as Obsidian's file list: .nav-files-container > div > a spacer, then the folders, for the theme's rainbow folders)
+      const list = host.querySelector('.nav-files-container > div');
+      out.first = list.firstElementChild.className;
+      out.sections = [...list.children].filter((c) => c.matches('.nav-folder')).map((c) => c.querySelector(':scope > .nav-folder-title > .nav-folder-title-content').textContent);
+      const rs = list.querySelector(':scope > .nav-folder > .nav-folder-title[data-path="Subjects/RS"]').parentElement;
+      out.rs = [...rs.querySelector(':scope > .nav-folder-children').children].slice(1).map((c) => (c.matches('.nav-folder') ? 'folder ' : 'file ') + c.querySelector('.tree-item-inner').textContent + (c.querySelector('.nav-file-tag') ? ' [' + c.querySelector('.nav-file-tag').textContent + ']' : ''));
+      out.active = [...host.querySelectorAll('.nav-file-title.is-active')].map((x) => x.dataset.path);
+      out.buttons = [...host.querySelectorAll('.nav-header .nav-action-button')].map((b) => b.getAttribute('aria-label'));
+      out.notOurs = !host.querySelector('[data-path^="Definitions"], [data-path="Home.md"]');
+      // a folder closes and opens; a note opens
+      host.querySelector('.nav-folder-title[data-path="Subjects/RS/Beginning of Life"]').click();
+      out.closed = [host.querySelector('.nav-folder-title[data-path="Subjects/RS/Beginning of Life"]').parentElement.classList.contains('is-collapsed'), !!host.querySelector('[data-path="Subjects/RS/Beginning of Life/IVF.md"]')];
+      host.querySelector('.nav-folder-title[data-path="Subjects/RS/Beginning of Life"]').click();
+      host.querySelector('.nav-file-title[data-path="Subjects/RS/Beginning of Life/IVF.md"]').click();
       await new Promise((ok) => setTimeout(ok, 20));
       out.opened = open.slice();
-      host.querySelector('.lp-sj-back').click();
-      out.back = [view.open, books().length];
+      // collapse all, expand all
+      host.querySelector('.nav-action-button[aria-label="Collapse all"]').click();
+      out.collapsed = host.querySelectorAll('.nav-folder:not(.is-collapsed)').length;
+      host.querySelector('.nav-action-button[aria-label="Expand all"]').click();
+      out.expanded = host.querySelectorAll('.nav-folder.is-collapsed').length;
+      // no subjects folder
+      window.makeVault(plugin, { 'Home.md': '' });
+      plugin.vaultEntries = Object.getPrototypeOf(plugin).vaultEntries;
+      plugin.drawSubjects(host, {});
+      out.none = host.querySelector('.pane-empty').textContent;
       return out;
     });
-    assert.deepEqual(r.books.map((b) => b[0]), ['Chemistry Higher Tier', 'English', 'History', 'RS'], 'a notebook for each subject (not Definitions, not a note at the top)');
-    assert.deepEqual(r.books.map((b) => b[1]), ['1 topic · 1 note', '1 topic · 1 note', '1 topic · 1 note', '2 topics · 4 notes']);
-    assert.deepEqual(r.books.map((b) => b[2]), ['var(--color-cyan, var(--interactive-accent))', 'var(--color-purple, var(--interactive-accent))', 'var(--color-orange, var(--interactive-accent))', 'var(--color-yellow, var(--interactive-accent))'], 'the theme\'s colours: a known subject its own');
-    assert.deepEqual(r.topicsOnCover, [['Rates'], ['Macbeth'], ['Cold War'], ['Beginning of Life', 'End of Life']]);
-    assert.equal(r.sub, '4 subjects · 7 notes');
-    assert.deepEqual(r.recent, [['RS · Beginning of Life', 'Abortion'], ['RS · Beginning of Life', 'IVF'], ['RS', 'Plan'], ['English · Macbeth', 'Act 1']], 'the notes written last, newest first');
-    assert.ok(r.add && r.canvasBtn, 'a New subject notebook; a canvas quick link on each');
-    assert.match(r.long, /lp-sj-longer/);
-    assert.equal(r.open, 'Subjects/RS');
-    assert.equal(r.title, 'RS');
-    assert.deepEqual(r.topics, [['Beginning of Life', ['Abortion', 'IVF'], true], ['End of Life', ['Euthanasia'], true], ['Other notes', ['Plan'], true]], 'its topics, the newest note first, each with New note');
-    assert.deepEqual(r.opened, ['Subjects/RS/Beginning of Life/Abortion.md', 'Subjects/RS/End of Life/Euthanasia.md']);
-    assert.deepEqual(r.back, [null, 4]);
-  } finally {
-    await context.close();
-  }
-});
-
-test('only the subjects, in the sidebar: each opens to its topics, a topic to its notes', async () => {
-  const { page, context } = await open();
-  try {
-    const r = await page.evaluate(async () => {
-      const plugin = window.plugin, { open } = window.made;
-      const host = document.createElement('div');
-      document.body.appendChild(host);
-      const view = {};
-      plugin.drawSubjectsSide(host, view);
-      const rows = () => [...host.querySelectorAll('.lp-ss-row')].map((x) => x.querySelector('.lp-ss-name').textContent);
-      const out = { closed: rows() };
-      host.querySelector('.lp-ss-fold[data-path="Subjects/RS"]').click();
-      out.subject = rows();
-      host.querySelector('.lp-ss-fold[data-path="Subjects/RS/End of Life"]').click();
-      out.topic = rows();
-      host.querySelector('.lp-ss-note[data-path="Subjects/RS/End of Life/Euthanasia.md"]').click();
-      await new Promise((ok) => setTimeout(ok, 20));
-      out.opened = open.slice();
-      return out;
-    });
-    assert.deepEqual(r.closed, ['Chemistry Higher Tier', 'English', 'History', 'RS'], 'only the subjects');
-    assert.deepEqual(r.subject, ['Chemistry Higher Tier', 'English', 'History', 'RS', 'Beginning of Life', 'End of Life', 'Plan']);
-    assert.deepEqual(r.topic, ['Chemistry Higher Tier', 'English', 'History', 'RS', 'Beginning of Life', 'End of Life', 'Euthanasia', 'Plan']);
-    assert.deepEqual(r.opened, ['Subjects/RS/End of Life/Euthanasia.md']);
+    assert.equal(r.first, '', 'a spacer first, as in Obsidian\'s file list');
+    assert.deepEqual(r.sections, ['Chemistry Higher Tier', 'English', 'History', 'RS'], 'a section for each subject');
+    assert.deepEqual(r.rs, ['folder Beginning of Life', 'folder Empty topic', 'folder End of Life', 'file Plan', 'file RS [canvas]'], 'everything in it: folders first, then the files, any kind');
+    assert.deepEqual(r.active, ['Subjects/RS/Plan.md'], 'the note open, shown');
+    assert.deepEqual(r.buttons, ['New subject', 'Canvas: a page for each subject, with quick links', 'Collapse all']);
+    assert.ok(r.notOurs, 'only what is in the subjects folder');
+    assert.deepEqual(r.closed, [true, false]);
+    assert.deepEqual(r.opened, ['Subjects/RS/Beginning of Life/IVF.md']);
+    assert.equal(r.collapsed, 0);
+    assert.equal(r.expanded, 0);
+    assert.match(r.none, /No "Subjects" folder yet/);
   } finally {
     await context.close();
   }

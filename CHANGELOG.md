@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.41.0] - 2026-11-23
+
+### Changed
+- **Subjects is the file list of the Subjects folder**, not a shelf of notebooks: Obsidian's own
+  file-list markup, so your theme draws it exactly as it draws the files (AnuPpuccin's rainbow
+  folders: each subject its own coloured section). A section for each subject with everything in it,
+  folders first, any kind of file (canvases, PDFs, pictures, with their tag); the note open shown;
+  folders open and close (Collapse all / Expand all at the top). It opens in the left sidebar, beside
+  the files. Right-click: New note, New folder, a subject's canvas, and Obsidian's own menu.
+- The separate sidebar view (Paper: subjects in the sidebar) is now the same view.
+
 ## [1.40.0] - 2026-11-23
 
 ### Added

@@ -162,7 +162,7 @@ const SETTINGS = [
 
   { section: 'Definitions, quotes and diagrams', desc: 'Definitions and quotes each get a page of their own (a note), embedded where you use them: Insert: definition / quote. Embedded blocks (![[Note#^id]]) all start on their line, and the writing after them on the next.' },
   { key: 'subjects-folder', type: 'path', def: 'Subjects', name: 'Folder of your subjects',
-    desc: 'A folder for each subject in it, a folder for each topic in those. Paper: subjects (the bookshelf icon) shows them all, as notebooks.' },
+    desc: 'A folder for each subject in it, a folder for each topic in those. Paper: subjects (the bookshelf icon) shows everything in it, beside the files.' },
   { key: 'def-folder', type: 'path', def: 'Definitions', name: 'Folder for definitions',
     desc: 'Where Insert: definition makes the definition\'s page. Made if it is not there.' },
   { key: 'quote-folder', type: 'path', def: 'Quotes', name: 'Folder for quotes',
@@ -2301,7 +2301,7 @@ const COMMAND_ICONS = {
   'insert-math': 'sigma', 'insert-math-block': 'square-sigma', 'insert-symbol': 'omega', 'insert-chem': 'flask-conical', 'insert-superscript': 'superscript', 'insert-subscript': 'subscript',
   'remove-colour': 'eraser', 'remove-highlight': 'eraser', 'remove-marks': 'eraser', 'remove-all-styles': 'remove-formatting', 'highlighter': 'highlighter', 'cross-out': 'strikethrough',
   'pen-circle': 'circle', 'pen-box': 'square', 'pen-underline': 'underline', 'pen-wavy': 'audio-waveform', 'pen-scribble': 'pen-tool',
-  'size-small': 'a-arrow-down', 'size-big': 'a-arrow-up', 'size-huge': 'type', 'size-normal': 'case-sensitive', 'subjects': 'library-big', 'subjects-side': 'panel-left', 'subjects-canvas': 'layout-dashboard',
+  'size-small': 'a-arrow-down', 'size-big': 'a-arrow-up', 'size-huge': 'type', 'size-normal': 'case-sensitive', 'subjects': 'library-big', 'subjects-canvas': 'layout-dashboard',
   'review': 'eye-off', 'review-cards': 'graduation-cap', 'cue-cards': 'printer', 'show-cue-cards': 'panel-right', 'edit-cue-cards': 'pencil', 'folder-cue-cards': 'layers',
   'format-cue-cards': 'library', 'topic-index': 'list-tree', 'set-date': 'calendar', 'update': 'refresh-cw', 'whats-new': 'info', 'hotkeys': 'keyboard', 'setup-vault': 'folder-tree',
 };
@@ -2439,8 +2439,7 @@ function addPaperCommands(plugin) {
   add({ id: 'whats-new', name: 'Paper: what\'s new in Lined Paper Pages', callback: () => plugin.whatsNew(true) });
   add({ id: 'format-cue-cards', name: 'Note: cue cards for all definitions and quotes', callback: () => plugin.makeFormatCards() });
   add({ id: 'show-cue-cards', name: 'Note: show cue cards beside the note (as you write)', callback: () => plugin.showCardPanel() });
-  add({ id: 'subjects', name: 'Paper: subjects (every subject\'s folder, as notebooks)', callback: () => plugin.showSubjects() });
-  add({ id: 'subjects-side', name: 'Paper: subjects in the sidebar (only the subjects, their topics and notes)', callback: () => plugin.showSubjectsSide() });
+  add({ id: 'subjects', name: 'Paper: subjects (everything in the subjects folder, beside the files)', callback: () => plugin.showSubjects() });
   add({ id: 'subjects-canvas', name: 'Paper: subjects canvas (a page for each subject, quick links to its topics and notes)', callback: () => plugin.subjectsCanvas(null) });
   add({
     id: 'edit-cue-cards', name: 'Note: edit cue cards (change, add, take out, move)',
@@ -2712,8 +2711,8 @@ All of them: *Paper: hotkeys*, or **?** on the toolbar. (Mac: ⌘ for Ctrl, ⌥ 
 - **Middle:** the note, in Live Preview while you write, reading view to read and print.
 - **Right:** the **cue cards beside the note** (Ctrl+Shift+B), the **outline** of the note, and
   backlinks (where a definition or quote is used).
-- **Paper: subjects** (the bookshelf icon): every subject as a notebook, its topics and notes inside.
-  *Paper: subjects in the sidebar* for only the subjects; **Canvas** for a page of quick links each.
+- **Paper: subjects** (the bookshelf icon): everything in Subjects, a section for each subject.
+  **Canvas** (at its top) for a page of quick links for each subject.
 - Pin this page (right-click its tab → Pin) to come back to it.
 `],
     ['Templates/Cornell note.md', `---
@@ -2741,6 +2740,9 @@ date: {{date:YYYY-MM-DD}}
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.41.0': [
+    ['Subjects', 'everything in the Subjects folder, beside the files, drawn as your theme draws the file list: a section for each subject (AnuPpuccin\'s rainbow folders too).'],
+  ],
   '1.40.0': [
     ['Subjects', 'a new look: a sign for each subject, the notes you wrote last, New note in a topic; only the subjects in the sidebar (Paper: subjects in the sidebar).'],
     ['Canvas', 'quick links to your subjects: a page for each subject, or for each topic of one (Canvas on the shelf).'],
@@ -3282,7 +3284,7 @@ const CueCardsView = class extends (ItemView || class {}) {
   async onOpen() { this.plugin.refreshCardPanel().catch(() => {}); }
 };
 
-// ---------- subjects: every subject's folder, as notebooks on a shelf ----------
+// ---------- subjects: everything in the subjects folder (a section for each subject), and its canvases ----------
 // The subjects folder (Settings: Folder of your subjects): a folder in it is a subject, a folder in a
 // subject is a topic. (No such folder: the vault's own folders, but the study vault's others.)
 const NOT_SUBJECTS = ['Definitions', 'Quotes', 'Diagrams', 'Cue cards', 'Templates', 'Attachments'];
@@ -3374,6 +3376,33 @@ function whenText(ms, now = Date.now()) {
   if (n < 7) return `${n} days ago`;
   return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
+// everything under `root` as a tree: { exists, children: [{ name, path, folder, depth, children } |
+// { name, path, ext }] }, folders first, then by name (as Obsidian's file list sorts them)
+function folderTree(entries, root) {
+  const pre = root + '/';
+  const top = { children: [], exists: entries.some((e) => e.path === root || e.path.startsWith(pre)) };
+  const folders = new Map([[root, top]]);
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  const under = entries.filter((e) => e.path.startsWith(pre)).sort((a, b) => a.path.split('/').length - b.path.split('/').length);
+  const folderOf = (path) => {
+    if (folders.has(path)) return folders.get(path);
+    const parent = folderOf(path.replace(/\/[^/]*$/, ''));
+    const node = { name: path.replace(/^.*\//, ''), path, folder: true, depth: path.slice(pre.length).split('/').length - 1, children: [] };
+    parent.children.push(node);
+    folders.set(path, node);
+    return node;
+  };
+  for (const e of under) {
+    if (e.folder) { folderOf(e.path); continue; }
+    const name = e.path.replace(/^.*\//, '');
+    const dot = name.lastIndexOf('.');
+    const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+    folderOf(e.path.replace(/\/[^/]*$/, '')).children.push({ name: dot > 0 ? name.slice(0, dot) : name, path: e.path, ext });
+  }
+  const sort = (n) => { n.children.sort((a, b) => (!!b.folder - !!a.folder) || byName(a, b)); n.children.forEach((c) => c.folder && sort(c)); };
+  sort(top);
+  return top;
+}
 // ---------- a canvas of quick links: a page for each subject (or each topic of one subject) ----------
 // Obsidian's canvas colours "1" … "6" follow the theme (red, orange, yellow, green, cyan, purple)
 const CANVAS_COLOUR = { red: '1', pink: '1', orange: '2', yellow: '3', green: '4', cyan: '5', blue: '5', purple: '6' };
@@ -3419,30 +3448,21 @@ function mergeCanvas(old, nodes) {
 const SubjectsView = class extends (ItemView || class {}) {
   constructor(leaf, plugin) { super(leaf); this.plugin = plugin; this.open = null; }
   getViewType() { return 'lp-subjects'; }
-  getDisplayText() { return this.open ? this.open.replace(/^.*\//, '') : 'Subjects'; }
+  getDisplayText() { return 'Subjects'; }
   getIcon() { return 'library-big'; }
   async onOpen() {
     const again = () => { window.clearTimeout(this._t); this._t = window.setTimeout(() => this.draw(), 400); };
-    if (this.registerEvent) for (const e of ['create', 'delete', 'rename']) this.registerEvent(this.plugin.app.vault.on(e, again));
+    if (this.registerEvent) {
+      for (const e of ['create', 'delete', 'rename']) this.registerEvent(this.plugin.app.vault.on(e, again));
+      this.registerEvent(this.plugin.app.workspace.on('file-open', () => this.draw()));
+    }
     this.draw();
   }
   async onClose() { window.clearTimeout(this._t); }
   draw() { this.plugin.drawSubjects(this.contentEl, this); }
 };
-// the sidebar: only the subjects, each opening to its topics and notes
-const SubjectsSideView = class extends (ItemView || class {}) {
-  constructor(leaf, plugin) { super(leaf); this.plugin = plugin; this.openSet = new Set(); }
-  getViewType() { return 'lp-subjects-side'; }
-  getDisplayText() { return 'Subjects'; }
-  getIcon() { return 'library-big'; }
-  async onOpen() {
-    const again = () => { window.clearTimeout(this._t); this._t = window.setTimeout(() => this.draw(), 400); };
-    if (this.registerEvent) for (const e of ['create', 'delete', 'rename']) this.registerEvent(this.plugin.app.vault.on(e, again));
-    this.draw();
-  }
-  async onClose() { window.clearTimeout(this._t); }
-  draw() { this.plugin.drawSubjectsSide(this.contentEl, this); }
-};
+// (the same, by its earlier name: a sidebar a saved workspace kept from 1.40)
+const SubjectsSideView = class extends SubjectsView { getViewType() { return 'lp-subjects-side'; } };
 
 module.exports = class LinedPaperPages extends Plugin {
   onload() {
@@ -4385,17 +4405,11 @@ module.exports = class LinedPaperPages extends Plugin {
 
   // ---------- the cue cards beside a note (a side panel): the cards of the note you are in, as you write ----------
   // ---------- subjects ----------
+  // the subjects folder, in the left sidebar beside the files
   async showSubjects() {
     const ws = this.app.workspace;
-    let leaf = ws.getLeavesOfType('lp-subjects')[0];
-    if (!leaf) { leaf = ws.getLeaf('tab'); await leaf.setViewState({ type: 'lp-subjects', active: true }); }
-    if (ws.revealLeaf) ws.revealLeaf(leaf);
-  }
-  // only the subjects, in the left sidebar (beside the files)
-  async showSubjectsSide() {
-    const ws = this.app.workspace;
-    let leaf = ws.getLeavesOfType('lp-subjects-side')[0];
-    if (!leaf) { leaf = (ws.getLeftLeaf && ws.getLeftLeaf(false)) || ws.getLeaf('tab'); await leaf.setViewState({ type: 'lp-subjects-side', active: true }); }
+    let leaf = ws.getLeavesOfType('lp-subjects')[0] || ws.getLeavesOfType('lp-subjects-side')[0];
+    if (!leaf) { leaf = (ws.getLeftLeaf && ws.getLeftLeaf(false)) || ws.getLeaf('tab'); await leaf.setViewState({ type: 'lp-subjects', active: true }); }
     if (ws.revealLeaf) ws.revealLeaf(leaf);
   }
   subjects() {
@@ -4480,7 +4494,6 @@ module.exports = class LinedPaperPages extends Plugin {
       const row = mk(m.contentEl, 'div', 'lp-sj-choices');
       for (const c of choices) {
         const b = mk(row, 'button', 'lp-sj-choice', c); b.type = 'button';
-        b.style.setProperty('--lp-sj-c', `var(--color-${subjectLook(c).colour})`);
         b.addEventListener('click', () => make(c));
       }
     }
@@ -4491,214 +4504,99 @@ module.exports = class LinedPaperPages extends Plugin {
     m.open();
     window.setTimeout(() => inp.focus(), 30);
   }
-  // The shelf (every subject, as a notebook), or one subject (its topics, as index cards of its notes).
-  // view: { open: the subject shown (its path), or none for the shelf }
+  // Everything in the subjects folder, as Obsidian's own file list draws it (the same markup: your
+  // theme styles it as it styles the files, AnuPpuccin's rainbow folders too): a section for each
+  // subject, everything in it inside, folders first. A click opens a note; a folder opens and closes;
+  // right-click for Obsidian's own menu (and New note, New folder, the canvas).
   drawSubjects(el, view = {}) {
-    const app = this.app;
+    const app = this.app, v = app.vault;
     const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
-    const icon = (parent, name, cls) => { const i = mk(parent, 'span', 'lp-sj-icon' + (cls ? ' ' + cls : '')); try { if (OB.setIcon) OB.setIcon(i, name); } catch (e) { /* */ } return i; };
-    const tree = this.subjects();
-    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-    const colour = (s) => `var(--color-${s.colour}, var(--interactive-accent))`;
-    const openNote = (path, e) => {
-      const f = app.vault.getAbstractFileByPath(path);
-      if (f) app.workspace.getLeaf(e && (e.ctrlKey || e.metaKey) ? 'tab' : false).openFile(f);
-    };
+    const icon = (parent, name) => { try { if (OB.setIcon) OB.setIcon(parent, name); } catch (e) { /* */ } return parent; };
+    const closed = this._sjClosed || (this._sjClosed = new Set());
+    const root = String(this.settings['subjects-folder'] || 'Subjects').replace(/^\/+|\/+$/g, '');
+    const tree = folderTree(this.vaultEntries(), root);
     const redraw = () => this.drawSubjects(el, view);
-    const go = (path) => { view.open = path; redraw(); if (view.leaf && view.leaf.updateHeader) view.leaf.updateHeader(); };
-    const study = (path, name) => this.reviewCards('folder', { path: path + '/' + name, basename: name, parent: { path } });
-    const btn = (parent, label, ic, title, f, cls) => {
-      const b = mk(parent, 'button', 'lp-sj-btn' + (cls ? ' ' + cls : '')); b.type = 'button';
-      if (ic) icon(b, ic);
-      if (label) mk(b, 'span', '', label);
-      b.title = title; b.setAttribute('aria-label', title);
-      b.addEventListener('click', (e) => { e.stopPropagation(); f(e); });
-      return b;
-    };
+    const active = app.workspace.getActiveFile && app.workspace.getActiveFile();
+    const keepScroll = el.querySelector('.nav-files-container');
+    const top = keepScroll ? keepScroll.scrollTop : 0;
     el.replaceChildren();
-    el.classList.add('lp-subjects');
-    const page = mk(el, 'div', 'lp-sj-page');
-    const subject = view.open && tree.subjects.find((s) => s.path === view.open);
-    if (view.open && !subject) view.open = null;
-    const newSubject = () => this.askFolder('New subject', tree.own || !tree.subjects.length ? tree.root : '', redraw, SUBJECT_CHOICES.filter((c) => !tree.subjects.some((s) => s.name.toLowerCase() === c.toLowerCase())));
-
-    if (!subject) {
-      // ----- the shelf -----
-      const head = mk(page, 'header', 'lp-sj-head');
-      const t = mk(head, 'div', 'lp-sj-titles');
-      mk(t, 'div', 'lp-sj-eyebrow', 'Your notebooks');
-      mk(t, 'h1', 'lp-sj-title', 'Subjects');
-      const notes = tree.subjects.reduce((n, s) => n + s.notes, 0);
-      const stats = mk(t, 'div', 'lp-sj-sub', tree.subjects.length ? `${plural(tree.subjects.length, 'subject')} · ${plural(notes, 'note')}` + (tree.own ? '' : ` · your vault's folders (no ${tree.root} folder)`) : '');
-      const acts = mk(head, 'div', 'lp-sj-actions');
-      if (tree.subjects.length) btn(acts, 'Canvas', 'layout-dashboard', 'A canvas: a page for each subject, with quick links to its topics and notes', () => this.subjectsCanvas(null));
-      btn(acts, '', 'panel-left', 'Only the subjects, in the sidebar', () => this.showSubjectsSide(), 'lp-sj-iconbtn');
-      btn(acts, 'New subject', 'plus', 'A folder for a subject', newSubject, 'mod-cta');
-      if (!tree.subjects.length) {
-        const empty = mk(page, 'div', 'lp-sj-empty');
-        icon(empty, 'library-big', 'lp-sj-empty-icon');
-        mk(empty, 'p', 'lp-sj-empty-text', `No subjects yet. A folder for each in "${tree.root}", and one for each topic in those.`);
-        const row = mk(empty, 'div', 'lp-sj-choices');
-        for (const c of SUBJECT_CHOICES.slice(0, 8)) {
-          const b = mk(row, 'button', 'lp-sj-choice', '+ ' + c); b.type = 'button';
-          b.style.setProperty('--lp-sj-c', `var(--color-${subjectLook(c).colour})`);
-          b.addEventListener('click', async () => { await app.vault.createFolder(`${tree.root}/${c}`).catch(() => {}); redraw(); });
-        }
-        return;
-      }
-      // (carry on: the notes written last)
-      if (tree.latest.length) {
-        mk(page, 'h2', 'lp-sj-section', 'Carry on writing');
-        const strip = mk(page, 'div', 'lp-sj-recent');
-        for (const n of tree.latest.slice(0, 4)) {
-          const s = tree.subjects.find((x) => x.name === n.subject);
-          const c = mk(strip, 'button', 'lp-sj-recent-note'); c.type = 'button'; c.dataset.path = n.path;
-          c.style.setProperty('--lp-sj-c', colour(s));
-          const top = mk(c, 'span', 'lp-sj-recent-top');
-          icon(top, s.icon);
-          const topic = n.path.slice(s.path.length + 1).split('/');
-          mk(top, 'span', '', topic.length > 1 ? `${s.name} · ${topic[0]}` : s.name);
-          mk(c, 'span', 'lp-sj-recent-name', n.name);
-          mk(c, 'span', 'lp-sj-recent-when', whenText(n.mtime));
-          c.addEventListener('click', (e) => openNote(n.path, e));
-        }
-      }
-      mk(page, 'h2', 'lp-sj-section', 'Shelf');
-      const shelf = mk(page, 'div', 'lp-sj-shelf');
-      for (const s of tree.subjects) {
-        const book = mk(shelf, 'div', 'lp-sj-book');
-        book.tabIndex = 0;
-        book.setAttribute('role', 'button');
-        book.dataset.path = s.path;
-        book.style.setProperty('--lp-sj-c', colour(s));
-        book.title = `Open ${s.name}`;
-        mk(book, 'span', 'lp-sj-spine');
-        mk(book, 'span', 'lp-sj-band');
-        icon(book, s.icon, 'lp-sj-mark');
-        const label = mk(book, 'span', 'lp-sj-label');
-        const nm = mk(label, 'span', 'lp-sj-name', s.name);
-        if (s.name.length > 8) nm.classList.add(s.name.length > 14 ? 'lp-sj-longer' : 'lp-sj-long');
-        mk(label, 'span', 'lp-sj-meta', [s.topics.length ? plural(s.topics.length, 'topic') : '', plural(s.notes, 'note')].filter(Boolean).join(' · '));
-        // (its topics, written on the cover)
-        const tl = mk(book, 'span', 'lp-sj-topiclist');
-        for (const tp of s.topics.slice(0, 3)) mk(tl, 'span', '', tp.name);
-        if (s.topics.length > 3) mk(tl, 'span', 'lp-sj-andmore', `and ${s.topics.length - 3} more`);
-        const foot = mk(book, 'span', 'lp-sj-foot');
-        const when = whenText(s.last);
-        mk(foot, 'span', 'lp-sj-when', s.last ? '✎ ' + when.charAt(0).toUpperCase() + when.slice(1) : 'Nothing written yet');
-        const due = mk(foot, 'span', 'lp-sj-due');
-        const quick = mk(book, 'span', 'lp-sj-quick');
-        btn(quick, '', 'layout-dashboard', `${s.name}: its canvas (a page for each topic)`, () => this.subjectsCanvas(s.path), 'lp-sj-quickbtn lp-sj-canvasbtn');
-        const openIt = () => go(s.path);
-        book.addEventListener('click', openIt);
-        book.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openIt(); } });
-        // (the cue cards due today in it: counted after, a subject at a time)
-        if (s.notes) window.setTimeout(async () => {
-          try {
-            const cards = await this.cardsIn('folder', { parent: { path: s.path } });
-            const n = this.dueCount(cards);
-            if (n && due.isConnected) { due.textContent = plural(n, 'card') + ' due'; due.classList.add('lp-sj-has-due'); }
-          } catch (e) { /* */ }
-        }, 50);
-      }
-      // (a new notebook, at the end of the shelf)
-      const add = mk(shelf, 'button', 'lp-sj-book lp-sj-addbook'); add.type = 'button';
-      icon(add, 'plus', 'lp-sj-addicon');
-      mk(add, 'span', '', 'New subject');
-      add.addEventListener('click', newSubject);
-      void stats;
+    el.classList.add('lp-subjects', 'nav-files-explorer');
+    // (the buttons at the top, as on the file list)
+    const head = mk(el, 'div', 'nav-header');
+    const btns = mk(head, 'div', 'nav-buttons-container');
+    const button = (ic, label, f) => { const b = mk(btns, 'div', 'clickable-icon nav-action-button'); b.setAttribute('aria-label', label); b.title = label; icon(b, ic); b.addEventListener('click', f); return b; };
+    const choices = () => SUBJECT_CHOICES.filter((c) => !tree.children.some((x) => x.folder && x.name.toLowerCase() === c.toLowerCase()));
+    button('folder-plus', 'New subject', () => this.askFolder('New subject', root, redraw, choices()));
+    button('layout-dashboard', 'Canvas: a page for each subject, with quick links', () => this.subjectsCanvas(null));
+    const allFolders = [];
+    const walk = (n) => { for (const c of n.children || []) if (c.folder) { allFolders.push(c.path); walk(c); } };
+    walk(tree);
+    const anyOpen = allFolders.some((p) => !closed.has(p));
+    button(anyOpen ? 'chevrons-down-up' : 'chevrons-up-down', anyOpen ? 'Collapse all' : 'Expand all', () => { if (anyOpen) allFolders.forEach((p) => closed.add(p)); else closed.clear(); redraw(); });
+    const box = mk(el, 'div', 'nav-files-container node-insert-event');
+    box.style.position = 'relative';
+    const list = mk(box, 'div');
+    if (!tree.exists) {
+      const empty = mk(box, 'div', 'pane-empty', `No "${root}" folder yet: a folder in it for each subject (English, History, Science …), a folder in those for each topic.`);
+      const b = mk(empty, 'div');
+      const go = mk(b, 'button', 'mod-cta', 'New subject'); go.type = 'button';
+      go.addEventListener('click', () => this.askFolder('New subject', root, redraw, SUBJECT_CHOICES));
       return;
     }
-
-    // ----- one subject: its topics -----
-    page.style.setProperty('--lp-sj-c', colour(subject));
-    page.classList.add('lp-sj-in-subject');
-    const crumbs = mk(page, 'nav', 'lp-sj-crumbs');
-    const back = mk(crumbs, 'button', 'lp-sj-back'); back.type = 'button';
-    icon(back, 'chevron-left'); mk(back, 'span', '', 'Subjects');
-    back.addEventListener('click', () => go(null));
-    const head = mk(page, 'header', 'lp-sj-head lp-sj-subject-head');
-    const badge = mk(head, 'div', 'lp-sj-badge');
-    icon(badge, subject.icon);
-    const t = mk(head, 'div', 'lp-sj-titles');
-    mk(t, 'h1', 'lp-sj-title', subject.name);
-    mk(t, 'div', 'lp-sj-sub', [subject.topics.length ? plural(subject.topics.length, 'topic') : '', plural(subject.notes, 'note'), subject.last ? 'last written ' + whenText(subject.last) : ''].filter(Boolean).join(' · '));
-    const acts = mk(head, 'div', 'lp-sj-actions');
-    btn(acts, 'Study', 'graduation-cap', 'The cue cards due today, from every note in this subject', () => study(subject.path, subject.name));
-    btn(acts, 'Canvas', 'layout-dashboard', 'A canvas: a page for each topic, its notes linked', () => this.subjectsCanvas(subject.path));
-    btn(acts, 'New topic', 'folder-plus', 'A folder for a topic in this subject', () => this.askFolder('New topic in ' + subject.name, subject.path, redraw), 'mod-cta');
-    const cards = mk(page, 'div', 'lp-sj-topics');
-    const topicCard = (name, notes, path) => {
-      const c = mk(cards, 'section', 'lp-sj-topic');
-      if (path) c.dataset.path = path;
-      const h = mk(c, 'div', 'lp-sj-topic-head');
-      mk(h, 'span', 'lp-sj-topic-name', name);
-      mk(h, 'span', 'lp-sj-count', String(notes.length));
-      const list = mk(c, 'div', 'lp-sj-notes');
-      const MAX = 8;
-      const row = (n) => {
-        const a = mk(list, 'button', 'lp-sj-note'); a.type = 'button'; a.dataset.path = n.path;
-        mk(a, 'span', 'lp-sj-note-name', n.name);
-        if (n.mtime) mk(a, 'span', 'lp-sj-note-when', whenText(n.mtime));
-        a.addEventListener('click', (e) => openNote(n.path, e));
-        return a;
-      };
-      notes.slice(0, MAX).forEach(row);
-      if (notes.length > MAX) {
-        const more = mk(list, 'button', 'lp-sj-more', `+ ${notes.length - MAX} more`); more.type = 'button';
-        more.addEventListener('click', () => { const at = more; notes.slice(MAX).forEach((n) => list.insertBefore(row(n), at)); at.remove(); });
+    const spacer = (p) => { const s = mk(p, 'div'); s.style.cssText = 'width: 1px; height: 0.1px; margin-bottom: 0px;'; };
+    const menu = (e, node) => {
+      if (!OB.Menu) return;
+      e.preventDefault();
+      const m = new OB.Menu();
+      if (node.folder) {
+        m.addItem((i) => i.setTitle('New note').setIcon('file-plus').onClick(() => this.newNoteIn(node.path)));
+        m.addItem((i) => i.setTitle('New folder').setIcon('folder-plus').onClick(() => this.askFolder('New folder in ' + node.name, node.path, redraw)));
+        if (node.depth === 0) m.addItem((i) => i.setTitle('Canvas: a page for each topic').setIcon('layout-dashboard').onClick(() => this.subjectsCanvas(node.path)));
+        m.addSeparator();
       }
-      if (!notes.length) mk(list, 'div', 'lp-sj-none', 'No notes yet');
-      const nn = mk(list, 'button', 'lp-sj-newnote'); nn.type = 'button';
-      icon(nn, 'file-plus'); mk(nn, 'span', '', 'New note');
-      nn.title = 'A new Cornell note here';
-      nn.addEventListener('click', () => this.newNoteIn(path || subject.path));
+      const f = v.getAbstractFileByPath(node.path);
+      if (f && app.workspace.trigger) app.workspace.trigger('file-menu', m, f, 'file-explorer');
+      m.showAtMouseEvent(e);
     };
-    for (const tp of subject.topics) topicCard(tp.name, tp.notes, tp.path);
-    if (subject.loose.length || !subject.topics.length) topicCard(subject.topics.length ? 'Other notes' : 'Notes', subject.loose, null);
+    const draw = (parent, node) => {
+      spacer(parent);
+      for (const c of node.children) {
+        if (c.folder) {
+          const isClosed = closed.has(c.path);
+          const item = mk(parent, 'div', 'tree-item nav-folder' + (isClosed ? ' is-collapsed' : ''));
+          const self = mk(item, 'div', 'tree-item-self nav-folder-title is-clickable mod-collapsible');
+          self.dataset.path = c.path;
+          const ind = mk(self, 'div', 'tree-item-icon collapse-icon nav-folder-collapse-indicator' + (isClosed ? ' is-collapsed' : ''));
+          icon(ind, 'right-triangle');
+          mk(self, 'div', 'tree-item-inner nav-folder-title-content', c.name);
+          self.addEventListener('click', () => { if (closed.has(c.path)) closed.delete(c.path); else closed.add(c.path); redraw(); });
+          self.addEventListener('contextmenu', (e) => menu(e, c));
+          if (!isClosed) draw(mk(item, 'div', 'tree-item-children nav-folder-children'), c);
+        } else {
+          const item = mk(parent, 'div', 'tree-item nav-file');
+          const self = mk(item, 'div', 'tree-item-self nav-file-title is-clickable tappable' + (active && active.path === c.path ? ' is-active' : ''));
+          self.dataset.path = c.path;
+          mk(self, 'div', 'tree-item-inner nav-file-title-content', c.name);
+          if (c.ext && c.ext !== 'md') mk(self, 'div', 'nav-file-tag', c.ext);
+          self.addEventListener('click', (e) => { const f = v.getAbstractFileByPath(c.path); if (f) app.workspace.getLeaf(e.ctrlKey || e.metaKey ? 'tab' : false).openFile(f); });
+          self.addEventListener('contextmenu', (e) => menu(e, c));
+        }
+      }
+    };
+    draw(list, tree);
+    box.scrollTop = top;
   }
-  // the sidebar: only the subjects, each opening to its topics, and its notes
-  drawSubjectsSide(el, view = {}) {
-    const app = this.app;
-    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
-    const icon = (parent, name, cls) => { const i = mk(parent, 'span', 'lp-sj-icon' + (cls ? ' ' + cls : '')); try { if (OB.setIcon) OB.setIcon(i, name); } catch (e) { /* */ } return i; };
-    const openSet = view.openSet || (view.openSet = new Set());
-    const tree = this.subjects();
-    el.replaceChildren();
-    el.classList.add('lp-subjects-side');
-    const head = mk(el, 'div', 'lp-ss-head');
-    mk(head, 'span', 'lp-ss-title', 'Subjects');
-    const tool = (ic, title, f) => { const b = mk(head, 'button', 'lp-ss-tool clickable-icon'); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); icon(b, ic); b.addEventListener('click', f); return b; };
-    tool('library-big', 'The shelf (every subject, as notebooks)', () => this.showSubjects());
-    tool('layout-dashboard', 'Canvas: a page for each subject', () => this.subjectsCanvas(null));
-    tool('folder-plus', 'New subject', () => this.askFolder('New subject', tree.own || !tree.subjects.length ? tree.root : '', () => this.drawSubjectsSide(el, view), SUBJECT_CHOICES.filter((c) => !tree.subjects.some((s) => s.name.toLowerCase() === c.toLowerCase()))));
-    const list = mk(el, 'div', 'lp-ss-list');
-    if (!tree.subjects.length) { mk(list, 'div', 'lp-ss-empty', 'No subjects yet: + to make one.'); return; }
-    const openNote = (path, e) => { const f = app.vault.getAbstractFileByPath(path); if (f) app.workspace.getLeaf(e && (e.ctrlKey || e.metaKey) ? 'tab' : false).openFile(f); };
-    const noteRow = (parent, n, depth) => {
-      const r = mk(parent, 'div', 'lp-ss-row lp-ss-note'); r.dataset.path = n.path; r.style.setProperty('--depth', depth);
-      icon(r, 'file-text', 'lp-ss-ic');
-      mk(r, 'span', 'lp-ss-name', n.name);
-      r.addEventListener('click', (e) => openNote(n.path, e));
-    };
-    const fold = (parent, key, depth, build, label) => {
-      const r = mk(parent, 'div', 'lp-ss-row lp-ss-fold'); r.style.setProperty('--depth', depth); r.dataset.path = key;
-      const open = openSet.has(key);
-      r.classList.toggle('is-open', open);
-      icon(r, 'chevron-right', 'lp-ss-chev');
-      label(r);
-      const kids = mk(parent, 'div', 'lp-ss-kids');
-      if (open) build(kids);
-      r.addEventListener('click', () => { if (openSet.has(key)) openSet.delete(key); else openSet.add(key); this.drawSubjectsSide(el, view); });
-    };
-    for (const s of tree.subjects) {
-      const block = mk(list, 'div', 'lp-ss-subject');
-      block.style.setProperty('--lp-sj-c', `var(--color-${s.colour}, var(--interactive-accent))`);
-      fold(block, s.path, 0, (kids) => {
-        for (const t of s.topics) fold(kids, t.path, 1, (k2) => { for (const n of t.notes) noteRow(k2, n, 2); if (!t.notes.length) mk(k2, 'div', 'lp-ss-none', 'No notes yet'); }, (r) => { icon(r, 'folder', 'lp-ss-ic'); mk(r, 'span', 'lp-ss-name', t.name); mk(r, 'span', 'lp-ss-count', String(t.notes.length)); });
-        for (const n of s.loose) noteRow(kids, n, 1);
-      }, (r) => { const b = mk(r, 'span', 'lp-ss-badge'); icon(b, s.icon); mk(r, 'span', 'lp-ss-name lp-ss-subject-name', s.name); mk(r, 'span', 'lp-ss-count', String(s.notes)); });
+  // every file and folder of the vault: [{ path, folder }]
+  vaultEntries() {
+    const v = this.app.vault;
+    if (v.getAllLoadedFiles) return v.getAllLoadedFiles().filter((f) => f.path && f.path !== '/').map((f) => ({ path: f.path, folder: !!f.children }));
+    const out = [], seen = new Set();
+    for (const f of v.getMarkdownFiles()) {
+      out.push({ path: f.path, folder: false });
+      const parts = f.path.split('/');
+      for (let i = 1; i < parts.length; i++) { const p = parts.slice(0, i).join('/'); if (!seen.has(p)) { seen.add(p); out.push({ path: p, folder: true }); } }
     }
+    return out;
   }
   // The example note an earlier version's study vault made (Subjects/Example): taken away, to the
   // trash, if it is still as it was made (a note you changed is yours, and stays).
@@ -4789,7 +4687,6 @@ module.exports = class LinedPaperPages extends Plugin {
     const chosen = new Set(SUBJECT_CHOICES.slice(0, 4));
     for (const c of SUBJECT_CHOICES) {
       const b = mk(picks, 'button', 'lp-sj-choice', c); b.type = 'button';
-      b.style.setProperty('--lp-sj-c', `var(--color-${subjectLook(c).colour})`);
       const show = () => { b.classList.toggle('is-on', chosen.has(c)); b.setAttribute('aria-pressed', String(chosen.has(c))); };
       show();
       b.addEventListener('click', () => { if (chosen.has(c)) chosen.delete(c); else chosen.add(c); show(); });
@@ -6557,7 +6454,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
-Object.assign(module.exports, { subjectTree, whenText, subjectColour, subjectLook, canvasPages, mergeCanvas, EXAMPLE_NOTE, SUBJECT_CHOICES, TEXT_SIZES, tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
+Object.assign(module.exports, { folderTree, subjectTree, whenText, subjectColour, subjectLook, canvasPages, mergeCanvas, EXAMPLE_NOTE, SUBJECT_CHOICES, TEXT_SIZES, tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;

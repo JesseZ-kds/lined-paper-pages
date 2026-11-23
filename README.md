@@ -23,9 +23,8 @@ summary). Reading view shows them as real A4 sheets that look exactly like the P
 - **Colour coding**: coloured text and links with `<font color>`, in every view.
 - **Text sizes**: each kind of writing its own size (headings, lists, quotes, the cue column …),
   and a few words small, big or huge, all still on their lines.
-- **Subjects**: every subject's folder as a notebook on a shelf, in your theme's colours; its
-  topics as index cards of their notes; only the subjects in the sidebar; canvases of quick links,
-  a page for each subject or topic.
+- **Subjects**: everything in your Subjects folder beside the files, as your theme draws the file
+  list (a section for each subject); canvases of quick links, a page for each subject or topic.
 - **A settings page** for everything (sizes, fonts, colours, Cornell layout), also available in
   the Style Settings plugin.
 - **Nothing is ever written into your notes.** Turn it off and your notes are plain Markdown.

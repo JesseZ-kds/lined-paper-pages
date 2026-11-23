@@ -34,18 +34,16 @@ Attachments/              pictures you paste
 
 ### Your subjects
 
-- **Paper: subjects** (the bookshelf icon on the left): every subject as a notebook, in your theme's
-  colours, with a sign for the subject (a book for English, a column for History, a flask for
-  Science, Σ for Maths …): its topics on the cover, when you last wrote in it and the cue cards due.
-  Above them, **Carry on writing**: the notes you wrote last. Click a notebook for its topics, each
-  an index card of its notes (the newest first, **New note** at the bottom); **Study** reviews the
-  whole subject's cards, **New topic** makes a folder.
-- **Paper: subjects in the sidebar**: only the subjects, beside the files: each opens to its topics,
-  a topic to its notes.
-- **Canvas** (on the shelf, a subject, or a notebook's corner): a canvas of quick links. The
-  subjects' canvas has a page for each subject (its topics, its newest notes and a link to its own
-  canvas); a subject's canvas has a page for each topic. Click a link to open the note. It is made
-  again from the folders each time you open it from here; cards and arrows you add are kept.
+- **Paper: subjects** (the bookshelf icon on the left): everything in the Subjects folder, beside the
+  files, drawn exactly as your theme draws the file list (with AnuPpuccin's rainbow folders, each
+  subject its own coloured section). A section for each subject, its topics and notes inside, and
+  anything else you keep there (canvases, PDFs, pictures). Click a note to open it; right-click a
+  folder for **New note** (a Cornell note from your template), **New folder**, or a subject's
+  **Canvas**; Obsidian's own menu is there too.
+- **Canvas** (the button at the top): a canvas of quick links with a page for each subject (its
+  topics, its newest notes and a link to its own canvas); a subject's canvas has a page for each
+  topic. Click a link to open the note. It is made again from the folders each time you open it from
+  here; cards and arrows you add are kept.
 
 (The folder of subjects: *Settings → Definitions, quotes and diagrams → Folder of your subjects*.)
 
