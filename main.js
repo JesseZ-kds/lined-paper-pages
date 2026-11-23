@@ -2301,7 +2301,7 @@ const COMMAND_ICONS = {
   'insert-math': 'sigma', 'insert-math-block': 'square-sigma', 'insert-symbol': 'omega', 'insert-chem': 'flask-conical', 'insert-superscript': 'superscript', 'insert-subscript': 'subscript',
   'remove-colour': 'eraser', 'remove-highlight': 'eraser', 'remove-marks': 'eraser', 'remove-all-styles': 'remove-formatting', 'highlighter': 'highlighter', 'cross-out': 'strikethrough',
   'pen-circle': 'circle', 'pen-box': 'square', 'pen-underline': 'underline', 'pen-wavy': 'audio-waveform', 'pen-scribble': 'pen-tool',
-  'size-small': 'a-arrow-down', 'size-big': 'a-arrow-up', 'size-huge': 'type', 'size-normal': 'case-sensitive', 'subjects': 'library-big',
+  'size-small': 'a-arrow-down', 'size-big': 'a-arrow-up', 'size-huge': 'type', 'size-normal': 'case-sensitive', 'subjects': 'library-big', 'subjects-side': 'panel-left', 'subjects-canvas': 'layout-dashboard',
   'review': 'eye-off', 'review-cards': 'graduation-cap', 'cue-cards': 'printer', 'show-cue-cards': 'panel-right', 'edit-cue-cards': 'pencil', 'folder-cue-cards': 'layers',
   'format-cue-cards': 'library', 'topic-index': 'list-tree', 'set-date': 'calendar', 'update': 'refresh-cw', 'whats-new': 'info', 'hotkeys': 'keyboard', 'setup-vault': 'folder-tree',
 };
@@ -2426,7 +2426,7 @@ function addPaperCommands(plugin) {
       if (sel) e.replaceSelection(scriptText(sel, up));
     }) });
   }
-  add({ id: 'setup-vault', name: 'Paper: set up a study vault (folders, home page, a Cornell template, an example)', callback: () => plugin.setupVault() });
+  add({ id: 'setup-vault', name: 'Paper: set up a study vault (folders, your subjects, a home page, a Cornell template)', callback: () => plugin.setupVault() });
   add({ id: 'hotkeys', name: 'Paper: hotkeys (all of them, by family)', callback: () => plugin.showHotkeys() });
   add({ id: 'insert-diagram', name: 'Insert: diagram from the selected list (mind map, flow, cycle, tree, timeline, table)', ...withEditor((e) => plugin.insertDiagram(e)) });
   add({ id: 'ask-ai', name: 'Insert: diagram, answer or practice questions from AI (Gemini, or copied for NotebookLM)', ...withEditor((e, f) => plugin.askAI(e, f)) });
@@ -2440,6 +2440,8 @@ function addPaperCommands(plugin) {
   add({ id: 'format-cue-cards', name: 'Note: cue cards for all definitions and quotes', callback: () => plugin.makeFormatCards() });
   add({ id: 'show-cue-cards', name: 'Note: show cue cards beside the note (as you write)', callback: () => plugin.showCardPanel() });
   add({ id: 'subjects', name: 'Paper: subjects (every subject\'s folder, as notebooks)', callback: () => plugin.showSubjects() });
+  add({ id: 'subjects-side', name: 'Paper: subjects in the sidebar (only the subjects, their topics and notes)', callback: () => plugin.showSubjectsSide() });
+  add({ id: 'subjects-canvas', name: 'Paper: subjects canvas (a page for each subject, quick links to its topics and notes)', callback: () => plugin.subjectsCanvas(null) });
   add({
     id: 'edit-cue-cards', name: 'Note: edit cue cards (change, add, take out, move)',
     checkCallback: (checking) => {
@@ -2613,6 +2615,45 @@ function chemFormula(text) {
 const inMath = (line, ch) => ((line.slice(0, ch).replace(/\\\$/g, '').match(/\$/g) || []).length % 2 === 1);
 
 // ---------- a study vault (Paper: set up a study vault) ----------
+// the example note the study vault made up to 1.39 (Subjects/Example): no longer made; taken away
+// where it is still as it was (removeExample)
+const EXAMPLE_PATH = 'Subjects/Example/Beginning of Life (example).md';
+const EXAMPLE_NOTE = `---
+cssclasses:
+  - lined-paper
+  - cornell
+date: 2026-11-19
+---
+# Beginning of Life
+
+>> [!question] Question
+>> When does life begin, and why does it matter?
+
+>> [!cue]
+>> When does Judaism hold life begins?
+>
+>> [!notes]
+>> - <font color="#1e4fbf">Rabbinic scholars</font> hold that the foetus is special, but life begins <mark class="hl-blue">at birth</mark>.
+>> - Until 40 days the foetus is "water" -> it is not yet a person.
+
+>> [!cue]
+>> When does the Catholic Church hold life begins?
+>
+>> [!notes]
+>> - <font color="#c62828">Catholics</font> hold that life begins ==at conception==.
+>> - Sanctity of life: life is holy because God made it.
+
+>> [!cue]
+>> What happens at fertilisation?
+>
+>> [!notes]
+>> - Sperm meets egg -> a zygote (one cell) -> an embryo -> a foetus (from 8 weeks).
+>> - Cells divide: 1 -> 2 -> 4 -> 8, that is $2^n$ cells after $n$ divisions.
+>> - Respiration in every cell: C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O
+
+>> [!summary] Summary
+>> Judaism: life at birth; Catholics: at conception. Biology: a new organism from fertilisation.
+`;
 const STUDY_VAULT = {
   folders: [
     ['Subjects', 'a folder for each subject, a folder for each topic in it (Subjects/RS/Beginning of Life)'],
@@ -2672,6 +2713,7 @@ All of them: *Paper: hotkeys*, or **?** on the toolbar. (Mac: ⌘ for Ctrl, ⌥ 
 - **Right:** the **cue cards beside the note** (Ctrl+Shift+B), the **outline** of the note, and
   backlinks (where a definition or quote is used).
 - **Paper: subjects** (the bookshelf icon): every subject as a notebook, its topics and notes inside.
+  *Paper: subjects in the sidebar* for only the subjects; **Canvas** for a page of quick links each.
 - Pin this page (right-click its tab → Pin) to come back to it.
 `],
     ['Templates/Cornell note.md', `---
@@ -2694,47 +2736,16 @@ date: {{date:YYYY-MM-DD}}
 >> [!summary] Summary
 >> 
 `],
-    ['Subjects/Example/Beginning of Life (example).md', `---
-cssclasses:
-  - lined-paper
-  - cornell
-date: 2026-11-19
----
-# Beginning of Life
-
->> [!question] Question
->> When does life begin, and why does it matter?
-
->> [!cue]
->> When does Judaism hold life begins?
->
->> [!notes]
->> - <font color="#1e4fbf">Rabbinic scholars</font> hold that the foetus is special, but life begins <mark class="hl-blue">at birth</mark>.
->> - Until 40 days the foetus is "water" -> it is not yet a person.
-
->> [!cue]
->> When does the Catholic Church hold life begins?
->
->> [!notes]
->> - <font color="#c62828">Catholics</font> hold that life begins ==at conception==.
->> - Sanctity of life: life is holy because God made it.
-
->> [!cue]
->> What happens at fertilisation?
->
->> [!notes]
->> - Sperm meets egg -> a zygote (one cell) -> an embryo -> a foetus (from 8 weeks).
->> - Cells divide: 1 -> 2 -> 4 -> 8, that is $2^n$ cells after $n$ divisions.
->> - Respiration in every cell: C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O
-
->> [!summary] Summary
->> Judaism: life at birth; Catholics: at conception. Biology: a new organism from fertilisation.
-`],
   ],
 };
 
 // what's new in this version (shown once, after an update)
 const WHATS_NEW = {
+  '1.40.0': [
+    ['Subjects', 'a new look: a sign for each subject, the notes you wrote last, New note in a topic; only the subjects in the sidebar (Paper: subjects in the sidebar).'],
+    ['Canvas', 'quick links to your subjects: a page for each subject, or for each topic of one (Canvas on the shelf).'],
+    ['Study vault', 'the subjects you pick (English, History, Science …), no example note.'],
+  ],
   '1.39.1': [
     ['Cue cards', 'printed double-sided, the backs are exactly behind the fronts again; a page break in the notes is not on a card.'],
   ],
@@ -3275,15 +3286,41 @@ const CueCardsView = class extends (ItemView || class {}) {
 // The subjects folder (Settings: Folder of your subjects): a folder in it is a subject, a folder in a
 // subject is a topic. (No such folder: the vault's own folders, but the study vault's others.)
 const NOT_SUBJECTS = ['Definitions', 'Quotes', 'Diagrams', 'Cue cards', 'Templates', 'Attachments'];
-// the theme's own colours (AnuPpuccin's, or any other theme's), one for each subject
+// the subjects offered when a study vault is set up (the first ones ticked)
+const SUBJECT_CHOICES = ['English', 'History', 'Science', 'Maths', 'Geography', 'RS', 'Languages', 'Art', 'Music', 'Computing', 'Business', 'PE'];
+// a subject's look: an icon and one of the theme's own colours (AnuPpuccin's, or any theme's).
+// Known subjects by their name; any other, a colour of its own from its name.
+const SUBJECT_LOOKS = [
+  [/english|literature|lit\b|poetry|reading|writing/i, 'book-open', 'purple'],
+  [/history|classics|ancient/i, 'landmark', 'orange'],
+  [/biology|bio\b/i, 'leaf', 'green'],
+  [/chemistry|chem\b/i, 'flask-conical', 'cyan'],
+  [/physics/i, 'atom', 'blue'],
+  [/science/i, 'flask-conical', 'green'],
+  [/math|maths|algebra|geometry|statistic|calculus/i, 'sigma', 'blue'],
+  [/geography|geo\b|earth|environment/i, 'globe', 'cyan'],
+  [/\brs\b|\bre\b|religio|theology|ethics|philosophy|divinity/i, 'scroll-text', 'yellow'],
+  [/french|spanish|german|latin|italian|chinese|mandarin|japanese|language|greek/i, 'languages', 'pink'],
+  [/\bart\b|design|textiles|photograph/i, 'palette', 'pink'],
+  [/music/i, 'music', 'purple'],
+  [/computing|computer|\bit\b|\bict\b|digital|coding|programming/i, 'monitor', 'cyan'],
+  [/business|economics|accounting|enterprise/i, 'briefcase', 'yellow'],
+  [/\bpe\b|sport|physical|health/i, 'dumbbell', 'red'],
+  [/drama|theatre|film|media/i, 'drama', 'red'],
+  [/psychology|sociology/i, 'brain', 'purple'],
+  [/law|politics|government|citizenship/i, 'scale', 'orange'],
+];
 const SUBJECT_COLOURS = ['blue', 'red', 'green', 'purple', 'orange', 'cyan', 'pink', 'yellow'];
-function subjectColour(name) {
+function subjectLook(name) {
+  const known = SUBJECT_LOOKS.find(([re]) => re.test(String(name)));
+  if (known) return { icon: known[1], colour: known[2] };
   let h = 0;
   for (const ch of String(name).toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return SUBJECT_COLOURS[h % SUBJECT_COLOURS.length];
+  return { icon: 'notebook', colour: SUBJECT_COLOURS[h % SUBJECT_COLOURS.length] };
 }
+const subjectColour = (name) => subjectLook(name).colour;
 // files: [{ path, mtime }]; folders: the folders there are (with no notes in them yet too)
-// → { root, own (a folder of subjects there), subjects: [{ name, path, colour, notes, topics: [{ name, path, notes }], loose, last }] }
+// → { root, own (a folder of subjects there), subjects: [{ name, path, colour, icon, notes, topics: [{ name, path, notes }], loose, last }] }
 function subjectTree(files, folders, root) {
   root = String(root || 'Subjects').replace(/^\/+|\/+$/g, '');
   const pre = root + '/';
@@ -3291,14 +3328,14 @@ function subjectTree(files, folders, root) {
   const base = own ? pre : '';
   const subs = new Map();
   const subject = (name) => {
-    if (!subs.has(name)) subs.set(name, { name, path: base + name, colour: subjectColour(name), notes: 0, topics: new Map(), loose: [], last: 0 });
+    if (!subs.has(name)) subs.set(name, { name, path: base + name, ...subjectLook(name), notes: 0, topics: new Map(), loose: [], last: 0 });
     return subs.get(name);
   };
   const skip = (name) => !own && (NOT_SUBJECTS.includes(name) || name.startsWith('.') || name === root);
   for (const p of folders) {
     if (!p.startsWith(base) || p === root) continue;
     const parts = p.slice(base.length).split('/').filter(Boolean);
-    if (!parts.length || skip(parts[0])) continue;
+    if (!parts.length || skip(parts[0]) || parts[0].startsWith('.')) continue;
     const s = subject(parts[0]);
     if (parts[1] && !s.topics.has(parts[1])) s.topics.set(parts[1], { name: parts[1], path: s.path + '/' + parts[1], notes: [] });
   }
@@ -3307,7 +3344,7 @@ function subjectTree(files, folders, root) {
     const parts = f.path.slice(base.length).split('/');
     if (parts.length < 2 || skip(parts[0])) continue;   // (a note at the top: not in a subject)
     const s = subject(parts[0]);
-    const note = { path: f.path, name: parts[parts.length - 1].replace(/\.md$/i, ''), mtime: f.mtime || 0 };
+    const note = { path: f.path, name: parts[parts.length - 1].replace(/\.md$/i, ''), mtime: f.mtime || 0, subject: parts[0] };
     s.notes++;
     s.last = Math.max(s.last, note.mtime);
     if (parts.length === 2) s.loose.push(note);
@@ -3324,7 +3361,8 @@ function subjectTree(files, folders, root) {
     s.loose.sort(recent);
     return { ...s, topics };
   });
-  return { root, own, subjects };
+  const latest = subjects.flatMap((s) => [...s.loose, ...s.topics.flatMap((t) => t.notes)]).filter((n) => n.mtime).sort(recent);
+  return { root, own, subjects, latest };
 }
 // "today", "yesterday", "3 days ago", "12 Mar"
 function whenText(ms, now = Date.now()) {
@@ -3335,6 +3373,48 @@ function whenText(ms, now = Date.now()) {
   if (n === 1) return 'yesterday';
   if (n < 7) return `${n} days ago`;
   return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+// ---------- a canvas of quick links: a page for each subject (or each topic of one subject) ----------
+// Obsidian's canvas colours "1" … "6" follow the theme (red, orange, yellow, green, cyan, purple)
+const CANVAS_COLOUR = { red: '1', pink: '1', orange: '2', yellow: '3', green: '4', cyan: '5', blue: '5', purple: '6' };
+const PAGE_W = 640, PAGE_H = 900, PAGE_GAP = 120, PAGE_ROW = 4;
+const linkTo = (path, name) => `[[${path.replace(/\.md$/i, '')}|${String(name).replace(/[|\]]/g, '')}]]`;
+// the pages: [{ title, colour, sub (a line under the title), boxes: [{ head, lines: ['[[…]]', …] }] }]
+// → canvas nodes, the pages side by side (PAGE_ROW to a row), each a group with its boxes down it
+function canvasPages(pages) {
+  const nodes = [];
+  const lineH = 32;
+  const boxH = (b) => 56 + Math.max(1, b.lines.length) * lineH;
+  let rowTop = 0, rowH = 0;
+  pages.forEach((p, i) => {
+    const col = i % PAGE_ROW;
+    if (col === 0 && i) { rowTop += rowH + PAGE_GAP; rowH = 0; }
+    const x = col * (PAGE_W + PAGE_GAP), id = 'lp-page-' + i;
+    const inner = 60 + 110 + p.boxes.reduce((n, b) => n + boxH(b) + 24, 0);
+    const h = Math.max(PAGE_H, inner);
+    rowH = Math.max(rowH, h);
+    const colour = CANVAS_COLOUR[p.colour];
+    nodes.push({ id, type: 'group', x, y: rowTop, width: PAGE_W, height: h, label: p.title, ...(colour ? { color: colour } : {}) });
+    nodes.push({ id: id + '-title', type: 'text', x: x + 40, y: rowTop + 40, width: PAGE_W - 80, height: 110, text: `# ${p.title}` + (p.sub ? `\n${p.sub}` : ''), ...(colour ? { color: colour } : {}) });
+    let y = rowTop + 40 + 110 + 24;
+    p.boxes.forEach((b, k) => {
+      const hb = boxH(b);
+      nodes.push({ id: `${id}-box-${k}`, type: 'text', x: x + 40, y, width: PAGE_W - 80, height: hb, text: `## ${b.head}\n` + (b.lines.length ? b.lines.map((l) => '- ' + l).join('\n') : '*Nothing here yet*') });
+      y += hb + 24;
+    });
+  });
+  return nodes;
+}
+// the canvas text again: the plugin's own nodes (lp-…) new, everything you added kept as it was
+function mergeCanvas(old, nodes) {
+  let data = {};
+  try { data = old ? JSON.parse(old) : {}; } catch (e) { data = {}; }
+  const mine = (n) => n && typeof n.id === 'string' && n.id.startsWith('lp-');
+  const kept = (data.nodes || []).filter((n) => !mine(n));
+  const all = nodes.concat(kept);
+  const ids = new Set(all.map((n) => n.id));
+  const edges = (data.edges || []).filter((e) => ids.has(e.fromNode) && ids.has(e.toNode));
+  return JSON.stringify({ ...data, nodes: all, edges }, null, '\t');
 }
 const SubjectsView = class extends (ItemView || class {}) {
   constructor(leaf, plugin) { super(leaf); this.plugin = plugin; this.open = null; }
@@ -3348,6 +3428,20 @@ const SubjectsView = class extends (ItemView || class {}) {
   }
   async onClose() { window.clearTimeout(this._t); }
   draw() { this.plugin.drawSubjects(this.contentEl, this); }
+};
+// the sidebar: only the subjects, each opening to its topics and notes
+const SubjectsSideView = class extends (ItemView || class {}) {
+  constructor(leaf, plugin) { super(leaf); this.plugin = plugin; this.openSet = new Set(); }
+  getViewType() { return 'lp-subjects-side'; }
+  getDisplayText() { return 'Subjects'; }
+  getIcon() { return 'library-big'; }
+  async onOpen() {
+    const again = () => { window.clearTimeout(this._t); this._t = window.setTimeout(() => this.draw(), 400); };
+    if (this.registerEvent) for (const e of ['create', 'delete', 'rename']) this.registerEvent(this.plugin.app.vault.on(e, again));
+    this.draw();
+  }
+  async onClose() { window.clearTimeout(this._t); }
+  draw() { this.plugin.drawSubjectsSide(this.contentEl, this); }
 };
 
 module.exports = class LinedPaperPages extends Plugin {
@@ -3455,12 +3549,13 @@ module.exports = class LinedPaperPages extends Plugin {
       this.registerEvent(this.app.vault.on('delete', (f) => touched(f)));
       this.registerEvent(this.app.vault.on('rename', (f) => touched(f)));
       this.registerEvent(this.app.workspace.on('layout-change', () => { window.clearTimeout(this._sweepT); this._sweepT = window.setTimeout(() => this.sweepPrintOnly().catch(() => {}), 1500); }));
-      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => this.loadNotice(), 2500); });
+      if (this.app.workspace.onLayoutReady) this.app.workspace.onLayoutReady(() => { this.sweepPrintOnly().catch(() => {}); this.removeExample().catch(() => {}); this.scheduleFormatDeck(null); window.setTimeout(() => this.loadNotice(), 2500); });
     }
     // cue cards: a ```cuecards block drawn as cards; the cards beside a note (a side panel)
     if (this.registerMarkdownCodeBlockProcessor) this.registerMarkdownCodeBlockProcessor('cuecards', (src, el, ctx) => this.renderCueBlock(src, el, ctx && ctx.sourcePath));
     if (this.registerView && ItemView) this.registerView('lp-cue-cards', (leaf) => new CueCardsView(leaf, this));
     if (this.registerView && ItemView) this.registerView('lp-subjects', (leaf) => new SubjectsView(leaf, this));
+    if (this.registerView && ItemView) this.registerView('lp-subjects-side', (leaf) => new SubjectsSideView(leaf, this));
     const panel = (follow = false) => { window.clearTimeout(this._panelT); this._panelT = window.setTimeout(() => this.refreshCardPanel(follow).catch(() => {}), 500); };
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => { const v = leaf && leaf.view; if (v && v.file && v.getViewType && v.getViewType() === 'markdown') { this.cardSource = v.file; panel(); } }));
     if (this.app.workspace.on) this.registerEvent(this.app.workspace.on('editor-change', (ed, info) => { if (info && info.file && info.file === this.cardSource) panel(true); }));
@@ -4296,11 +4391,105 @@ module.exports = class LinedPaperPages extends Plugin {
     if (!leaf) { leaf = ws.getLeaf('tab'); await leaf.setViewState({ type: 'lp-subjects', active: true }); }
     if (ws.revealLeaf) ws.revealLeaf(leaf);
   }
+  // only the subjects, in the left sidebar (beside the files)
+  async showSubjectsSide() {
+    const ws = this.app.workspace;
+    let leaf = ws.getLeavesOfType('lp-subjects-side')[0];
+    if (!leaf) { leaf = (ws.getLeftLeaf && ws.getLeftLeaf(false)) || ws.getLeaf('tab'); await leaf.setViewState({ type: 'lp-subjects-side', active: true }); }
+    if (ws.revealLeaf) ws.revealLeaf(leaf);
+  }
   subjects() {
     const v = this.app.vault;
     const files = v.getMarkdownFiles().map((f) => ({ path: f.path, mtime: (f.stat && f.stat.mtime) || 0 }));
     const folders = v.getAllLoadedFiles ? v.getAllLoadedFiles().filter((f) => f.children).map((f) => f.path) : [];
     return subjectTree(files, folders, this.settings['subjects-folder'] || 'Subjects');
+  }
+  // The canvas of quick links: one subject (a page for each topic, its notes linked), or every subject
+  // (a page each: its topics and newest notes, and a link to its own canvas). Made again each time it
+  // is opened from here; what you add to it yourself is kept.
+  async subjectsCanvas(subjectPath = null, open = true) {
+    const app = this.app, v = app.vault;
+    const tree = this.subjects();
+    const s = subjectPath && tree.subjects.find((x) => x.path === subjectPath);
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const canvasOf = (x) => `${x.path}/${x.name}.canvas`;
+    let path, pages;
+    if (s) {
+      path = canvasOf(s);
+      pages = s.topics.map((t) => ({ title: t.name, colour: s.colour, sub: `${s.name} · ${plural(t.notes.length, 'note')}`, boxes: [{ head: 'Notes', lines: t.notes.map((n) => linkTo(n.path, n.name)) }] }));
+      if (s.loose.length) pages.push({ title: s.topics.length ? 'Other notes' : s.name, colour: s.colour, sub: plural(s.loose.length, 'note'), boxes: [{ head: 'Notes', lines: s.loose.map((n) => linkTo(n.path, n.name)) }] });
+      if (!pages.length) pages.push({ title: s.name, colour: s.colour, sub: 'No notes yet', boxes: [] });
+    } else {
+      const base = tree.own ? tree.root + '/' : '';
+      path = `${base}Subjects.canvas`;
+      pages = tree.subjects.map((x) => ({
+        title: x.name, colour: x.colour,
+        sub: [x.topics.length ? plural(x.topics.length, 'topic') : '', plural(x.notes, 'note'), `[[${canvasOf(x)}|${x.name} canvas →]]`].filter(Boolean).join(' · '),
+        boxes: x.topics.map((t) => ({ head: t.name, lines: t.notes.slice(0, 6).map((n) => linkTo(n.path, n.name)).concat(t.notes.length > 6 ? [`*and ${t.notes.length - 6} more*`] : []) }))
+          .concat(x.loose.length ? [{ head: 'Other notes', lines: x.loose.slice(0, 6).map((n) => linkTo(n.path, n.name)) }] : []),
+      }));
+      if (!pages.length) pages.push({ title: 'Subjects', colour: '', sub: 'No subjects yet', boxes: [] });
+    }
+    const nodes = canvasPages(pages);
+    let file = v.getAbstractFileByPath(path);
+    const old = file ? await v.read(file) : '';
+    const text = mergeCanvas(old, nodes);
+    if (!file) {
+      const dir = path.replace(/\/[^/]*$/, '');
+      if (dir !== path && !v.getAbstractFileByPath(dir)) await v.createFolder(dir).catch(() => {});
+      file = await v.create(path, text);
+    } else if (text !== old) await v.modify(file, text);
+    // (each subject's own canvas made too, so the links to them work)
+    if (!s) for (const x of tree.subjects) if (!v.getAbstractFileByPath(canvasOf(x))) await this.subjectsCanvas(x.path, false);
+    if (open && file && app.workspace.getLeaf) await app.workspace.getLeaf(false).openFile(file);
+    return file;
+  }
+  // a new Cornell note in a topic (the template, the date, the title), opened to write in
+  async newNoteIn(folder) {
+    const app = this.app, v = app.vault;
+    const today = dayString(new Date());
+    let name = `${today} New note`, k = 2;
+    while (v.getAbstractFileByPath(`${folder}/${name}.md`)) name = `${today} New note ${k++}`;
+    const own = v.getAbstractFileByPath('Templates/Cornell note.md');
+    let text = own ? await v.read(own) : (STUDY_VAULT.files().find(([p]) => p === 'Templates/Cornell note.md') || [, ''])[1];
+    text = text.replace(/\{\{date(?::[^}]*)?\}\}/g, today).replace(/\{\{title\}\}/g, name);
+    if (!v.getAbstractFileByPath(folder)) await v.createFolder(folder).catch(() => {});
+    const f = await v.create(`${folder}/${name}.md`, text);
+    if (f && app.workspace.getLeaf) await app.workspace.getLeaf(false).openFile(f);
+    return f;
+  }
+  // a box asking for a folder's name (a subject, a topic); `choices`: names to pick with one click
+  askFolder(title, parent, then, choices = []) {
+    if (!Modal) return;
+    const app = this.app;
+    const m = new Modal(app);
+    m.modalEl.addClass('lp-sj-modal');
+    m.titleEl.setText(title);
+    const mk = (p, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; p.appendChild(e); return e; };
+    const inp = mk(m.contentEl, 'input', 'lp-sj-input'); inp.type = 'text'; inp.placeholder = 'Name';
+    const make = async (raw) => {
+      const name = String(raw || '').trim().replace(/[\\/:*?"<>|#^[\]]/g, '');
+      if (!name) return;
+      const path = (parent ? parent + '/' : '') + name;
+      if (parent && !app.vault.getAbstractFileByPath(parent)) await app.vault.createFolder(parent).catch(() => {});
+      await app.vault.createFolder(path).catch(() => {});
+      m.close();
+      then(path);
+    };
+    if (choices.length) {
+      const row = mk(m.contentEl, 'div', 'lp-sj-choices');
+      for (const c of choices) {
+        const b = mk(row, 'button', 'lp-sj-choice', c); b.type = 'button';
+        b.style.setProperty('--lp-sj-c', `var(--color-${subjectLook(c).colour})`);
+        b.addEventListener('click', () => make(c));
+      }
+    }
+    const foot = mk(m.contentEl, 'div', 'lp-sj-modal-foot');
+    const ok = mk(foot, 'button', 'mod-cta', 'Make it'); ok.type = 'button';
+    ok.addEventListener('click', () => make(inp.value));
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') make(inp.value); });
+    m.open();
+    window.setTimeout(() => inp.focus(), 30);
   }
   // The shelf (every subject, as a notebook), or one subject (its topics, as index cards of its notes).
   // view: { open: the subject shown (its path), or none for the shelf }
@@ -4310,76 +4499,99 @@ module.exports = class LinedPaperPages extends Plugin {
     const icon = (parent, name, cls) => { const i = mk(parent, 'span', 'lp-sj-icon' + (cls ? ' ' + cls : '')); try { if (OB.setIcon) OB.setIcon(i, name); } catch (e) { /* */ } return i; };
     const tree = this.subjects();
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const colour = (s) => `var(--color-${s.colour}, var(--interactive-accent))`;
     const openNote = (path, e) => {
       const f = app.vault.getAbstractFileByPath(path);
       if (f) app.workspace.getLeaf(e && (e.ctrlKey || e.metaKey) ? 'tab' : false).openFile(f);
     };
-    const go = (path) => { view.open = path; this.drawSubjects(el, view); if (view.leaf && view.leaf.updateHeader) view.leaf.updateHeader(); };
+    const redraw = () => this.drawSubjects(el, view);
+    const go = (path) => { view.open = path; redraw(); if (view.leaf && view.leaf.updateHeader) view.leaf.updateHeader(); };
     const study = (path, name) => this.reviewCards('folder', { path: path + '/' + name, basename: name, parent: { path } });
-    const newFolder = (title, parent, then) => {
-      if (!Modal) return;
-      const m = new Modal(app);
-      m.titleEl.setText(title);
-      const inp = mk(m.contentEl, 'input', 'lp-sj-input'); inp.type = 'text'; inp.placeholder = 'Name';
-      const ok = mk(m.contentEl, 'button', 'mod-cta', 'Make it'); ok.type = 'button';
-      const make = async () => {
-        const name = inp.value.trim().replace(/[\\/:*?"<>|#^[\]]/g, '');
-        if (!name) return;
-        const path = (parent ? parent + '/' : '') + name;
-        if (parent && !app.vault.getAbstractFileByPath(parent)) await app.vault.createFolder(parent).catch(() => {});
-        await app.vault.createFolder(path).catch(() => {});
-        m.close();
-        then(path);
-      };
-      ok.addEventListener('click', make);
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') make(); });
-      m.open();
-      window.setTimeout(() => inp.focus(), 30);
+    const btn = (parent, label, ic, title, f, cls) => {
+      const b = mk(parent, 'button', 'lp-sj-btn' + (cls ? ' ' + cls : '')); b.type = 'button';
+      if (ic) icon(b, ic);
+      if (label) mk(b, 'span', '', label);
+      b.title = title; b.setAttribute('aria-label', title);
+      b.addEventListener('click', (e) => { e.stopPropagation(); f(e); });
+      return b;
     };
     el.replaceChildren();
     el.classList.add('lp-subjects');
     const page = mk(el, 'div', 'lp-sj-page');
     const subject = view.open && tree.subjects.find((s) => s.path === view.open);
     if (view.open && !subject) view.open = null;
+    const newSubject = () => this.askFolder('New subject', tree.own || !tree.subjects.length ? tree.root : '', redraw, SUBJECT_CHOICES.filter((c) => !tree.subjects.some((s) => s.name.toLowerCase() === c.toLowerCase())));
 
     if (!subject) {
-      // the shelf
-      const head = mk(page, 'div', 'lp-sj-head');
+      // ----- the shelf -----
+      const head = mk(page, 'header', 'lp-sj-head');
       const t = mk(head, 'div', 'lp-sj-titles');
+      mk(t, 'div', 'lp-sj-eyebrow', 'Your notebooks');
       mk(t, 'h1', 'lp-sj-title', 'Subjects');
       const notes = tree.subjects.reduce((n, s) => n + s.notes, 0);
-      mk(t, 'div', 'lp-sj-sub', tree.subjects.length ? `${plural(tree.subjects.length, 'subject')} · ${plural(notes, 'note')}` + (tree.own ? '' : ` · your vault's folders (no ${tree.root} folder)`) : '');
-      const add = mk(head, 'button', 'lp-sj-btn', '');
-      icon(add, 'folder-plus'); add.appendChild(document.createTextNode(' New subject'));
-      add.type = 'button';
-      add.addEventListener('click', () => newFolder('New subject', tree.own || !tree.subjects.length ? tree.root : '', () => this.drawSubjects(el, view)));
+      const stats = mk(t, 'div', 'lp-sj-sub', tree.subjects.length ? `${plural(tree.subjects.length, 'subject')} · ${plural(notes, 'note')}` + (tree.own ? '' : ` · your vault's folders (no ${tree.root} folder)`) : '');
+      const acts = mk(head, 'div', 'lp-sj-actions');
+      if (tree.subjects.length) btn(acts, 'Canvas', 'layout-dashboard', 'A canvas: a page for each subject, with quick links to its topics and notes', () => this.subjectsCanvas(null));
+      btn(acts, '', 'panel-left', 'Only the subjects, in the sidebar', () => this.showSubjectsSide(), 'lp-sj-iconbtn');
+      btn(acts, 'New subject', 'plus', 'A folder for a subject', newSubject, 'mod-cta');
       if (!tree.subjects.length) {
         const empty = mk(page, 'div', 'lp-sj-empty');
-        mk(empty, 'p', '', `No subjects yet. Make a folder for each subject in "${tree.root}" (New subject), and a folder for each topic in it.`);
+        icon(empty, 'library-big', 'lp-sj-empty-icon');
+        mk(empty, 'p', 'lp-sj-empty-text', `No subjects yet. A folder for each in "${tree.root}", and one for each topic in those.`);
+        const row = mk(empty, 'div', 'lp-sj-choices');
+        for (const c of SUBJECT_CHOICES.slice(0, 8)) {
+          const b = mk(row, 'button', 'lp-sj-choice', '+ ' + c); b.type = 'button';
+          b.style.setProperty('--lp-sj-c', `var(--color-${subjectLook(c).colour})`);
+          b.addEventListener('click', async () => { await app.vault.createFolder(`${tree.root}/${c}`).catch(() => {}); redraw(); });
+        }
         return;
       }
+      // (carry on: the notes written last)
+      if (tree.latest.length) {
+        mk(page, 'h2', 'lp-sj-section', 'Carry on writing');
+        const strip = mk(page, 'div', 'lp-sj-recent');
+        for (const n of tree.latest.slice(0, 4)) {
+          const s = tree.subjects.find((x) => x.name === n.subject);
+          const c = mk(strip, 'button', 'lp-sj-recent-note'); c.type = 'button'; c.dataset.path = n.path;
+          c.style.setProperty('--lp-sj-c', colour(s));
+          const top = mk(c, 'span', 'lp-sj-recent-top');
+          icon(top, s.icon);
+          const topic = n.path.slice(s.path.length + 1).split('/');
+          mk(top, 'span', '', topic.length > 1 ? `${s.name} · ${topic[0]}` : s.name);
+          mk(c, 'span', 'lp-sj-recent-name', n.name);
+          mk(c, 'span', 'lp-sj-recent-when', whenText(n.mtime));
+          c.addEventListener('click', (e) => openNote(n.path, e));
+        }
+      }
+      mk(page, 'h2', 'lp-sj-section', 'Shelf');
       const shelf = mk(page, 'div', 'lp-sj-shelf');
       for (const s of tree.subjects) {
-        const book = mk(shelf, 'button', 'lp-sj-book');
-        book.type = 'button';
+        const book = mk(shelf, 'div', 'lp-sj-book');
+        book.tabIndex = 0;
+        book.setAttribute('role', 'button');
         book.dataset.path = s.path;
-        book.style.setProperty('--lp-sj-c', `var(--color-${s.colour}, var(--interactive-accent))`);
+        book.style.setProperty('--lp-sj-c', colour(s));
         book.title = `Open ${s.name}`;
         mk(book, 'span', 'lp-sj-spine');
+        mk(book, 'span', 'lp-sj-band');
+        icon(book, s.icon, 'lp-sj-mark');
         const label = mk(book, 'span', 'lp-sj-label');
         const nm = mk(label, 'span', 'lp-sj-name', s.name);
         if (s.name.length > 8) nm.classList.add(s.name.length > 14 ? 'lp-sj-longer' : 'lp-sj-long');
         mk(label, 'span', 'lp-sj-meta', [s.topics.length ? plural(s.topics.length, 'topic') : '', plural(s.notes, 'note')].filter(Boolean).join(' · '));
         // (its topics, written on the cover)
-        if (s.topics.length) {
-          const tl = mk(book, 'span', 'lp-sj-topiclist');
-          for (const tp of s.topics.slice(0, 3)) mk(tl, 'span', '', tp.name);
-          if (s.topics.length > 3) mk(tl, 'span', 'lp-sj-andmore', `and ${s.topics.length - 3} more`);
-        }
+        const tl = mk(book, 'span', 'lp-sj-topiclist');
+        for (const tp of s.topics.slice(0, 3)) mk(tl, 'span', '', tp.name);
+        if (s.topics.length > 3) mk(tl, 'span', 'lp-sj-andmore', `and ${s.topics.length - 3} more`);
         const foot = mk(book, 'span', 'lp-sj-foot');
-        mk(foot, 'span', 'lp-sj-when', s.last ? 'Written in ' + whenText(s.last) : 'Nothing written yet');
+        const when = whenText(s.last);
+        mk(foot, 'span', 'lp-sj-when', s.last ? '✎ ' + when.charAt(0).toUpperCase() + when.slice(1) : 'Nothing written yet');
         const due = mk(foot, 'span', 'lp-sj-due');
-        book.addEventListener('click', () => go(s.path));
+        const quick = mk(book, 'span', 'lp-sj-quick');
+        btn(quick, '', 'layout-dashboard', `${s.name}: its canvas (a page for each topic)`, () => this.subjectsCanvas(s.path), 'lp-sj-quickbtn lp-sj-canvasbtn');
+        const openIt = () => go(s.path);
+        book.addEventListener('click', openIt);
+        book.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openIt(); } });
         // (the cue cards due today in it: counted after, a subject at a time)
         if (s.notes) window.setTimeout(async () => {
           try {
@@ -4389,26 +4601,35 @@ module.exports = class LinedPaperPages extends Plugin {
           } catch (e) { /* */ }
         }, 50);
       }
+      // (a new notebook, at the end of the shelf)
+      const add = mk(shelf, 'button', 'lp-sj-book lp-sj-addbook'); add.type = 'button';
+      icon(add, 'plus', 'lp-sj-addicon');
+      mk(add, 'span', '', 'New subject');
+      add.addEventListener('click', newSubject);
+      void stats;
       return;
     }
 
-    // one subject: its topics
-    page.style.setProperty('--lp-sj-c', `var(--color-${subject.colour}, var(--interactive-accent))`);
-    const crumbs = mk(page, 'div', 'lp-sj-crumbs');
-    const back = mk(crumbs, 'button', 'lp-sj-back', ''); back.type = 'button';
-    icon(back, 'chevron-left'); back.appendChild(document.createTextNode(' Subjects'));
+    // ----- one subject: its topics -----
+    page.style.setProperty('--lp-sj-c', colour(subject));
+    page.classList.add('lp-sj-in-subject');
+    const crumbs = mk(page, 'nav', 'lp-sj-crumbs');
+    const back = mk(crumbs, 'button', 'lp-sj-back'); back.type = 'button';
+    icon(back, 'chevron-left'); mk(back, 'span', '', 'Subjects');
     back.addEventListener('click', () => go(null));
-    const head = mk(page, 'div', 'lp-sj-head lp-sj-subject-head');
+    const head = mk(page, 'header', 'lp-sj-head lp-sj-subject-head');
+    const badge = mk(head, 'div', 'lp-sj-badge');
+    icon(badge, subject.icon);
     const t = mk(head, 'div', 'lp-sj-titles');
     mk(t, 'h1', 'lp-sj-title', subject.name);
-    mk(t, 'div', 'lp-sj-sub', [subject.topics.length ? plural(subject.topics.length, 'topic') : '', plural(subject.notes, 'note'), subject.last ? 'written in ' + whenText(subject.last) : ''].filter(Boolean).join(' · '));
+    mk(t, 'div', 'lp-sj-sub', [subject.topics.length ? plural(subject.topics.length, 'topic') : '', plural(subject.notes, 'note'), subject.last ? 'last written ' + whenText(subject.last) : ''].filter(Boolean).join(' · '));
     const acts = mk(head, 'div', 'lp-sj-actions');
-    const btn = (label, ic, title, f) => { const b = mk(acts, 'button', 'lp-sj-btn'); b.type = 'button'; icon(b, ic); b.appendChild(document.createTextNode(' ' + label)); b.title = title; b.addEventListener('click', f); return b; };
-    btn('Study', 'graduation-cap', 'The cue cards due today, from every note in this subject', () => study(subject.path, subject.name));
-    btn('New topic', 'folder-plus', 'A folder for a topic in this subject', () => newFolder('New topic in ' + subject.name, subject.path, () => this.drawSubjects(el, view)));
+    btn(acts, 'Study', 'graduation-cap', 'The cue cards due today, from every note in this subject', () => study(subject.path, subject.name));
+    btn(acts, 'Canvas', 'layout-dashboard', 'A canvas: a page for each topic, its notes linked', () => this.subjectsCanvas(subject.path));
+    btn(acts, 'New topic', 'folder-plus', 'A folder for a topic in this subject', () => this.askFolder('New topic in ' + subject.name, subject.path, redraw), 'mod-cta');
     const cards = mk(page, 'div', 'lp-sj-topics');
     const topicCard = (name, notes, path) => {
-      const c = mk(cards, 'div', 'lp-sj-topic');
+      const c = mk(cards, 'section', 'lp-sj-topic');
       if (path) c.dataset.path = path;
       const h = mk(c, 'div', 'lp-sj-topic-head');
       mk(h, 'span', 'lp-sj-topic-name', name);
@@ -4420,19 +4641,78 @@ module.exports = class LinedPaperPages extends Plugin {
         mk(a, 'span', 'lp-sj-note-name', n.name);
         if (n.mtime) mk(a, 'span', 'lp-sj-note-when', whenText(n.mtime));
         a.addEventListener('click', (e) => openNote(n.path, e));
+        return a;
       };
       notes.slice(0, MAX).forEach(row);
       if (notes.length > MAX) {
         const more = mk(list, 'button', 'lp-sj-more', `+ ${notes.length - MAX} more`); more.type = 'button';
-        more.addEventListener('click', () => { more.remove(); notes.slice(MAX).forEach(row); });
+        more.addEventListener('click', () => { const at = more; notes.slice(MAX).forEach((n) => list.insertBefore(row(n), at)); at.remove(); });
       }
       if (!notes.length) mk(list, 'div', 'lp-sj-none', 'No notes yet');
-      // (a few empty ruled lines under the notes, like the rest of an index card)
-      for (let i = notes.length ? Math.min(notes.length, MAX) : 1; i < 3; i++) mk(list, 'div', 'lp-sj-blank');
+      const nn = mk(list, 'button', 'lp-sj-newnote'); nn.type = 'button';
+      icon(nn, 'file-plus'); mk(nn, 'span', '', 'New note');
+      nn.title = 'A new Cornell note here';
+      nn.addEventListener('click', () => this.newNoteIn(path || subject.path));
     };
     for (const tp of subject.topics) topicCard(tp.name, tp.notes, tp.path);
-    if (subject.loose.length) topicCard(subject.topics.length ? 'Other notes' : 'Notes', subject.loose, null);
-    if (!subject.topics.length && !subject.loose.length) mk(page, 'div', 'lp-sj-empty', 'No topics yet: New topic makes a folder for one.');
+    if (subject.loose.length || !subject.topics.length) topicCard(subject.topics.length ? 'Other notes' : 'Notes', subject.loose, null);
+  }
+  // the sidebar: only the subjects, each opening to its topics, and its notes
+  drawSubjectsSide(el, view = {}) {
+    const app = this.app;
+    const mk = (parent, tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent.appendChild(e); return e; };
+    const icon = (parent, name, cls) => { const i = mk(parent, 'span', 'lp-sj-icon' + (cls ? ' ' + cls : '')); try { if (OB.setIcon) OB.setIcon(i, name); } catch (e) { /* */ } return i; };
+    const openSet = view.openSet || (view.openSet = new Set());
+    const tree = this.subjects();
+    el.replaceChildren();
+    el.classList.add('lp-subjects-side');
+    const head = mk(el, 'div', 'lp-ss-head');
+    mk(head, 'span', 'lp-ss-title', 'Subjects');
+    const tool = (ic, title, f) => { const b = mk(head, 'button', 'lp-ss-tool clickable-icon'); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); icon(b, ic); b.addEventListener('click', f); return b; };
+    tool('library-big', 'The shelf (every subject, as notebooks)', () => this.showSubjects());
+    tool('layout-dashboard', 'Canvas: a page for each subject', () => this.subjectsCanvas(null));
+    tool('folder-plus', 'New subject', () => this.askFolder('New subject', tree.own || !tree.subjects.length ? tree.root : '', () => this.drawSubjectsSide(el, view), SUBJECT_CHOICES.filter((c) => !tree.subjects.some((s) => s.name.toLowerCase() === c.toLowerCase()))));
+    const list = mk(el, 'div', 'lp-ss-list');
+    if (!tree.subjects.length) { mk(list, 'div', 'lp-ss-empty', 'No subjects yet: + to make one.'); return; }
+    const openNote = (path, e) => { const f = app.vault.getAbstractFileByPath(path); if (f) app.workspace.getLeaf(e && (e.ctrlKey || e.metaKey) ? 'tab' : false).openFile(f); };
+    const noteRow = (parent, n, depth) => {
+      const r = mk(parent, 'div', 'lp-ss-row lp-ss-note'); r.dataset.path = n.path; r.style.setProperty('--depth', depth);
+      icon(r, 'file-text', 'lp-ss-ic');
+      mk(r, 'span', 'lp-ss-name', n.name);
+      r.addEventListener('click', (e) => openNote(n.path, e));
+    };
+    const fold = (parent, key, depth, build, label) => {
+      const r = mk(parent, 'div', 'lp-ss-row lp-ss-fold'); r.style.setProperty('--depth', depth); r.dataset.path = key;
+      const open = openSet.has(key);
+      r.classList.toggle('is-open', open);
+      icon(r, 'chevron-right', 'lp-ss-chev');
+      label(r);
+      const kids = mk(parent, 'div', 'lp-ss-kids');
+      if (open) build(kids);
+      r.addEventListener('click', () => { if (openSet.has(key)) openSet.delete(key); else openSet.add(key); this.drawSubjectsSide(el, view); });
+    };
+    for (const s of tree.subjects) {
+      const block = mk(list, 'div', 'lp-ss-subject');
+      block.style.setProperty('--lp-sj-c', `var(--color-${s.colour}, var(--interactive-accent))`);
+      fold(block, s.path, 0, (kids) => {
+        for (const t of s.topics) fold(kids, t.path, 1, (k2) => { for (const n of t.notes) noteRow(k2, n, 2); if (!t.notes.length) mk(k2, 'div', 'lp-ss-none', 'No notes yet'); }, (r) => { icon(r, 'folder', 'lp-ss-ic'); mk(r, 'span', 'lp-ss-name', t.name); mk(r, 'span', 'lp-ss-count', String(t.notes.length)); });
+        for (const n of s.loose) noteRow(kids, n, 1);
+      }, (r) => { const b = mk(r, 'span', 'lp-ss-badge'); icon(b, s.icon); mk(r, 'span', 'lp-ss-name lp-ss-subject-name', s.name); mk(r, 'span', 'lp-ss-count', String(s.notes)); });
+    }
+  }
+  // The example note an earlier version's study vault made (Subjects/Example): taken away, to the
+  // trash, if it is still as it was made (a note you changed is yours, and stays).
+  async removeExample() {
+    const v = this.app.vault;
+    const f = v.getAbstractFileByPath(EXAMPLE_PATH);
+    if (!f || f.children) return false;
+    const text = await v.read(f);
+    if (text.replace(/\s+$/, '') !== EXAMPLE_NOTE.replace(/\s+$/, '')) return false;
+    const trash = (x) => (v.trash ? v.trash(x, true) : v.delete(x));
+    await trash(f);
+    const dir = v.getAbstractFileByPath(EXAMPLE_PATH.replace(/\/[^/]*$/, ''));
+    if (dir && dir.children && !dir.children.length) await trash(dir);
+    return true;
   }
 
   async showCardPanel() {
@@ -4502,19 +4782,31 @@ module.exports = class LinedPaperPages extends Plugin {
     mk(root, 'p', '', 'Made only where they are not there yet (nothing of yours is changed or moved):');
     const ul = mk(root, 'ul', 'lp-setup-list');
     for (const [what, why] of STUDY_VAULT.folders) { const li = mk(ul, 'li'); mk(li, 'b', '', what + '/'); li.appendChild(document.createTextNode(' ' + why)); }
-    for (const [what, why] of [['Home', 'your start page: the way to take a lesson\'s notes, revise, and the hotkeys'], ['Templates/Cornell note', 'a new Cornell note (Templates → Insert template)'], ['Subjects/Example/Beginning of Life (example)', 'a note using everything, to look at']]) { const li = mk(ul, 'li'); mk(li, 'b', '', what); li.appendChild(document.createTextNode(' ' + why)); }
+    for (const [what, why] of [['Home', 'your start page: the way to take a lesson\'s notes, revise, and the hotkeys'], ['Templates/Cornell note', 'a new Cornell note (Templates → Insert template)']]) { const li = mk(ul, 'li'); mk(li, 'b', '', what); li.appendChild(document.createTextNode(' ' + why)); }
+    // (the subjects to start with: a folder each in Subjects)
+    mk(root, 'p', 'lp-setup-subjects-head', 'Your subjects (a folder each in Subjects; more any time with New subject):');
+    const picks = mk(root, 'div', 'lp-sj-choices lp-setup-subjects');
+    const chosen = new Set(SUBJECT_CHOICES.slice(0, 4));
+    for (const c of SUBJECT_CHOICES) {
+      const b = mk(picks, 'button', 'lp-sj-choice', c); b.type = 'button';
+      b.style.setProperty('--lp-sj-c', `var(--color-${subjectLook(c).colour})`);
+      const show = () => { b.classList.toggle('is-on', chosen.has(c)); b.setAttribute('aria-pressed', String(chosen.has(c))); };
+      show();
+      b.addEventListener('click', () => { if (chosen.has(c)) chosen.delete(c); else chosen.add(c); show(); });
+    }
     const optL = mk(root, 'label', 'lp-setup-opt');
     const opt = mk(optL, 'input'); opt.type = 'checkbox'; opt.checked = true;
     optL.appendChild(document.createTextNode(' Also set Obsidian\'s Templates folder (Templates) and where pasted pictures go (Attachments)'));
     const foot = mk(root, 'div', 'lp-setup-foot');
     const go = mk(foot, 'button', 'mod-cta', 'Set up');
-    go.addEventListener('click', async () => { go.disabled = true; const made = await this.makeStudyVault(opt.checked); m.close(); new Notice(`Lined Paper Pages: study vault ready (${made} made). Home is open.`); });
+    go.addEventListener('click', async () => { go.disabled = true; const made = await this.makeStudyVault(opt.checked, SUBJECT_CHOICES.filter((c) => chosen.has(c))); m.close(); new Notice(`Lined Paper Pages: study vault ready (${made} made). Home is open.`); });
     m.open();
   }
-  async makeStudyVault(settings = true) {
+  async makeStudyVault(settings = true, subjects = SUBJECT_CHOICES.slice(0, 4)) {
     const app = this.app, v = app.vault;
     let made = 0;
     for (const [f] of STUDY_VAULT.folders) if (!v.getAbstractFileByPath(f)) { await v.createFolder(f).catch(() => {}); made++; }
+    for (const name of subjects) { const f = 'Subjects/' + name; if (!v.getAbstractFileByPath(f)) { await v.createFolder(f).catch(() => {}); made++; } }
     for (const [path, text] of STUDY_VAULT.files()) {
       if (v.getAbstractFileByPath(path)) continue;
       const dir = path.replace(/\/[^/]*$/, '');
@@ -6265,7 +6557,7 @@ module.exports.cueCardsNote = cueCardsNote;
 module.exports.formatCard = formatCard;
 module.exports.linkedPages = linkedPages;
 module.exports.hardBreaks = hardBreaks;
-Object.assign(module.exports, { subjectTree, whenText, subjectColour, TEXT_SIZES, tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
+Object.assign(module.exports, { subjectTree, whenText, subjectColour, subjectLook, canvasPages, mergeCanvas, EXAMPLE_NOTE, SUBJECT_CHOICES, TEXT_SIZES, tintMarks, COMMAND_ICONS, commandIcon, STUDY_VAULT, hotkeyText, HOTKEY_FAMILIES, SYMBOLS, MATH_TEMPLATES, scriptText, chemFormula, inMath, diagramPageText, mermaidBlocks, cardId, nextReview, cardDue, gapQuote, draftQuestion, outline, diagramFrom, aiPrompt, aiAnswer, cueGroups, topicIndex, plainText, BOX_DAYS });
 module.exports.fetchPluginVersion = fetchPluginVersion;
 module.exports.fitOffscreen = fitOffscreen;
 module.exports.cardNewLine = cardNewLine;

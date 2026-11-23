@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-11-23
+
+### Added
+- **Subjects in the sidebar** (Paper: subjects in the sidebar, or the panel button on the shelf):
+  only the subjects, beside the files; each opens to its topics, a topic to its notes.
+- **Canvases of quick links** (Canvas on the shelf, on a subject, or in a notebook's corner; Paper:
+  subjects canvas). The subjects' canvas (`Subjects/Subjects.canvas`) has a page for each subject:
+  its topics, their newest notes, and a link to the subject's own canvas, which has a page for each
+  topic with all its notes linked. In the theme's canvas colours; made again from the folders each
+  time it is opened from here, with the cards and arrows you added kept.
+- **New note** at the bottom of each topic: a Cornell note from your template, dated, opened.
+- **The study vault asks for your subjects** (English, History, Science and Maths ticked; Geography,
+  RS, Languages, Art, Music, Computing, Business, PE to tick) and makes a folder for each.
+
+### Changed
+- **Subjects looks better**: a sign for each kind of subject (a book for English, a column for
+  History, a flask for Science, Σ for Maths, a globe for Geography …) and its own colour from the
+  theme; an elastic band on each notebook; **Carry on writing**, the four notes written last; a New
+  subject notebook at the end of the shelf, and subjects to pick when there are none; a dotted
+  background.
+- **No example note**: the study vault no longer makes `Subjects/Example`, and the example an
+  earlier version made is moved to the trash (only if it is as it was made: one you changed stays).
+
 ## [1.39.1] - 2026-11-22
 
 ### Fixed

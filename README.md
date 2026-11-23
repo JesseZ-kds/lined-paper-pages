@@ -24,7 +24,8 @@ summary). Reading view shows them as real A4 sheets that look exactly like the P
 - **Text sizes**: each kind of writing its own size (headings, lists, quotes, the cue column …),
   and a few words small, big or huge, all still on their lines.
 - **Subjects**: every subject's folder as a notebook on a shelf, in your theme's colours; its
-  topics as index cards of their notes.
+  topics as index cards of their notes; only the subjects in the sidebar; canvases of quick links,
+  a page for each subject or topic.
 - **A settings page** for everything (sizes, fonts, colours, Cornell layout), also available in
   the Style Settings plugin.
 - **Nothing is ever written into your notes.** Turn it off and your notes are plain Markdown.
@@ -98,7 +99,7 @@ see [Commands and hotkeys](docs/writing-notes.md#commands-and-hotkeys). The [exa
 
 **[A study vault: how to set up Obsidian for note taking](docs/workspace.md)**: the folders, the window,
 Obsidian's own settings, and a lesson from start to finish. *Paper: set up a study vault* makes the
-folders, a Home page, a Cornell template and an example note for you.
+folders (one for each subject you pick), a Home page and a Cornell template for you.
 
 ## Keyboard shortcuts
 

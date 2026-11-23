@@ -2,8 +2,9 @@
 
 One way to set up Obsidian so that taking notes in class, turning them into questions and revising
 them takes as few steps as possible. **Paper: set up a study vault** (or *Settings → Lined Paper
-Pages → Set up a study vault*) makes the folders, a Home page, a Cornell template and an example
-note for you; it only makes what is not there yet.
+Pages → Set up a study vault*) makes the folders, a folder for each
+subject you pick (English, History, Science, Maths …), a Home page and a Cornell template; it only
+makes what is not there yet.
 
 ## 1. Folders
 
@@ -31,11 +32,22 @@ Attachments/              pictures you paste
 - **Definitions and quotes have pages of their own**, so the same definition is used in every note
   that needs it, its revised versions are kept, and each one becomes a cue card by itself.
 
-**Paper: subjects** (the bookshelf icon on the left) shows every subject as a notebook, in your
-theme's colours: its topics on the cover, when you last wrote in it and the cue cards due. Click one
-for its topics, each an index card of its notes (the newest first); **Study** reviews the whole
-subject's cards, **New topic** makes a folder. (The folder of subjects: *Settings → Definitions,
-quotes and diagrams → Folder of your subjects*.)
+### Your subjects
+
+- **Paper: subjects** (the bookshelf icon on the left): every subject as a notebook, in your theme's
+  colours, with a sign for the subject (a book for English, a column for History, a flask for
+  Science, Σ for Maths …): its topics on the cover, when you last wrote in it and the cue cards due.
+  Above them, **Carry on writing**: the notes you wrote last. Click a notebook for its topics, each
+  an index card of its notes (the newest first, **New note** at the bottom); **Study** reviews the
+  whole subject's cards, **New topic** makes a folder.
+- **Paper: subjects in the sidebar**: only the subjects, beside the files: each opens to its topics,
+  a topic to its notes.
+- **Canvas** (on the shelf, a subject, or a notebook's corner): a canvas of quick links. The
+  subjects' canvas has a page for each subject (its topics, its newest notes and a link to its own
+  canvas); a subject's canvas has a page for each topic. Click a link to open the note. It is made
+  again from the folders each time you open it from here; cards and arrows you add are kept.
+
+(The folder of subjects: *Settings → Definitions, quotes and diagrams → Folder of your subjects*.)
 
 ## 2. The window
 

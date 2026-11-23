@@ -559,7 +559,7 @@ test('the hotkeys list: every family in turn, each command with its keys; Gemini
   }
 });
 
-test('a study vault: its folders, Home, the Cornell template and the example made; nothing there already is changed', async () => {
+test('a study vault: its folders, Home, the Cornell template and the first subjects made; nothing there already is changed', async () => {
   const { page, context } = await open();
   try {
     const r = await page.evaluate(async () => {
@@ -571,7 +571,9 @@ test('a study vault: its folders, Home, the Cornell template and the example mad
       return { made, home: vault.files['Home.md'].text, files: Object.keys(vault.files).sort(), open };
     });
     assert.equal(r.home, 'my own home page', 'not changed');
-    assert.ok(r.files.includes('Templates/Cornell note.md') && r.files.includes('Subjects/Example/Beginning of Life (example).md'));
+    assert.ok(r.files.includes('Templates/Cornell note.md'));
+    assert.ok(!r.files.some((f) => f.startsWith('Subjects/Example')), 'no example note');
+    for (const f of ['English', 'History', 'Science', 'Maths']) assert.ok(r.files.includes(`Subjects/${f}/.folder`), 'a subject: ' + f);
     for (const f of ['Subjects', 'Definitions', 'Quotes', 'Diagrams', 'Cue cards', 'Templates', 'Attachments']) assert.ok(r.files.includes(f + '/.folder'), f);
     assert.deepEqual(r.open, ['Home.md']);
   } finally {
